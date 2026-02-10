@@ -1,0 +1,9 @@
+# EU AI Act Compliance Checker - MCP Server
+# No external dependencies required - uses Python stdlib only
+#
+# Optional dependencies for advanced features:
+# flask>=2.0.0        # REST API wrapper
+# fastapi>=0.95.0     # Alternative REST API
+# uvicorn>=0.20.0     # ASGI server for FastAPI
+# reportlab>=3.6.0    # PDF report generation
+# pyyaml>=6.0         # YAML config support

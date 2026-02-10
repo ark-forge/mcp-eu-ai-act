@@ -1,0 +1,140 @@
+{
+  "name": "eu-ai-act-compliance-checker",
+  "version": "1.0.0",
+  "description": "MCP Server pour vérifier la conformité EU AI Act des projets utilisant des modèles AI",
+  "author": "ArkForge",
+  "license": "MIT",
+  "mcp_version": "1.0",
+  "server": {
+    "type": "python",
+    "entry_point": "server.py",
+    "class": "MCPServer"
+  },
+  "tools": [
+    {
+      "name": "scan_project",
+      "description": "Scanne un projet pour détecter l'utilisation de modèles AI (OpenAI, Anthropic, HuggingFace, TensorFlow, PyTorch, LangChain)",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "project_path": {
+            "type": "string",
+            "description": "Chemin absolu vers le projet à scanner"
+          }
+        },
+        "required": ["project_path"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "files_scanned": {
+            "type": "integer",
+            "description": "Nombre de fichiers scannés"
+          },
+          "ai_files": {
+            "type": "array",
+            "description": "Fichiers contenant du code AI",
+            "items": {
+              "type": "object",
+              "properties": {
+                "file": {"type": "string"},
+                "frameworks": {"type": "array", "items": {"type": "string"}}
+              }
+            }
+          },
+          "detected_models": {
+            "type": "object",
+            "description": "Frameworks détectés et fichiers associés"
+          }
+        }
+      }
+    },
+    {
+      "name": "check_compliance",
+      "description": "Vérifie la conformité EU AI Act pour une catégorie de risque donnée",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "project_path": {
+            "type": "string",
+            "description": "Chemin absolu vers le projet"
+          },
+          "risk_category": {
+            "type": "string",
+            "enum": ["unacceptable", "high", "limited", "minimal"],
+            "default": "limited",
+            "description": "Catégorie de risque EU AI Act"
+          }
+        },
+        "required": ["project_path"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "risk_category": {"type": "string"},
+          "description": {"type": "string"},
+          "requirements": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "compliance_status": {
+            "type": "object",
+            "description": "Status de chaque vérification de conformité"
+          },
+          "compliance_score": {"type": "string"},
+          "compliance_percentage": {"type": "number"}
+        }
+      }
+    },
+    {
+      "name": "generate_report",
+      "description": "Génère un rapport de conformité complet au format JSON",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "project_path": {
+            "type": "string",
+            "description": "Chemin absolu vers le projet"
+          },
+          "risk_category": {
+            "type": "string",
+            "enum": ["unacceptable", "high", "limited", "minimal"],
+            "default": "limited",
+            "description": "Catégorie de risque EU AI Act"
+          }
+        },
+        "required": ["project_path"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "report_date": {"type": "string"},
+          "project_path": {"type": "string"},
+          "scan_summary": {"type": "object"},
+          "compliance_summary": {"type": "object"},
+          "detailed_findings": {"type": "object"},
+          "recommendations": {
+            "type": "array",
+            "items": {"type": "string"}
+          }
+        }
+      }
+    }
+  ],
+  "categories": [
+    "compliance",
+    "ai",
+    "legal",
+    "eu-ai-act",
+    "security"
+  ],
+  "tags": [
+    "compliance",
+    "eu-ai-act",
+    "artificial-intelligence",
+    "legal",
+    "risk-assessment",
+    "documentation",
+    "transparency"
+  ]
+}
