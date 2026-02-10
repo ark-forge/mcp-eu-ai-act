@@ -1,0 +1,46 @@
+{
+  "name": "eu-ai-act-compliance-checker",
+  "version": "1.0.0",
+  "description": "Automated EU AI Act compliance verification for AI projects - MCP Server to check compliance with European Union AI Act regulations",
+  "keywords": [
+    "EU AI Act",
+    "compliance",
+    "MCP",
+    "Model Context Protocol",
+    "AI regulation",
+    "risk assessment",
+    "artificial intelligence",
+    "legal compliance",
+    "transparency",
+    "automated audit",
+    "GDPR",
+    "AI governance",
+    "European Union",
+    "regulation 2024/1689",
+    "high-risk AI",
+    "compliance checker"
+  ],
+  "author": "ArkForge",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/arkforge/eu-ai-act-compliance-checker"
+  },
+  "homepage": "https://github.com/arkforge/eu-ai-act-compliance-checker#readme",
+  "bugs": {
+    "url": "https://github.com/arkforge/eu-ai-act-compliance-checker/issues"
+  },
+  "main": "server.py",
+  "scripts": {
+    "test": "python3 test_server.py"
+  },
+  "engines": {
+    "python": ">=3.8"
+  },
+  "categories": [
+    "compliance",
+    "ai",
+    "legal",
+    "security"
+  ]
+}
