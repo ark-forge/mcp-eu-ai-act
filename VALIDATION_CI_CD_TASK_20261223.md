@@ -51,7 +51,7 @@
 
 **Badges ajoutés**:
 ```markdown
-![CI/CD](https://github.com/arkforge/mcp-eu-ai-act/actions/workflows/qa-mcp-eu-ai-act.yml/badge.svg)
+![CI/CD](https://github.com/ark-forge/mcp-eu-ai-act/actions/workflows/qa-mcp-eu-ai-act.yml/badge.svg)
 ![Coverage](https://img.shields.io/badge/coverage-85%25-brightgreen)
 ```
 
@@ -119,7 +119,7 @@ on:
 
 ### Badge status dans README ✅
 ```markdown
-![CI/CD](https://github.com/arkforge/mcp-eu-ai-act/actions/workflows/qa-mcp-eu-ai-act.yml/badge.svg)
+![CI/CD](https://github.com/ark-forge/mcp-eu-ai-act/actions/workflows/qa-mcp-eu-ai-act.yml/badge.svg)
 ```
 
 ---

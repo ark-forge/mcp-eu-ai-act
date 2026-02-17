@@ -9,7 +9,7 @@ import re
 import json
 from pathlib import Path
 from typing import Dict, List, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Patterns pour détecter l'utilisation de modèles AI
 AI_MODEL_PATTERNS = {
@@ -241,7 +241,7 @@ class EUAIActChecker:
     def generate_report(self, scan_results: Dict, compliance_results: Dict) -> Dict[str, Any]:
         """Génère un rapport de conformité complet"""
         report = {
-            "report_date": datetime.utcnow().isoformat(),
+            "report_date": datetime.now(timezone.utc).isoformat(),
             "project_path": str(self.project_path),
             "scan_summary": {
                 "files_scanned": scan_results.get("files_scanned", 0),

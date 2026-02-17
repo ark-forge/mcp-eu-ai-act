@@ -160,7 +160,7 @@ jobs:
 
     - name: Install MCP Server
       run: |
-        git clone https://github.com/arkforge/eu-ai-act-mcp.git
+        git clone https://github.com/ark-forge/mcp-eu-ai-act.git
         cd eu-ai-act-mcp
         pip install -r requirements.txt
 
@@ -202,7 +202,7 @@ eu-ai-act-check:
   stage: compliance
   image: python:3.9
   script:
-    - git clone https://github.com/arkforge/eu-ai-act-mcp.git
+    - git clone https://github.com/ark-forge/mcp-eu-ai-act.git
     - cd eu-ai-act-mcp && pip install -r requirements.txt
     - python3 -c "
       from server import MCPServer;

@@ -19,7 +19,7 @@
 **Result**: Package not found at https://smithery.ai/server/@arkforge/mcp-eu-ai-act
 
 **Next steps required**:
-1. Create GitHub repository: https://github.com/arkforge/eu-ai-act-compliance-checker
+1. Create GitHub repository: https://github.com/ark-forge/mcp-eu-ai-act
 2. Publish package to Smithery registry
 3. Update package.json with correct repository URLs
 
@@ -42,7 +42,7 @@ pip install mcp
 
 # 3. Download server files
 # Option A: From source repository (when available)
-git clone https://github.com/arkforge/eu-ai-act-compliance-checker.git
+git clone https://github.com/ark-forge/mcp-eu-ai-act.git
 cd eu-ai-act-compliance-checker
 
 # Option B: Copy files from current location
@@ -146,7 +146,7 @@ Replace `/path/to/` with actual installation directory.
 
 1. **GitHub Repository Missing**
    - package.json references non-existent repo
-   - URL: https://github.com/arkforge/eu-ai-act-compliance-checker
+   - URL: https://github.com/ark-forge/mcp-eu-ai-act
    - Action: Create public GitHub repository
 
 2. **Package Not Registered**

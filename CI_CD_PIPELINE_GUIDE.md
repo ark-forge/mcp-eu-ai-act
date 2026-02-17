@@ -136,7 +136,7 @@ Total lines skipped (#nosec): 0
 
 ### Badge CI/CD
 ```markdown
-![CI/CD](https://github.com/arkforge/mcp-eu-ai-act/actions/workflows/qa-mcp-eu-ai-act.yml/badge.svg)
+![CI/CD](https://github.com/ark-forge/mcp-eu-ai-act/actions/workflows/qa-mcp-eu-ai-act.yml/badge.svg)
 ```
 
 **États possibles**:
