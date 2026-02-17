@@ -101,6 +101,59 @@ RISK_CATEGORIES = {
 }
 
 
+# Security: directories that must NEVER be scanned
+BLOCKED_PATHS = [
+    "/opt/claude-ceo",
+    "/etc",
+    "/root",
+    "/home",
+    "/var",
+    "/proc",
+    "/sys",
+    "/dev",
+    "/run",
+    "/boot",
+    "/usr",
+    "/bin",
+    "/sbin",
+    "/lib",
+    "/snap",
+    "/mnt",
+    "/media",
+]
+
+# Security: max files to scan (prevent DoS)
+MAX_FILES_TO_SCAN = 5000
+MAX_FILE_SIZE_BYTES = 1_000_000  # 1MB
+
+
+def _validate_project_path(project_path: str) -> tuple[bool, str]:
+    """Validate that a project path is safe to scan.
+
+    Returns:
+        (is_safe, error_message)
+    """
+    try:
+        resolved = Path(project_path).resolve()
+    except (ValueError, OSError):
+        return False, f"Invalid path: {project_path}"
+
+    resolved_str = str(resolved)
+
+    # Block absolute paths to sensitive directories
+    for blocked in BLOCKED_PATHS:
+        if resolved_str == blocked or resolved_str.startswith(blocked + "/"):
+            return False, f"Access denied: scanning {blocked} is not allowed for security reasons"
+
+    # Block symlinks that escape to blocked paths
+    if resolved != Path(project_path):
+        for blocked in BLOCKED_PATHS:
+            if resolved_str.startswith(blocked + "/"):
+                return False, f"Access denied: symlink resolves to blocked path"
+
+    return True, ""
+
+
 class EUAIActChecker:
     """EU AI Act compliance checker"""
 
@@ -114,6 +167,11 @@ class EUAIActChecker:
         """Scan the project to detect AI model usage"""
         logger.info("Scanning project: %s", self.project_path)
 
+        # Security: validate path before scanning
+        is_safe, error_msg = _validate_project_path(str(self.project_path))
+        if not is_safe:
+            return {"error": error_msg, "detected_models": {}}
+
         if not self.project_path.exists():
             return {
                 "error": f"Project path does not exist: {self.project_path}",
@@ -124,7 +182,15 @@ class EUAIActChecker:
         code_extensions = {".py", ".js", ".ts", ".java", ".go", ".rs", ".cpp", ".c"}
 
         for file_path in self.project_path.rglob("*"):
+            if self.files_scanned >= MAX_FILES_TO_SCAN:
+                logger.warning("Max files limit reached (%d)", MAX_FILES_TO_SCAN)
+                break
             if file_path.is_file() and file_path.suffix in code_extensions:
+                try:
+                    if file_path.stat().st_size > MAX_FILE_SIZE_BYTES:
+                        continue  # Skip oversized files
+                except OSError:
+                    continue
                 self._scan_file(file_path)
 
         return {
@@ -314,6 +380,9 @@ def create_server():
         Args:
             project_path: Absolute path to the project to scan
         """
+        is_safe, error_msg = _validate_project_path(project_path)
+        if not is_safe:
+            return {"error": error_msg, "detected_models": {}}
         checker = EUAIActChecker(project_path)
         return checker.scan_project()
 
@@ -325,6 +394,9 @@ def create_server():
             project_path: Absolute path to the project
             risk_category: EU AI Act risk category (unacceptable, high, limited, minimal)
         """
+        is_safe, error_msg = _validate_project_path(project_path)
+        if not is_safe:
+            return {"error": error_msg}
         checker = EUAIActChecker(project_path)
         checker.scan_project()
         return checker.check_compliance(risk_category.value)
@@ -337,6 +409,9 @@ def create_server():
             project_path: Absolute path to the project
             risk_category: EU AI Act risk category (unacceptable, high, limited, minimal)
         """
+        is_safe, error_msg = _validate_project_path(project_path)
+        if not is_safe:
+            return {"error": error_msg}
         checker = EUAIActChecker(project_path)
         scan_results = checker.scan_project()
         compliance_results = checker.check_compliance(risk_category.value)
