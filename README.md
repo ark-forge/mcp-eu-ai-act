@@ -11,7 +11,7 @@
 ## Keywords
 `EU AI Act` · `compliance checker` · `MCP server` · `AI regulation` · `risk assessment` · `artificial intelligence` · `legal compliance` · `transparency` · `Model Context Protocol` · `automated audit` · `GDPR` · `AI governance`
 
-## 🎯 Features / Fonctionnalités
+## Features
 
 - **Automatic detection** of AI models (OpenAI, Anthropic, HuggingFace, TensorFlow, PyTorch, LangChain)
 - **Risk categorization** according to EU AI Act (unacceptable, high, limited, minimal)
@@ -21,36 +21,36 @@
 - **GDPR alignment** checking
 - **MCP protocol integration** for seamless workflow
 
-## 📋 EU AI Act - Catégories de Risque
+## EU AI Act - Risk Categories
 
-### Risque Inacceptable (Interdit)
-- Manipulation comportementale
-- Notation sociale par les gouvernements
-- Surveillance de masse biométrique
+### Unacceptable Risk (Prohibited)
+- Behavioral manipulation
+- Social scoring by governments
+- Mass biometric surveillance
 
-### Risque Élevé (High)
-- Systèmes de recrutement
-- Systèmes de crédit
-- Application de la loi
-- Gestion des infrastructures critiques
+### High Risk
+- Recruitment systems
+- Credit scoring systems
+- Law enforcement
+- Critical infrastructure management
 
-**Exigences**: Documentation technique complète, gestion des risques, surveillance humaine, enregistrement UE
+**Requirements**: Complete technical documentation, risk management, human oversight, EU registration
 
-### Risque Limité (Limited)
+### Limited Risk
 - Chatbots
-- Systèmes de recommandation
-- Génération de contenu
+- Recommendation systems
+- Content generation
 
-**Exigences**: Transparence, information des utilisateurs, marquage du contenu AI
+**Requirements**: Transparency, user information, AI content labeling
 
-### Risque Minimal (Minimal)
-- Filtres anti-spam
-- Jeux vidéo
-- Applications non critiques
+### Minimal Risk
+- Anti-spam filters
+- Video games
+- Non-critical applications
 
-**Exigences**: Aucune obligation spécifique
+**Requirements**: No specific obligations
 
-## 🚀 Installation
+## Installation
 
 ### Via Smithery (Recommended)
 
@@ -63,54 +63,55 @@ smithery install @arkforge/mcp-eu-ai-act
 ### Manual Installation
 
 ```bash
-cd /opt/claude-ceo/workspace/mcp-servers/eu-ai-act
+git clone https://github.com/ark-forge/mcp-eu-ai-act.git
+cd mcp-eu-ai-act
 chmod +x server.py
 ```
 
-## 📖 Utilisation
+## Usage
 
-### 1. En ligne de commande
+### 1. Command Line
 
 ```bash
 python3 server.py
 ```
 
-### 2. En tant que module Python
+### 2. As Python Module
 
 ```python
 from server import MCPServer
 
-# Initialiser le serveur
+# Initialize the server
 server = MCPServer()
 
-# Scanner un projet
+# Scan a project
 scan_result = server.handle_request("scan_project", {
     "project_path": "/path/to/project"
 })
 
-# Vérifier la conformité
+# Check compliance
 compliance_result = server.handle_request("check_compliance", {
     "project_path": "/path/to/project",
-    "risk_category": "limited"  # ou "high", "minimal", "unacceptable"
+    "risk_category": "limited"  # or "high", "minimal", "unacceptable"
 })
 
-# Générer un rapport complet
+# Generate a complete report
 report = server.handle_request("generate_report", {
     "project_path": "/path/to/project",
     "risk_category": "high"
 })
 ```
 
-## 🔧 MCP Tools
+## MCP Tools
 
 ### scan_project
 
-Scanne un projet pour détecter l'utilisation de modèles AI.
+Scans a project to detect AI model usage.
 
-**Paramètres**:
-- `project_path` (string, required): Chemin vers le projet
+**Parameters**:
+- `project_path` (string, required): Path to the project
 
-**Retour**:
+**Returns**:
 ```json
 {
   "files_scanned": 150,
@@ -129,25 +130,25 @@ Scanne un projet pour détecter l'utilisation de modèles AI.
 
 ### check_compliance
 
-Vérifie la conformité EU AI Act.
+Verifies EU AI Act compliance.
 
-**Paramètres**:
-- `project_path` (string, required): Chemin vers le projet
-- `risk_category` (string, optional): Catégorie de risque (`unacceptable`, `high`, `limited`, `minimal`) - défaut: `limited`
+**Parameters**:
+- `project_path` (string, required): Path to the project
+- `risk_category` (string, optional): Risk category (`unacceptable`, `high`, `limited`, `minimal`) - default: `limited`
 
-**Retour**:
+**Returns**:
 ```json
 {
   "risk_category": "limited",
-  "description": "Systèmes à risque limité (chatbots, deepfakes)",
+  "description": "Limited risk systems (chatbots, deepfakes)",
   "requirements": [
-    "Obligations de transparence",
-    "Information claire aux utilisateurs sur interaction avec AI"
+    "Transparency obligations",
+    "Clear user information about AI interaction"
   ],
   "compliance_status": {
-    "transparence": true,
-    "information_utilisateurs": true,
-    "marquage_contenu": false
+    "transparency": true,
+    "user_information": true,
+    "content_labeling": false
   },
   "compliance_score": "2/3",
   "compliance_percentage": 66.7
@@ -156,13 +157,13 @@ Vérifie la conformité EU AI Act.
 
 ### generate_report
 
-Génère un rapport de conformité complet.
+Generates a complete compliance report.
 
-**Paramètres**:
-- `project_path` (string, required): Chemin vers le projet
-- `risk_category` (string, optional): Catégorie de risque - défaut: `limited`
+**Parameters**:
+- `project_path` (string, required): Path to the project
+- `risk_category` (string, optional): Risk category - default: `limited`
 
-**Retour**:
+**Returns**:
 ```json
 {
   "report_date": "2026-02-09T10:30:00",
@@ -178,55 +179,55 @@ Génère un rapport de conformité complet.
     "compliance_percentage": 66.7
   },
   "detailed_findings": {
-    "detected_models": {...},
-    "compliance_checks": {...},
-    "requirements": [...]
+    "detected_models": {},
+    "compliance_checks": {},
+    "requirements": []
   },
   "recommendations": [
-    "❌ Créer documentation: Marquage Contenu",
-    "ℹ️ Système à risque limité - Assurer transparence complète"
+    "Missing documentation: Content Labeling",
+    "Limited risk system - Ensure complete transparency"
   ]
 }
 ```
 
-## 🔍 Frameworks Détectés
+## Detected Frameworks
 
-Le serveur détecte automatiquement les frameworks AI suivants:
+The server automatically detects the following AI frameworks:
 
-- **OpenAI**: GPT-3.5, GPT-4, API OpenAI
-- **Anthropic**: Claude, API Anthropic
-- **HuggingFace**: Transformers, pipelines, modèles
-- **TensorFlow**: Keras, modèles .h5
-- **PyTorch**: Modèles .pt, .pth
-- **LangChain**: Chaînes LLM, agents
+- **OpenAI**: GPT-3.5, GPT-4, OpenAI API
+- **Anthropic**: Claude, Anthropic API
+- **HuggingFace**: Transformers, pipelines, models
+- **TensorFlow**: Keras, .h5 models
+- **PyTorch**: .pt, .pth models
+- **LangChain**: LLM chains, agents
 
-## 📊 Vérifications de Conformité
+## Compliance Checks
 
-### Pour systèmes à risque élevé (high)
-- ✅ Documentation technique
-- ✅ Système de gestion des risques
-- ✅ Transparence et information utilisateurs
-- ✅ Gouvernance des données
-- ✅ Surveillance humaine
-- ✅ Robustesse et cybersécurité
+### For high-risk systems
+- Technical documentation
+- Risk management system
+- Transparency and user information
+- Data governance
+- Human oversight
+- Robustness and cybersecurity
 
-### Pour systèmes à risque limité (limited)
-- ✅ Transparence (README, docs)
-- ✅ Information sur l'utilisation d'AI
-- ✅ Marquage du contenu généré
+### For limited-risk systems
+- Transparency (README, docs)
+- Information about AI usage
+- Generated content labeling
 
-### Pour systèmes à risque minimal (minimal)
-- ✅ Documentation basique
+### For minimal-risk systems
+- Basic documentation
 
-## 🛡️ Exigences Réglementaires
+## Regulatory Requirements
 
-Ce serveur vérifie la conformité avec:
-- **EU AI Act** (Règlement UE 2024/1689)
-- **RGPD** (protection des données)
-- **Transparence algorithmique**
-- **Obligations de documentation**
+This server verifies compliance with:
+- **EU AI Act** (EU Regulation 2024/1689)
+- **GDPR** (data protection)
+- **Algorithmic transparency**
+- **Documentation obligations**
 
-## 📝 Exemple de Rapport
+## Example Report
 
 ```bash
 $ python3 server.py
@@ -234,9 +235,9 @@ $ python3 server.py
 === EU AI Act Compliance Checker - MCP Server ===
 
 Available tools:
-- scan_project: Scanne un projet pour détecter l'utilisation de modèles AI
-- check_compliance: Vérifie la conformité EU AI Act
-- generate_report: Génère un rapport de conformité complet
+- scan_project: Scans a project to detect AI model usage
+- check_compliance: Verifies EU AI Act compliance
+- generate_report: Generates a complete compliance report
 
 === Testing with current project ===
 
@@ -247,46 +248,46 @@ Frameworks: openai, anthropic
 
 2. Checking compliance (limited risk)...
 Compliance score: 2/3 (66.7%)
-Status: ⚠️ Partial compliance
+Status: Partial compliance
 
 3. Generating full report...
-✅ Report generated successfully
+Report generated successfully
 ```
 
-## 🔗 Intégration MCP
+## MCP Integration
 
-Ce serveur est compatible avec le Model Context Protocol et peut être intégré dans:
+This server is compatible with the Model Context Protocol and can be integrated into:
 - Claude Code
-- VS Code avec extension MCP
-- Outils de CI/CD
-- Pipelines de déploiement
+- VS Code with MCP extension
+- CI/CD tools
+- Deployment pipelines
 
-## 📚 Documentation EU AI Act
+## EU AI Act Documentation
 
-Ressources officielles:
-- [EU AI Act - Texte officiel](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:52021PC0206)
-- [Commission Européenne - AI Act](https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai)
-- [Guide de conformité](https://artificialintelligenceact.eu/)
+Official resources:
+- [EU AI Act - Official text](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:52021PC0206)
+- [European Commission - AI Act](https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai)
+- [Compliance guide](https://artificialintelligenceact.eu/)
 
-## 🤝 Contribution
+## Contribution
 
-Ce serveur est développé par ArkForge dans le cadre du système CEO autonome.
+This server is developed by ArkForge as part of the autonomous CEO system.
 
-## 📄 License
+## License
 
-MIT License - Voir LICENSE pour plus de détails
+MIT License - See LICENSE for details
 
-## 🎯 Roadmap
+## Roadmap
 
-- [ ] Intégration avec bases de données de conformité UE
-- [ ] Support multi-langues (FR, EN, DE, ES)
-- [ ] Génération automatique de documentation de conformité
-- [ ] Scoring de risque automatique
-- [ ] Export PDF des rapports
-- [ ] Intégration CI/CD (GitHub Actions, GitLab CI)
+- [ ] Integration with EU compliance databases
+- [ ] Multi-language support (FR, EN, DE, ES)
+- [ ] Automatic compliance documentation generation
+- [ ] Automatic risk scoring
+- [ ] PDF report export
+- [ ] CI/CD integration (GitHub Actions, GitLab CI)
 
 ---
 
 **Version**: 1.0.0
 **Date**: 2026-02-09
-**Maintenu par**: ArkForge CEO System
+**Maintained by**: ArkForge CEO System

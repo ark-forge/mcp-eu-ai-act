@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Tests de précision des données EU AI Act
-Vérifie l'exactitude des catégories de risque, exigences, et patterns de détection
+EU AI Act data accuracy tests
+Verifies correctness of risk categories, requirements, and detection patterns
 """
 
 import unittest
@@ -9,20 +9,19 @@ import sys
 import re
 from pathlib import Path
 
-# Ajouter le répertoire parent au path pour l'import
+# Add parent directory to path for import
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from server import AI_MODEL_PATTERNS, RISK_CATEGORIES
 
 
 class TestAIModelPatterns(unittest.TestCase):
-    """Tests de précision des patterns de détection AI"""
+    """AI detection pattern accuracy tests"""
 
     def test_openai_patterns_accuracy(self):
-        """Test des patterns OpenAI contre du vrai code"""
+        """Test OpenAI patterns against real code"""
         patterns = AI_MODEL_PATTERNS["openai"]
 
-        # Code OpenAI réel - devrait matcher
         valid_openai_code = [
             "import openai",
             "from openai import OpenAI",
@@ -37,7 +36,6 @@ class TestAIModelPatterns(unittest.TestCase):
             matched = any(re.search(pattern, code, re.IGNORECASE) for pattern in patterns)
             self.assertTrue(matched, f"Failed to detect OpenAI in: {code}")
 
-        # Code non-OpenAI - ne devrait pas matcher
         invalid_code = [
             "import os",
             "from anthropic import Anthropic",
@@ -49,10 +47,9 @@ class TestAIModelPatterns(unittest.TestCase):
             self.assertFalse(matched, f"False positive for OpenAI in: {code}")
 
     def test_anthropic_patterns_accuracy(self):
-        """Test des patterns Anthropic contre du vrai code"""
+        """Test Anthropic patterns against real code"""
         patterns = AI_MODEL_PATTERNS["anthropic"]
 
-        # Code Anthropic réel - devrait matcher
         valid_anthropic_code = [
             "from anthropic import Anthropic",
             "import anthropic",
@@ -67,10 +64,9 @@ class TestAIModelPatterns(unittest.TestCase):
             self.assertTrue(matched, f"Failed to detect Anthropic in: {code}")
 
     def test_huggingface_patterns_accuracy(self):
-        """Test des patterns HuggingFace contre du vrai code"""
+        """Test HuggingFace patterns against real code"""
         patterns = AI_MODEL_PATTERNS["huggingface"]
 
-        # Code HuggingFace réel - devrait matcher
         valid_hf_code = [
             "from transformers import AutoModel",
             "from transformers import AutoTokenizer",
@@ -84,10 +80,9 @@ class TestAIModelPatterns(unittest.TestCase):
             self.assertTrue(matched, f"Failed to detect HuggingFace in: {code}")
 
     def test_tensorflow_patterns_accuracy(self):
-        """Test des patterns TensorFlow contre du vrai code"""
+        """Test TensorFlow patterns against real code"""
         patterns = AI_MODEL_PATTERNS["tensorflow"]
 
-        # Code TensorFlow réel - devrait matcher
         valid_tf_code = [
             "import tensorflow as tf",
             "from tensorflow import keras",
@@ -98,16 +93,14 @@ class TestAIModelPatterns(unittest.TestCase):
             matched = any(re.search(pattern, code, re.IGNORECASE) for pattern in patterns)
             self.assertTrue(matched, f"Failed to detect TensorFlow in: {code}")
 
-        # Test détection fichiers .h5
         self.assertTrue("model.h5".endswith(".h5"))
         h5_pattern = r"\.h5$"
         self.assertTrue(re.search(h5_pattern, "model.h5"))
 
     def test_pytorch_patterns_accuracy(self):
-        """Test des patterns PyTorch contre du vrai code"""
+        """Test PyTorch patterns against real code"""
         patterns = AI_MODEL_PATTERNS["pytorch"]
 
-        # Code PyTorch réel - devrait matcher
         valid_pytorch_code = [
             "import torch",
             "from torch import nn",
@@ -118,7 +111,6 @@ class TestAIModelPatterns(unittest.TestCase):
             matched = any(re.search(pattern, code, re.IGNORECASE) for pattern in patterns)
             self.assertTrue(matched, f"Failed to detect PyTorch in: {code}")
 
-        # Test détection fichiers .pt et .pth
         self.assertTrue("model.pt".endswith(".pt"))
         self.assertTrue("model.pth".endswith(".pth"))
         pt_pattern = r"\.pt$"
@@ -127,10 +119,9 @@ class TestAIModelPatterns(unittest.TestCase):
         self.assertTrue(re.search(pth_pattern, "model.pth"))
 
     def test_langchain_patterns_accuracy(self):
-        """Test des patterns LangChain contre du vrai code"""
+        """Test LangChain patterns against real code"""
         patterns = AI_MODEL_PATTERNS["langchain"]
 
-        # Code LangChain réel - devrait matcher
         valid_langchain_code = [
             "from langchain import LLMChain",
             "from langchain.llms import ChatOpenAI",
@@ -142,12 +133,11 @@ class TestAIModelPatterns(unittest.TestCase):
             self.assertTrue(matched, f"Failed to detect LangChain in: {code}")
 
     def test_no_false_positives(self):
-        """Test qu'il n'y a pas de faux positifs avec du code normal"""
+        """Test no false positives with normal code"""
         all_patterns = []
         for patterns in AI_MODEL_PATTERNS.values():
             all_patterns.extend(patterns)
 
-        # Code normal sans AI
         normal_code = [
             "import os",
             "import sys",
@@ -162,7 +152,7 @@ class TestAIModelPatterns(unittest.TestCase):
             self.assertFalse(matched, f"False positive in: {code}")
 
     def test_all_frameworks_have_patterns(self):
-        """Test que tous les frameworks ont au moins un pattern"""
+        """Test all frameworks have at least one pattern"""
         expected_frameworks = ["openai", "anthropic", "huggingface", "tensorflow", "pytorch", "langchain"]
 
         for framework in expected_frameworks:
@@ -172,56 +162,52 @@ class TestAIModelPatterns(unittest.TestCase):
 
 
 class TestRiskCategories(unittest.TestCase):
-    """Tests de précision des catégories de risque EU AI Act"""
+    """EU AI Act risk category accuracy tests"""
 
     def test_all_risk_categories_present(self):
-        """Test que toutes les catégories de risque sont présentes"""
+        """Test all risk categories are present"""
         required_categories = ["unacceptable", "high", "limited", "minimal"]
 
         for category in required_categories:
             self.assertIn(category, RISK_CATEGORIES)
 
     def test_unacceptable_risk_category(self):
-        """Test de la catégorie risque inacceptable"""
+        """Test unacceptable risk category"""
         category = RISK_CATEGORIES["unacceptable"]
 
         self.assertIn("description", category)
         self.assertIn("requirements", category)
 
-        # Vérifier la description
         description_lower = category["description"].lower()
         self.assertTrue(
-            "interdit" in description_lower or "manipulation" in description_lower,
+            "prohibited" in description_lower or "manipulation" in description_lower,
             "Description should mention prohibited systems"
         )
 
-        # Devrait avoir au moins une exigence
         self.assertGreater(len(category["requirements"]), 0)
         self.assertIsInstance(category["requirements"], list)
 
     def test_high_risk_category(self):
-        """Test de la catégorie risque élevé"""
+        """Test high risk category"""
         category = RISK_CATEGORIES["high"]
 
         self.assertIn("description", category)
         self.assertIn("requirements", category)
 
-        # Vérifier la description
         description_lower = category["description"].lower()
         self.assertTrue(
-            "haut risque" in description_lower or "recrutement" in description_lower or "crédit" in description_lower,
+            "high-risk" in description_lower or "recruitment" in description_lower or "credit" in description_lower,
             "Description should mention high-risk systems"
         )
 
-        # Exigences clés pour risque élevé
         requirements_str = " ".join(category["requirements"]).lower()
 
         required_keywords = [
             "documentation",
-            "risque",
-            "transparence",
-            "surveillance",
-            "robustesse",
+            "risk",
+            "transparency",
+            "oversight",
+            "robustness",
         ]
 
         for keyword in required_keywords:
@@ -230,28 +216,25 @@ class TestRiskCategories(unittest.TestCase):
                 f"High-risk requirements should include '{keyword}'"
             )
 
-        # Devrait avoir au moins 6 exigences
         self.assertGreaterEqual(len(category["requirements"]), 6)
 
     def test_limited_risk_category(self):
-        """Test de la catégorie risque limité"""
+        """Test limited risk category"""
         category = RISK_CATEGORIES["limited"]
 
         self.assertIn("description", category)
         self.assertIn("requirements", category)
 
-        # Vérifier la description
         description_lower = category["description"].lower()
         self.assertTrue(
-            "limité" in description_lower or "chatbot" in description_lower,
+            "limited" in description_lower or "chatbot" in description_lower,
             "Description should mention limited-risk systems"
         )
 
-        # Exigences clés pour risque limité
         requirements_str = " ".join(category["requirements"]).lower()
 
         required_keywords = [
-            "transparence",
+            "transparency",
             "information",
         ]
 
@@ -261,49 +244,49 @@ class TestRiskCategories(unittest.TestCase):
                 f"Limited-risk requirements should include '{keyword}'"
             )
 
-        # Devrait avoir au moins 2 exigences
         self.assertGreaterEqual(len(category["requirements"]), 2)
 
     def test_minimal_risk_category(self):
-        """Test de la catégorie risque minimal"""
+        """Test minimal risk category"""
         category = RISK_CATEGORIES["minimal"]
 
         self.assertIn("description", category)
         self.assertIn("requirements", category)
 
-        # Vérifier la description
         description_lower = category["description"].lower()
         self.assertTrue(
-            "minimal" in description_lower or "spam" in description_lower or "jeux" in description_lower,
+            "minimal" in description_lower or "spam" in description_lower or "game" in description_lower,
             "Description should mention minimal-risk systems"
         )
 
-        # Exigences minimales
         requirements_str = " ".join(category["requirements"]).lower()
         self.assertTrue(
-            "aucune" in requirements_str or "volontaire" in requirements_str,
+            "no specific" in requirements_str or "voluntary" in requirements_str,
             "Minimal-risk should have minimal or voluntary requirements"
         )
 
     def test_requirements_are_actionable(self):
-        """Test que les exigences sont actionnables (pas vides, ont du sens)"""
+        """Test requirements are actionable (not empty, meaningful)"""
         for category_name, category in RISK_CATEGORIES.items():
             requirements = category["requirements"]
 
             for req in requirements:
-                # Chaque exigence devrait être une chaîne non vide
                 self.assertIsInstance(req, str)
                 self.assertGreater(len(req), 5, f"Requirement too short in {category_name}: {req}")
 
-                # Devrait contenir des mots significatifs
                 self.assertTrue(
-                    any(word in req.lower() for word in ["documentation", "système", "données", "transparence", "surveillance", "qualité", "aucune", "volontaire", "interdit", "robustesse", "précision", "cybersécurité", "humaine", "gestion", "risques", "gouvernance", "enregistrement", "information", "utilisateurs", "marquage", "contenu", "obligations"]),
+                    any(word in req.lower() for word in [
+                        "documentation", "system", "data", "transparency", "oversight",
+                        "quality", "no specific", "voluntary", "prohibited", "robustness",
+                        "accuracy", "cybersecurity", "human", "management", "risk",
+                        "governance", "registration", "information", "user", "marking",
+                        "content", "obligations", "deploy", "encouraged", "code"
+                    ]),
                     f"Requirement lacks meaningful content in {category_name}: {req}"
                 )
 
     def test_risk_hierarchy(self):
-        """Test que la hiérarchie des risques est cohérente"""
-        # Risque élevé devrait avoir plus d'exigences que risque limité
+        """Test risk hierarchy is consistent"""
         high_reqs = len(RISK_CATEGORIES["high"]["requirements"])
         limited_reqs = len(RISK_CATEGORIES["limited"]["requirements"])
         minimal_reqs = len(RISK_CATEGORIES["minimal"]["requirements"])
@@ -313,13 +296,11 @@ class TestRiskCategories(unittest.TestCase):
 
 
 class TestComplianceAccuracy(unittest.TestCase):
-    """Tests de précision de la logique de conformité"""
+    """Compliance logic accuracy tests"""
 
     def test_compliance_score_calculation(self):
-        """Test du calcul du score de conformité"""
-        # Simuler différents scénarios de conformité
+        """Test compliance score calculation"""
         test_cases = [
-            # (checks_passed, total_checks, expected_percentage)
             (3, 3, 100.0),
             (2, 3, 66.7),
             (1, 3, 33.3),
@@ -336,40 +317,35 @@ class TestComplianceAccuracy(unittest.TestCase):
             )
 
     def test_eu_ai_act_reference_data(self):
-        """Test contre des données de référence EU AI Act connues"""
-        # Exemples réels de systèmes à haut risque selon EU AI Act
+        """Test against known EU AI Act reference data"""
         high_risk_examples = [
-            "recrutement",
-            "crédit",
-            "application de la loi",
-            "infrastructure critique",
+            "recruitment",
+            "credit",
+            "law enforcement",
         ]
 
         high_risk_desc = RISK_CATEGORIES["high"]["description"].lower()
 
-        # Devrait mentionner au moins 2 de ces exemples
         matches = sum(1 for ex in high_risk_examples if ex in high_risk_desc)
         self.assertGreaterEqual(matches, 2, "High-risk description should mention known examples")
 
-        # Exemples de systèmes interdits (risque inacceptable)
         unacceptable_examples = [
             "manipulation",
-            "notation sociale",
+            "social scoring",
             "surveillance",
         ]
 
         unacceptable_desc = RISK_CATEGORIES["unacceptable"]["description"].lower()
 
-        # Devrait mentionner au moins 1 de ces exemples
         matches = sum(1 for ex in unacceptable_examples if ex in unacceptable_desc)
         self.assertGreaterEqual(matches, 1, "Unacceptable-risk description should mention prohibited systems")
 
 
 class TestDataConsistency(unittest.TestCase):
-    """Tests de cohérence des données"""
+    """Data consistency tests"""
 
     def test_no_duplicate_patterns(self):
-        """Test qu'il n'y a pas de patterns dupliqués dans un même framework"""
+        """Test no duplicate patterns within a framework"""
         for framework, patterns in AI_MODEL_PATTERNS.items():
             unique_patterns = set(patterns)
             self.assertEqual(
@@ -379,7 +355,7 @@ class TestDataConsistency(unittest.TestCase):
             )
 
     def test_patterns_are_valid_regex(self):
-        """Test que tous les patterns sont des regex valides"""
+        """Test all patterns are valid regex"""
         for framework, patterns in AI_MODEL_PATTERNS.items():
             for pattern in patterns:
                 try:
@@ -388,7 +364,7 @@ class TestDataConsistency(unittest.TestCase):
                     self.fail(f"Invalid regex in {framework}: {pattern} - {e}")
 
     def test_risk_categories_structure(self):
-        """Test que toutes les catégories ont la même structure"""
+        """Test all categories have the same structure"""
         required_keys = ["description", "requirements"]
 
         for category_name, category in RISK_CATEGORIES.items():
@@ -399,29 +375,26 @@ class TestDataConsistency(unittest.TestCase):
                     f"Missing key '{key}' in category '{category_name}'"
                 )
 
-            # Vérifier les types
             self.assertIsInstance(category["description"], str)
             self.assertIsInstance(category["requirements"], list)
 
     def test_no_empty_data(self):
-        """Test qu'il n'y a pas de données vides"""
-        # Vérifier AI_MODEL_PATTERNS
+        """Test no empty data"""
         for framework, patterns in AI_MODEL_PATTERNS.items():
             self.assertGreater(len(patterns), 0, f"Empty patterns for {framework}")
             for pattern in patterns:
                 self.assertGreater(len(pattern), 0, f"Empty pattern in {framework}")
 
-        # Vérifier RISK_CATEGORIES
         for category_name, category in RISK_CATEGORIES.items():
             self.assertGreater(len(category["description"]), 0, f"Empty description in {category_name}")
             self.assertGreater(len(category["requirements"]), 0, f"Empty requirements in {category_name}")
 
 
 class TestFrameworkCoverage(unittest.TestCase):
-    """Tests de couverture des frameworks AI populaires"""
+    """AI framework coverage tests"""
 
     def test_major_frameworks_covered(self):
-        """Test que les frameworks majeurs sont couverts"""
+        """Test major frameworks are covered"""
         major_frameworks = {
             "openai": ["OpenAI", "GPT"],
             "anthropic": ["Claude", "Anthropic"],
@@ -435,7 +408,6 @@ class TestFrameworkCoverage(unittest.TestCase):
             self.assertIn(framework, AI_MODEL_PATTERNS, f"Missing framework: {framework}")
             patterns = AI_MODEL_PATTERNS[framework]
 
-            # Vérifier qu'au moins un pattern correspond au nom du framework
             patterns_str = " ".join(patterns).lower()
             framework_mentioned = any(
                 name.lower() in patterns_str for name in expected_detections
@@ -447,7 +419,7 @@ class TestFrameworkCoverage(unittest.TestCase):
             )
 
     def test_common_model_files_detected(self):
-        """Test que les fichiers de modèles communs sont détectés"""
+        """Test common model files are detected"""
         file_patterns = {
             "tensorflow": [".h5"],
             "pytorch": [".pt", ".pth"],
@@ -465,85 +437,79 @@ class TestFrameworkCoverage(unittest.TestCase):
 
 
 class TestEUAIActArticleAccuracy(unittest.TestCase):
-    """Tests de conformité avec les articles spécifiques de l'EU AI Act"""
+    """Tests for compliance with specific EU AI Act articles"""
 
     def test_article_5_prohibited_practices(self):
-        """Art. 5 - Les pratiques interdites sont bien couvertes"""
+        """Art. 5 - Prohibited practices are properly covered"""
         desc = RISK_CATEGORIES["unacceptable"]["description"].lower()
-        # Article 5 interdit: manipulation, notation sociale, surveillance biométrique
-        prohibited = ["manipulation", "notation sociale", "surveillance"]
+        prohibited = ["manipulation", "social scoring", "surveillance"]
         covered = sum(1 for p in prohibited if p in desc)
         self.assertGreaterEqual(covered, 2, "Article 5 prohibited practices insufficiently covered")
 
     def test_article_6_high_risk_systems(self):
-        """Art. 6 - Les systèmes à haut risque ont les exigences d'Annexe III"""
+        """Art. 6 - High-risk systems have Annex III requirements"""
         high_reqs = RISK_CATEGORIES["high"]["requirements"]
         req_text = " ".join(high_reqs).lower()
 
-        # Exigences essentielles Art. 6/Annexe III
-        essential = ["documentation", "risques", "données", "transparence", "surveillance humaine", "robustesse"]
+        essential = ["documentation", "risk", "data", "transparency", "human oversight", "robustness"]
         for req in essential:
             self.assertIn(req, req_text, f"High-risk missing Art. 6 requirement: {req}")
 
     def test_article_52_transparency_obligations(self):
-        """Art. 52 - Obligations de transparence pour risque limité"""
+        """Art. 52 - Transparency obligations for limited risk"""
         limited_reqs = RISK_CATEGORIES["limited"]["requirements"]
         req_text = " ".join(limited_reqs).lower()
 
-        # Art. 52 exige transparence + information utilisateurs + marquage contenu
-        self.assertIn("transparence", req_text)
-        self.assertIn("utilisateurs", req_text)
-        self.assertIn("contenu", req_text)
+        self.assertIn("transparency", req_text)
+        self.assertIn("user", req_text)
+        self.assertIn("content", req_text)
 
     def test_four_tier_risk_classification(self):
-        """L'EU AI Act définit exactement 4 niveaux de risque"""
+        """The EU AI Act defines exactly 4 risk levels"""
         self.assertEqual(len(RISK_CATEGORIES), 4)
         expected = {"unacceptable", "high", "limited", "minimal"}
         self.assertEqual(set(RISK_CATEGORIES.keys()), expected)
 
     def test_high_risk_examples_accuracy(self):
-        """Les exemples de systèmes à haut risque correspondent à l'Annexe III"""
+        """High-risk system examples match Annex III"""
         desc = RISK_CATEGORIES["high"]["description"].lower()
-        # Annexe III catégories: recrutement, crédit/scoring, justice/law enforcement
-        annex_iii_examples = ["recrutement", "crédit", "loi"]
+        annex_iii_examples = ["recruitment", "credit", "law"]
         covered = sum(1 for ex in annex_iii_examples if ex in desc)
         self.assertGreaterEqual(covered, 2, "High-risk examples should match Annex III")
 
     def test_limited_risk_examples_accuracy(self):
-        """Les exemples de risque limité sont corrects"""
+        """Limited risk examples are correct"""
         desc = RISK_CATEGORIES["limited"]["description"].lower()
-        # Chatbots et deepfakes sont les exemples principaux
         self.assertTrue("chatbot" in desc or "deepfake" in desc)
 
     def test_minimal_risk_no_mandatory_requirements(self):
-        """Le risque minimal n'a pas d'obligations obligatoires (Art. 69 - codes volontaires)"""
+        """Minimal risk has no mandatory requirements (Art. 69 - voluntary codes)"""
         req_text = " ".join(RISK_CATEGORIES["minimal"]["requirements"]).lower()
-        self.assertTrue("aucune" in req_text or "volontaire" in req_text)
+        self.assertTrue("no specific" in req_text or "voluntary" in req_text)
 
     def test_high_risk_eu_database_registration(self):
-        """Art. 60 - Les systèmes à haut risque doivent être enregistrés dans la base UE"""
+        """Art. 60 - High-risk systems must be registered in EU database"""
         high_reqs = RISK_CATEGORIES["high"]["requirements"]
         req_text = " ".join(high_reqs).lower()
-        self.assertTrue("enregistrement" in req_text or "base de données" in req_text)
+        self.assertTrue("registration" in req_text or "database" in req_text)
 
 
 class TestPatternCrossContamination(unittest.TestCase):
-    """Tests que les patterns d'un framework ne détectent pas un autre"""
+    """Tests that patterns from one framework don't detect another"""
 
     def test_openai_not_detected_as_langchain(self):
-        """Code OpenAI pur ne devrait pas déclencher LangChain"""
+        """Pure OpenAI code should not trigger LangChain"""
         langchain_patterns = AI_MODEL_PATTERNS["langchain"]
         pure_openai_code = "import openai\nopenai.ChatCompletion.create(model='gpt-4')"
 
         for pattern in langchain_patterns:
-            # ChatOpenAI est un pattern LangChain qui pourrait matcher
             if pattern == "ChatOpenAI":
-                continue  # Ce pattern peut légitimement apparaître dans du code OpenAI via LangChain
+                continue
             matched = re.search(pattern, pure_openai_code, re.IGNORECASE)
             self.assertIsNone(matched, f"LangChain pattern '{pattern}' false positive on OpenAI code")
 
     def test_pytorch_not_detected_as_tensorflow(self):
-        """Code PyTorch pur ne devrait pas déclencher TensorFlow"""
+        """Pure PyTorch code should not trigger TensorFlow"""
         tf_patterns = AI_MODEL_PATTERNS["tensorflow"]
         pure_pytorch_code = "import torch\nmodel = torch.nn.Linear(10, 5)"
 
@@ -552,7 +518,7 @@ class TestPatternCrossContamination(unittest.TestCase):
             self.assertIsNone(matched, f"TensorFlow pattern '{pattern}' false positive on PyTorch code")
 
     def test_anthropic_not_detected_as_openai(self):
-        """Code Anthropic pur ne devrait pas déclencher OpenAI"""
+        """Pure Anthropic code should not trigger OpenAI"""
         openai_patterns = AI_MODEL_PATTERNS["openai"]
         pure_anthropic_code = "from anthropic import Anthropic\nclient = Anthropic()\nclient.messages.create(model='claude-3-opus')"
 

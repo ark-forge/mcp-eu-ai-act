@@ -1,7 +1,7 @@
 {
   "name": "eu-ai-act-compliance-checker",
   "version": "1.0.0",
-  "description": "MCP Server pour vérifier la conformité EU AI Act des projets utilisant des modèles AI",
+  "description": "MCP Server to verify EU AI Act compliance for projects using AI models",
   "author": "ArkForge",
   "license": "MIT",
   "mcp_version": "1.0",
@@ -13,13 +13,13 @@
   "tools": [
     {
       "name": "scan_project",
-      "description": "Scanne un projet pour détecter l'utilisation de modèles AI (OpenAI, Anthropic, HuggingFace, TensorFlow, PyTorch, LangChain)",
+      "description": "Scan a project to detect AI model usage (OpenAI, Anthropic, HuggingFace, TensorFlow, PyTorch, LangChain)",
       "input_schema": {
         "type": "object",
         "properties": {
           "project_path": {
             "type": "string",
-            "description": "Chemin absolu vers le projet à scanner"
+            "description": "Absolute path to the project to scan"
           }
         },
         "required": ["project_path"]
@@ -29,11 +29,11 @@
         "properties": {
           "files_scanned": {
             "type": "integer",
-            "description": "Nombre de fichiers scannés"
+            "description": "Number of files scanned"
           },
           "ai_files": {
             "type": "array",
-            "description": "Fichiers contenant du code AI",
+            "description": "Files containing AI code",
             "items": {
               "type": "object",
               "properties": {
@@ -44,26 +44,26 @@
           },
           "detected_models": {
             "type": "object",
-            "description": "Frameworks détectés et fichiers associés"
+            "description": "Detected frameworks and associated files"
           }
         }
       }
     },
     {
       "name": "check_compliance",
-      "description": "Vérifie la conformité EU AI Act pour une catégorie de risque donnée",
+      "description": "Check EU AI Act compliance for a given risk category",
       "input_schema": {
         "type": "object",
         "properties": {
           "project_path": {
             "type": "string",
-            "description": "Chemin absolu vers le projet"
+            "description": "Absolute path to the project"
           },
           "risk_category": {
             "type": "string",
             "enum": ["unacceptable", "high", "limited", "minimal"],
             "default": "limited",
-            "description": "Catégorie de risque EU AI Act"
+            "description": "EU AI Act risk category"
           }
         },
         "required": ["project_path"]
@@ -79,7 +79,7 @@
           },
           "compliance_status": {
             "type": "object",
-            "description": "Status de chaque vérification de conformité"
+            "description": "Status of each compliance check"
           },
           "compliance_score": {"type": "string"},
           "compliance_percentage": {"type": "number"}
@@ -88,19 +88,19 @@
     },
     {
       "name": "generate_report",
-      "description": "Génère un rapport de conformité complet au format JSON",
+      "description": "Generate a complete compliance report in JSON format",
       "input_schema": {
         "type": "object",
         "properties": {
           "project_path": {
             "type": "string",
-            "description": "Chemin absolu vers le projet"
+            "description": "Absolute path to the project"
           },
           "risk_category": {
             "type": "string",
             "enum": ["unacceptable", "high", "limited", "minimal"],
             "default": "limited",
-            "description": "Catégorie de risque EU AI Act"
+            "description": "EU AI Act risk category"
           }
         },
         "required": ["project_path"]

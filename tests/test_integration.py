@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Tests d'intégration pour le serveur MCP EU AI Act
-Teste des scénarios utilisateur complets end-to-end
+Integration tests for the MCP EU AI Act server
+Tests complete end-to-end user scenarios
 """
 
 import unittest
@@ -11,33 +11,32 @@ import shutil
 import json
 from pathlib import Path
 
-# Ajouter le répertoire parent au path pour l'import
+# Add parent directory to path for import
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from server import MCPServer, EUAIActChecker
 
 
 class TestEndToEndScenarios(unittest.TestCase):
-    """Tests de scénarios utilisateur complets"""
+    """Complete user scenario tests"""
 
     def setUp(self):
-        """Créer un environnement de test"""
+        """Create a test environment"""
         self.server = MCPServer()
         self.test_dir = tempfile.mkdtemp()
         self.project_path = Path(self.test_dir) / "test_project"
         self.project_path.mkdir()
 
     def tearDown(self):
-        """Nettoyer"""
+        """Clean up"""
         shutil.rmtree(self.test_dir)
 
     def test_scenario_simple_chatbot(self):
         """
-        Scénario: Chatbot simple utilisant OpenAI
-        - Risque limité
-        - Doit avoir transparence et information utilisateurs
+        Scenario: Simple chatbot using OpenAI
+        - Limited risk
+        - Must have transparency and user disclosure
         """
-        # Créer un chatbot simple
         (self.project_path / "chatbot.py").write_text("""
 import openai
 
@@ -56,7 +55,7 @@ This chatbot uses OpenAI GPT-4 to answer questions.
 Users interact with an AI system.
 """)
 
-        # 1. Scanner le projet
+        # 1. Scan the project
         scan_result = self.server.handle_request("scan_project", {
             "project_path": str(self.project_path)
         })
@@ -65,18 +64,17 @@ Users interact with an AI system.
         self.assertIn("openai", scan_result["results"]["detected_models"])
         self.assertEqual(scan_result["results"]["files_scanned"], 1)
 
-        # 2. Vérifier la conformité (risque limité)
+        # 2. Check compliance (limited risk)
         compliance_result = self.server.handle_request("check_compliance", {
             "project_path": str(self.project_path),
             "risk_category": "limited"
         })
 
         self.assertEqual(compliance_result["results"]["risk_category"], "limited")
-        # Devrait avoir transparence et information utilisateurs
-        self.assertTrue(compliance_result["results"]["compliance_status"]["transparence"])
-        self.assertTrue(compliance_result["results"]["compliance_status"]["information_utilisateurs"])
+        self.assertTrue(compliance_result["results"]["compliance_status"]["transparency"])
+        self.assertTrue(compliance_result["results"]["compliance_status"]["user_disclosure"])
 
-        # 3. Générer rapport complet
+        # 3. Generate full report
         report_result = self.server.handle_request("generate_report", {
             "project_path": str(self.project_path),
             "risk_category": "limited"
@@ -88,10 +86,9 @@ Users interact with an AI system.
 
     def test_scenario_high_risk_recruitment_ai(self):
         """
-        Scénario: Système de recrutement utilisant AI (risque élevé)
-        - Doit avoir documentation complète, gestion des risques, etc.
+        Scenario: AI recruitment system (high risk)
+        - Must have complete documentation, risk management, etc.
         """
-        # Créer un système de recrutement
         (self.project_path / "recruitment.py").write_text("""
 from anthropic import Anthropic
 
@@ -114,31 +111,26 @@ def analyze_cv(cv_text):
 Uses Claude AI to analyze CVs and score candidates.
 """)
 
-        # Scanner et vérifier
         report = self.server.handle_request("generate_report", {
             "project_path": str(self.project_path),
             "risk_category": "high"
         })
 
-        # Devrait détecter Anthropic
         self.assertIn("anthropic", report["results"]["scan_summary"]["frameworks_detected"])
 
-        # Devrait avoir score de conformité bas (documentation manquante)
         compliance_pct = report["results"]["compliance_summary"]["compliance_percentage"]
-        self.assertLess(compliance_pct, 50)  # Probablement < 50%
+        self.assertLess(compliance_pct, 50)
 
-        # Devrait avoir recommandations pour documentation
         recommendations = report["results"]["recommendations"]
         self.assertTrue(any("documentation" in r.lower() for r in recommendations))
-        self.assertTrue(any("⚠️" in r or "haut risque" in r.lower() for r in recommendations))
+        self.assertTrue(any("high-risk" in r.lower() for r in recommendations))
 
     def test_scenario_multi_framework_project(self):
         """
-        Scénario: Projet utilisant plusieurs frameworks AI
+        Scenario: Project using multiple AI frameworks
         - OpenAI, Anthropic, LangChain
-        - Tous doivent être détectés
+        - All must be detected
         """
-        # Créer plusieurs fichiers avec différents frameworks
         (self.project_path / "openai_service.py").write_text("""
 import openai
 openai.ChatCompletion.create(model="gpt-4", messages=[])
@@ -159,7 +151,6 @@ def helper():
     pass
 """)
 
-        # Scanner
         scan_result = self.server.handle_request("scan_project", {
             "project_path": str(self.project_path)
         })
@@ -173,12 +164,11 @@ def helper():
 
     def test_scenario_compliant_limited_risk_project(self):
         """
-        Scénario: Projet à risque limité entièrement conforme
-        - Transparence: README avec mention AI
-        - Information utilisateurs: Divulgation claire
-        - Marquage contenu: Code généré marqué
+        Scenario: Fully compliant limited risk project
+        - Transparency: README with AI mention
+        - User disclosure: Clear disclosure
+        - Content marking: Generated code marked
         """
-        # Créer un projet conforme
         (self.project_path / "app.py").write_text("""
 import openai
 
@@ -200,25 +190,23 @@ Users are informed that they are interacting with an AI system.
 All generated content is clearly marked as AI-generated.
 """)
 
-        # Vérifier conformité
         compliance_result = self.server.handle_request("check_compliance", {
             "project_path": str(self.project_path),
             "risk_category": "limited"
         })
 
         status = compliance_result["results"]["compliance_status"]
-        self.assertTrue(status["transparence"])
-        self.assertTrue(status["information_utilisateurs"])
-        self.assertTrue(status["marquage_contenu"])
+        self.assertTrue(status["transparency"])
+        self.assertTrue(status["user_disclosure"])
+        self.assertTrue(status["content_marking"])
 
-        # Score devrait être 3/3 = 100%
         self.assertEqual(compliance_result["results"]["compliance_score"], "3/3")
         self.assertEqual(compliance_result["results"]["compliance_percentage"], 100.0)
 
     def test_scenario_minimal_risk_game(self):
         """
-        Scénario: Jeu vidéo avec AI (risque minimal)
-        - Presque aucune exigence
+        Scenario: Video game with AI (minimal risk)
+        - Almost no requirements
         """
         (self.project_path / "game_ai.py").write_text("""
 import torch
@@ -232,21 +220,19 @@ class GameAI(nn.Module):
 
         (self.project_path / "README.md").write_text("# Game AI")
 
-        # Vérifier conformité minimale
         compliance_result = self.server.handle_request("check_compliance", {
             "project_path": str(self.project_path),
             "risk_category": "minimal"
         })
 
         self.assertEqual(compliance_result["results"]["risk_category"], "minimal")
-        # Devrait avoir documentation basique (README existe)
-        self.assertTrue(compliance_result["results"]["compliance_status"]["documentation_basique"])
+        self.assertTrue(compliance_result["results"]["compliance_status"]["basic_documentation"])
         self.assertEqual(compliance_result["results"]["compliance_percentage"], 100.0)
 
     def test_scenario_no_ai_detected(self):
         """
-        Scénario: Projet sans AI détecté
-        - Devrait quand même vérifier la conformité
+        Scenario: Project with no AI detected
+        - Should still check compliance
         """
         (self.project_path / "utils.py").write_text("""
 def add(a, b):
@@ -255,7 +241,6 @@ def add(a, b):
 
         (self.project_path / "README.md").write_text("# Utilities")
 
-        # Scanner
         scan_result = self.server.handle_request("scan_project", {
             "project_path": str(self.project_path)
         })
@@ -263,22 +248,19 @@ def add(a, b):
         self.assertEqual(len(scan_result["results"]["detected_models"]), 0)
         self.assertEqual(len(scan_result["results"]["ai_files"]), 0)
 
-        # Vérifier conformité quand même
         compliance_result = self.server.handle_request("check_compliance", {
             "project_path": str(self.project_path),
             "risk_category": "minimal"
         })
 
-        # Devrait fonctionner même sans AI détecté
         self.assertEqual(compliance_result["results"]["risk_category"], "minimal")
 
     def test_scenario_nested_project_structure(self):
         """
-        Scénario: Projet avec structure de dossiers imbriqués
-        - AI code dans sous-dossiers
-        - Documentation dans docs/
+        Scenario: Project with nested folder structure
+        - AI code in subdirectories
+        - Documentation in docs/
         """
-        # Créer structure
         (self.project_path / "src").mkdir()
         (self.project_path / "src" / "ai").mkdir()
         (self.project_path / "docs").mkdir()
@@ -295,7 +277,6 @@ tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
 This system uses AI models from HuggingFace.
 """)
 
-        # Scanner
         scan_result = self.server.handle_request("scan_project", {
             "project_path": str(self.project_path)
         })
@@ -303,24 +284,21 @@ This system uses AI models from HuggingFace.
         self.assertIn("huggingface", scan_result["results"]["detected_models"])
         self.assertIn("src/ai/model.py", scan_result["results"]["detected_models"]["huggingface"][0])
 
-        # Vérifier conformité
         compliance_result = self.server.handle_request("check_compliance", {
             "project_path": str(self.project_path),
             "risk_category": "limited"
         })
 
-        # Devrait détecter TRANSPARENCY.md dans docs/
-        self.assertTrue(compliance_result["results"]["compliance_status"]["transparence"])
+        self.assertTrue(compliance_result["results"]["compliance_status"]["transparency"])
 
     def test_scenario_full_workflow(self):
         """
-        Scénario: Workflow complet d'audit
-        1. Liste les outils disponibles
-        2. Scan du projet
-        3. Vérification conformité pour chaque catégorie de risque
-        4. Génération de rapport final
+        Scenario: Complete audit workflow
+        1. List available tools
+        2. Scan the project
+        3. Check compliance for each risk category
+        4. Generate final report
         """
-        # Créer un projet
         (self.project_path / "ai_app.py").write_text("""
 import openai
 
@@ -330,17 +308,17 @@ def process():
 
         (self.project_path / "README.md").write_text("# AI Application using GPT-4")
 
-        # 1. Lister les outils
+        # 1. List tools
         tools = self.server.list_tools()
         self.assertEqual(len(tools["tools"]), 3)
 
-        # 2. Scanner
+        # 2. Scan
         scan = self.server.handle_request("scan_project", {
             "project_path": str(self.project_path)
         })
         self.assertIn("openai", scan["results"]["detected_models"])
 
-        # 3. Vérifier pour chaque catégorie
+        # 3. Check for each category
         for risk_category in ["minimal", "limited", "high"]:
             compliance = self.server.handle_request("check_compliance", {
                 "project_path": str(self.project_path),
@@ -349,24 +327,22 @@ def process():
             self.assertEqual(compliance["results"]["risk_category"], risk_category)
             self.assertIn("compliance_percentage", compliance["results"])
 
-        # 4. Rapport final
+        # 4. Final report
         report = self.server.handle_request("generate_report", {
             "project_path": str(self.project_path),
             "risk_category": "limited"
         })
 
-        # Vérifier structure complète du rapport
         self.assertIn("report_date", report["results"])
         self.assertIn("scan_summary", report["results"])
         self.assertIn("compliance_summary", report["results"])
         self.assertIn("detailed_findings", report["results"])
         self.assertIn("recommendations", report["results"])
 
-
     def test_scenario_unacceptable_risk_system(self):
         """
-        Scénario: Système de notation sociale (risque inacceptable)
-        - Devrait être interdit
+        Scenario: Social scoring system (unacceptable risk)
+        - Should be prohibited
         """
         (self.project_path / "social_scoring.py").write_text("""
 from anthropic import Anthropic
@@ -379,22 +355,20 @@ def score_citizen(data):
     )
 """)
 
-        # Générer rapport pour risque inacceptable
         report = self.server.handle_request("generate_report", {
             "project_path": str(self.project_path),
             "risk_category": "unacceptable"
         })
 
         self.assertIn("anthropic", report["results"]["scan_summary"]["frameworks_detected"])
-        # Pas de checks pour inacceptable (interdit)
         self.assertEqual(report["results"]["compliance_summary"]["compliance_score"], "0/0")
 
     def test_scenario_progressive_compliance(self):
         """
-        Scénario: Amélioration progressive de la conformité
-        - D'abord non-conforme, puis ajout documentation
+        Scenario: Progressive compliance improvement
+        - First non-compliant, then adding documentation
         """
-        # 1. Projet non-conforme
+        # 1. Non-compliant project
         (self.project_path / "app.py").write_text("import openai")
 
         result1 = self.server.handle_request("check_compliance", {
@@ -403,7 +377,7 @@ def score_citizen(data):
         })
         pct1 = result1["results"]["compliance_percentage"]
 
-        # 2. Ajouter README avec mention AI
+        # 2. Add README with AI mention
         (self.project_path / "README.md").write_text("# AI-powered app using GPT")
 
         result2 = self.server.handle_request("check_compliance", {
@@ -412,7 +386,7 @@ def score_citizen(data):
         })
         pct2 = result2["results"]["compliance_percentage"]
 
-        # 3. Ajouter content marking
+        # 3. Add content marking
         (self.project_path / "app.py").write_text("""
 import openai
 # This content is generated by AI
@@ -432,9 +406,9 @@ def predict(): pass
 
     def test_scenario_real_world_project_scan(self):
         """
-        Scénario: Scan du serveur MCP EU AI Act lui-même
-        - Devrait détecter du code Python
-        - Devrait être un projet réel
+        Scenario: Scan the MCP EU AI Act server itself
+        - Should detect Python code
+        - Should be a real project
         """
         mcp_path = str(Path(__file__).parent.parent)
         scan_result = self.server.handle_request("scan_project", {
@@ -445,19 +419,19 @@ def predict(): pass
 
 
 class TestErrorHandling(unittest.TestCase):
-    """Tests de gestion des erreurs en conditions réelles"""
+    """Error handling tests under real conditions"""
 
     def setUp(self):
-        """Créer un environnement de test"""
+        """Create a test environment"""
         self.server = MCPServer()
         self.test_dir = tempfile.mkdtemp()
 
     def tearDown(self):
-        """Nettoyer"""
+        """Clean up"""
         shutil.rmtree(self.test_dir)
 
     def test_invalid_project_path(self):
-        """Test avec chemin de projet invalide"""
+        """Test with invalid project path"""
         result = self.server.handle_request("scan_project", {
             "project_path": "/this/path/does/not/exist"
         })
@@ -465,13 +439,13 @@ class TestErrorHandling(unittest.TestCase):
         self.assertIn("error", result["results"])
 
     def test_missing_parameters(self):
-        """Test avec paramètres manquants"""
+        """Test with missing parameters"""
         result = self.server.handle_request("scan_project", {})
 
         self.assertIn("error", result)
 
     def test_invalid_risk_category(self):
-        """Test avec catégorie de risque invalide"""
+        """Test with invalid risk category"""
         project_path = Path(self.test_dir) / "test"
         project_path.mkdir()
 
@@ -483,35 +457,34 @@ class TestErrorHandling(unittest.TestCase):
         self.assertIn("error", result["results"])
 
     def test_empty_params_dict(self):
-        """Test avec dictionnaire de paramètres vide pour check_compliance"""
+        """Test with empty params dict for check_compliance"""
         result = self.server.handle_request("check_compliance", {})
         self.assertIn("error", result)
 
     def test_generate_report_nonexistent_path(self):
-        """Test génération rapport avec chemin inexistant"""
+        """Test report generation with non-existent path"""
         result = self.server.handle_request("generate_report", {
             "project_path": "/nonexistent/path",
             "risk_category": "limited"
         })
-        # Should still return a report (with error in scan)
         self.assertEqual(result["tool"], "generate_report")
 
 
 class TestReportGeneration(unittest.TestCase):
-    """Tests de génération de rapports détaillés"""
+    """Detailed report generation tests"""
 
     def setUp(self):
-        """Créer un environnement de test"""
+        """Create a test environment"""
         self.test_dir = tempfile.mkdtemp()
         self.project_path = Path(self.test_dir) / "test_project"
         self.project_path.mkdir()
 
     def tearDown(self):
-        """Nettoyer"""
+        """Clean up"""
         shutil.rmtree(self.test_dir)
 
     def test_report_structure_completeness(self):
-        """Test de la structure complète du rapport"""
+        """Test complete report structure"""
         (self.project_path / "main.py").write_text("import openai")
         (self.project_path / "README.md").write_text("# Test AI")
 
@@ -520,7 +493,6 @@ class TestReportGeneration(unittest.TestCase):
         compliance_results = checker.check_compliance("limited")
         report = checker.generate_report(scan_results, compliance_results)
 
-        # Vérifier tous les champs requis
         required_fields = [
             "report_date",
             "project_path",
@@ -533,27 +505,23 @@ class TestReportGeneration(unittest.TestCase):
         for field in required_fields:
             self.assertIn(field, report)
 
-        # Vérifier scan_summary
         self.assertIn("files_scanned", report["scan_summary"])
         self.assertIn("ai_files_detected", report["scan_summary"])
         self.assertIn("frameworks_detected", report["scan_summary"])
 
-        # Vérifier compliance_summary
         self.assertIn("risk_category", report["compliance_summary"])
         self.assertIn("compliance_score", report["compliance_summary"])
         self.assertIn("compliance_percentage", report["compliance_summary"])
 
-        # Vérifier detailed_findings
         self.assertIn("detected_models", report["detailed_findings"])
         self.assertIn("compliance_checks", report["detailed_findings"])
         self.assertIn("requirements", report["detailed_findings"])
 
-        # Vérifier recommendations
         self.assertIsInstance(report["recommendations"], list)
         self.assertGreater(len(report["recommendations"]), 0)
 
     def test_report_json_serializable(self):
-        """Test que le rapport est serializable en JSON"""
+        """Test that report is JSON serializable"""
         (self.project_path / "test.py").write_text("from anthropic import Anthropic")
 
         checker = EUAIActChecker(str(self.project_path))
@@ -561,11 +529,9 @@ class TestReportGeneration(unittest.TestCase):
         compliance_results = checker.check_compliance("high")
         report = checker.generate_report(scan_results, compliance_results)
 
-        # Ne devrait pas lever d'exception
         json_str = json.dumps(report, indent=2)
         self.assertIsInstance(json_str, str)
 
-        # Devrait être déserializable
         parsed = json.loads(json_str)
         self.assertEqual(parsed["project_path"], str(self.project_path))
 

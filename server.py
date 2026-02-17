@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 MCP Server: EU AI Act Compliance Checker
-Scanne les projets pour détecter l'utilisation de modèles AI et vérifier la conformité EU AI Act
+Scans projects to detect AI model usage and verify EU AI Act compliance
 """
 
 import os
@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timezone
 
-# Patterns pour détecter l'utilisation de modèles AI
+# Patterns for detecting AI model usage
 AI_MODEL_PATTERNS = {
     "openai": [
         r"openai\.ChatCompletion",
@@ -57,45 +57,45 @@ AI_MODEL_PATTERNS = {
     ],
 }
 
-# EU AI Act - Catégories de risque
+# EU AI Act - Risk categories
 RISK_CATEGORIES = {
     "unacceptable": {
-        "description": "Systèmes interdits (manipulation, notation sociale, surveillance de masse)",
-        "requirements": ["Système interdit - Ne pas déployer"],
+        "description": "Prohibited systems (behavioral manipulation, social scoring, mass biometric surveillance)",
+        "requirements": ["Prohibited system - Do not deploy"],
     },
     "high": {
-        "description": "Systèmes à haut risque (recrutement, crédit, application de la loi)",
+        "description": "High-risk systems (recruitment, credit scoring, law enforcement)",
         "requirements": [
-            "Documentation technique complète",
-            "Système de gestion des risques",
-            "Qualité et gouvernance des données",
-            "Transparence et information aux utilisateurs",
-            "Surveillance humaine",
-            "Robustesse, précision et cybersécurité",
-            "Système de gestion de la qualité",
-            "Enregistrement dans base de données UE",
+            "Complete technical documentation",
+            "Risk management system",
+            "Data quality and governance",
+            "Transparency and user information",
+            "Human oversight",
+            "Robustness, accuracy and cybersecurity",
+            "Quality management system",
+            "Registration in EU database",
         ],
     },
     "limited": {
-        "description": "Systèmes à risque limité (chatbots, deepfakes)",
+        "description": "Limited-risk systems (chatbots, deepfakes)",
         "requirements": [
-            "Obligations de transparence",
-            "Information claire aux utilisateurs sur interaction avec AI",
-            "Marquage du contenu généré par AI",
+            "Transparency obligations",
+            "Clear user information about AI interaction",
+            "AI-generated content marking",
         ],
     },
     "minimal": {
-        "description": "Systèmes à risque minimal (filtres spam, jeux vidéo)",
+        "description": "Minimal-risk systems (spam filters, video games)",
         "requirements": [
-            "Aucune obligation spécifique",
-            "Code de conduite volontaire encouragé",
+            "No specific obligations",
+            "Voluntary code of conduct encouraged",
         ],
     },
 }
 
 
 class EUAIActChecker:
-    """Vérificateur de conformité EU AI Act"""
+    """EU AI Act compliance checker"""
 
     def __init__(self, project_path: str):
         self.project_path = Path(project_path)
@@ -104,7 +104,7 @@ class EUAIActChecker:
         self.ai_files = []
 
     def scan_project(self) -> Dict[str, Any]:
-        """Scanne le projet pour détecter l'utilisation de modèles AI"""
+        """Scan the project to detect AI model usage"""
         print(f"Scanning project: {self.project_path}")
 
         if not self.project_path.exists():
@@ -113,7 +113,7 @@ class EUAIActChecker:
                 "detected_models": {},
             }
 
-        # Extensions de fichiers à scanner
+        # File extensions to scan
         code_extensions = {".py", ".js", ".ts", ".java", ".go", ".rs", ".cpp", ".c"}
 
         for file_path in self.project_path.rglob("*"):
@@ -127,7 +127,7 @@ class EUAIActChecker:
         }
 
     def _scan_file(self, file_path: Path):
-        """Scanne un fichier pour détecter des patterns AI"""
+        """Scan a file for AI patterns"""
         self.files_scanned += 1
         try:
             content = file_path.read_text(encoding="utf-8", errors="ignore")
@@ -140,7 +140,7 @@ class EUAIActChecker:
                         if framework not in self.detected_models:
                             self.detected_models[framework] = []
                         self.detected_models[framework].append(str(file_path.relative_to(self.project_path)))
-                        break  # Une seule détection par framework par fichier
+                        break  # One detection per framework per file
 
             if file_detections:
                 self.ai_files.append({
@@ -152,7 +152,7 @@ class EUAIActChecker:
             print(f"Error scanning {file_path}: {e}")
 
     def check_compliance(self, risk_category: str = "limited") -> Dict[str, Any]:
-        """Vérifie la conformité EU AI Act pour une catégorie de risque donnée"""
+        """Check EU AI Act compliance for a given risk category"""
         if risk_category not in RISK_CATEGORIES:
             return {
                 "error": f"Invalid risk category: {risk_category}. Valid: {list(RISK_CATEGORIES.keys())}",
@@ -161,7 +161,6 @@ class EUAIActChecker:
         category_info = RISK_CATEGORIES[risk_category]
         requirements = category_info["requirements"]
 
-        # Vérifier la présence de documentation
         compliance_checks = {
             "risk_category": risk_category,
             "description": category_info["description"],
@@ -169,31 +168,31 @@ class EUAIActChecker:
             "compliance_status": {},
         }
 
-        # Vérifications basiques de conformité
+        # Basic compliance checks
         docs_path = self.project_path / "docs"
         readme_exists = (self.project_path / "README.md").exists()
 
         if risk_category == "high":
             compliance_checks["compliance_status"] = {
-                "documentation_technique": self._check_technical_docs(),
-                "gestion_risques": self._check_file_exists("RISK_MANAGEMENT.md"),
-                "transparence": self._check_file_exists("TRANSPARENCY.md") or readme_exists,
-                "gouvernance_donnees": self._check_file_exists("DATA_GOVERNANCE.md"),
-                "surveillance_humaine": self._check_file_exists("HUMAN_OVERSIGHT.md"),
-                "robustesse": self._check_file_exists("ROBUSTNESS.md"),
+                "technical_documentation": self._check_technical_docs(),
+                "risk_management": self._check_file_exists("RISK_MANAGEMENT.md"),
+                "transparency": self._check_file_exists("TRANSPARENCY.md") or readme_exists,
+                "data_governance": self._check_file_exists("DATA_GOVERNANCE.md"),
+                "human_oversight": self._check_file_exists("HUMAN_OVERSIGHT.md"),
+                "robustness": self._check_file_exists("ROBUSTNESS.md"),
             }
         elif risk_category == "limited":
             compliance_checks["compliance_status"] = {
-                "transparence": readme_exists or self._check_file_exists("TRANSPARENCY.md"),
-                "information_utilisateurs": self._check_ai_disclosure(),
-                "marquage_contenu": self._check_content_marking(),
+                "transparency": readme_exists or self._check_file_exists("TRANSPARENCY.md"),
+                "user_disclosure": self._check_ai_disclosure(),
+                "content_marking": self._check_content_marking(),
             }
         elif risk_category == "minimal":
             compliance_checks["compliance_status"] = {
-                "documentation_basique": readme_exists,
+                "basic_documentation": readme_exists,
             }
 
-        # Calculer le score de conformité
+        # Calculate compliance score
         total_checks = len(compliance_checks["compliance_status"])
         passed_checks = sum(1 for v in compliance_checks["compliance_status"].values() if v)
         compliance_checks["compliance_score"] = f"{passed_checks}/{total_checks}"
@@ -202,16 +201,16 @@ class EUAIActChecker:
         return compliance_checks
 
     def _check_technical_docs(self) -> bool:
-        """Vérifie la présence de documentation technique"""
+        """Check for technical documentation"""
         docs = ["README.md", "ARCHITECTURE.md", "API.md", "docs/"]
         return any((self.project_path / doc).exists() for doc in docs)
 
     def _check_file_exists(self, filename: str) -> bool:
-        """Vérifie si un fichier existe"""
+        """Check if a file exists"""
         return (self.project_path / filename).exists() or (self.project_path / "docs" / filename).exists()
 
     def _check_ai_disclosure(self) -> bool:
-        """Vérifie si le projet informe clairement de l'utilisation d'AI"""
+        """Check if the project clearly discloses AI usage"""
         readme_path = self.project_path / "README.md"
         if readme_path.exists():
             content = readme_path.read_text(encoding="utf-8", errors="ignore").lower()
@@ -220,8 +219,7 @@ class EUAIActChecker:
         return False
 
     def _check_content_marking(self) -> bool:
-        """Vérifie si le contenu généré est marqué"""
-        # Chercher des marqueurs dans le code
+        """Check if generated content is properly marked"""
         markers = [
             "generated by ai",
             "généré par ia",
@@ -239,7 +237,7 @@ class EUAIActChecker:
         return False
 
     def generate_report(self, scan_results: Dict, compliance_results: Dict) -> Dict[str, Any]:
-        """Génère un rapport de conformité complet"""
+        """Generate a complete compliance report"""
         report = {
             "report_date": datetime.now(timezone.utc).isoformat(),
             "project_path": str(self.project_path),
@@ -264,22 +262,22 @@ class EUAIActChecker:
         return report
 
     def _generate_recommendations(self, compliance_results: Dict) -> List[str]:
-        """Génère des recommandations basées sur les résultats de conformité"""
+        """Generate recommendations based on compliance results"""
         recommendations = []
         compliance_status = compliance_results.get("compliance_status", {})
 
         for check, passed in compliance_status.items():
             if not passed:
-                recommendations.append(f"❌ Créer documentation: {check.replace('_', ' ').title()}")
+                recommendations.append(f"MISSING: Create documentation for: {check.replace('_', ' ').title()}")
 
         if not recommendations:
-            recommendations.append("✅ Toutes les vérifications basiques sont passées")
+            recommendations.append("All basic checks passed")
 
         risk_category = compliance_results.get("risk_category", "limited")
         if risk_category == "high":
-            recommendations.append("⚠️ Système à haut risque - Enregistrement UE requis avant déploiement")
+            recommendations.append("WARNING: High-risk system - EU database registration required before deployment")
         elif risk_category == "limited":
-            recommendations.append("ℹ️ Système à risque limité - Assurer transparence complète")
+            recommendations.append("INFO: Limited-risk system - Ensure full transparency compliance")
 
         return recommendations
 
@@ -287,13 +285,13 @@ class EUAIActChecker:
 # MCP Server Tools
 def scan_project_tool(project_path: str) -> Dict[str, Any]:
     """
-    Tool MCP: Scanne un projet pour détecter l'utilisation de modèles AI
+    MCP Tool: Scan a project to detect AI model usage
 
     Args:
-        project_path: Chemin vers le projet à scanner
+        project_path: Path to the project to scan
 
     Returns:
-        Résultats du scan avec fichiers détectés et frameworks utilisés
+        Scan results with detected files and frameworks
     """
     checker = EUAIActChecker(project_path)
     results = checker.scan_project()
@@ -305,17 +303,17 @@ def scan_project_tool(project_path: str) -> Dict[str, Any]:
 
 def check_compliance_tool(project_path: str, risk_category: str = "limited") -> Dict[str, Any]:
     """
-    Tool MCP: Vérifie la conformité EU AI Act
+    MCP Tool: Check EU AI Act compliance
 
     Args:
-        project_path: Chemin vers le projet
-        risk_category: Catégorie de risque (unacceptable|high|limited|minimal)
+        project_path: Path to the project
+        risk_category: Risk category (unacceptable|high|limited|minimal)
 
     Returns:
-        Résultats de la vérification de conformité
+        Compliance verification results
     """
     checker = EUAIActChecker(project_path)
-    checker.scan_project()  # Scan d'abord
+    checker.scan_project()
     compliance = checker.check_compliance(risk_category)
     return {
         "tool": "check_compliance",
@@ -325,14 +323,14 @@ def check_compliance_tool(project_path: str, risk_category: str = "limited") -> 
 
 def generate_report_tool(project_path: str, risk_category: str = "limited") -> Dict[str, Any]:
     """
-    Tool MCP: Génère un rapport de conformité complet
+    MCP Tool: Generate a complete compliance report
 
     Args:
-        project_path: Chemin vers le projet
-        risk_category: Catégorie de risque (unacceptable|high|limited|minimal)
+        project_path: Path to the project
+        risk_category: Risk category (unacceptable|high|limited|minimal)
 
     Returns:
-        Rapport de conformité complet au format JSON
+        Complete compliance report in JSON format
     """
     checker = EUAIActChecker(project_path)
     scan_results = checker.scan_project()
@@ -346,7 +344,7 @@ def generate_report_tool(project_path: str, risk_category: str = "limited") -> D
 
 # MCP Server Interface
 class MCPServer:
-    """Serveur MCP pour EU AI Act Compliance Checker"""
+    """MCP Server for EU AI Act Compliance Checker"""
 
     def __init__(self):
         self.tools = {
@@ -356,7 +354,7 @@ class MCPServer:
         }
 
     def handle_request(self, tool_name: str, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Traite une requête MCP"""
+        """Handle an MCP request"""
         if tool_name not in self.tools:
             return {
                 "error": f"Unknown tool: {tool_name}",
@@ -372,29 +370,29 @@ class MCPServer:
             }
 
     def list_tools(self) -> Dict[str, Any]:
-        """Liste les tools disponibles"""
+        """List available tools"""
         return {
             "tools": [
                 {
                     "name": "scan_project",
-                    "description": "Scanne un projet pour détecter l'utilisation de modèles AI",
+                    "description": "Scan a project to detect AI model usage",
                     "parameters": {
-                        "project_path": "string (required) - Chemin vers le projet"
+                        "project_path": "string (required) - Path to the project"
                     },
                 },
                 {
                     "name": "check_compliance",
-                    "description": "Vérifie la conformité EU AI Act",
+                    "description": "Check EU AI Act compliance",
                     "parameters": {
-                        "project_path": "string (required) - Chemin vers le projet",
+                        "project_path": "string (required) - Path to the project",
                         "risk_category": "string (optional) - unacceptable|high|limited|minimal (default: limited)",
                     },
                 },
                 {
                     "name": "generate_report",
-                    "description": "Génère un rapport de conformité complet",
+                    "description": "Generate a complete compliance report",
                     "parameters": {
-                        "project_path": "string (required) - Chemin vers le projet",
+                        "project_path": "string (required) - Path to the project",
                         "risk_category": "string (optional) - unacceptable|high|limited|minimal (default: limited)",
                     },
                 },
@@ -403,17 +401,16 @@ class MCPServer:
 
 
 def main():
-    """Point d'entrée principal du serveur MCP"""
+    """Main entry point for the MCP server"""
     server = MCPServer()
 
-    # Exemple d'utilisation
     print("=== EU AI Act Compliance Checker - MCP Server ===")
     print("\nAvailable tools:")
     tools_info = server.list_tools()
     for tool in tools_info["tools"]:
         print(f"\n- {tool['name']}: {tool['description']}")
 
-    # Test avec le projet actuel
+    # Test with current project
     print("\n\n=== Testing with current project ===")
     project_path = "/opt/claude-ceo"
 

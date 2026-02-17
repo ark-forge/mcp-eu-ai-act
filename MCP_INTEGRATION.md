@@ -1,14 +1,14 @@
-# Intégration MCP - EU AI Act Compliance Checker
+# MCP Integration - EU AI Act Compliance Checker
 
-## Configuration MCP
+## MCP Configuration
 
-Pour intégrer ce serveur dans un système compatible MCP (Claude Code, VS Code, etc.), suivez les étapes ci-dessous.
+To integrate this server into an MCP-compatible system (Claude Code, VS Code, etc.), follow the steps below.
 
-## 1. Configuration Claude Code
+## 1. Claude Code Configuration
 
-### Fichier de configuration MCP
+### MCP Configuration File
 
-Créer ou modifier le fichier `~/.claude/mcp.json`:
+Create or modify the `~/.claude/mcp.json` file:
 
 ```json
 {
@@ -16,12 +16,12 @@ Créer ou modifier le fichier `~/.claude/mcp.json`:
     "eu-ai-act-compliance": {
       "command": "python3",
       "args": [
-        "/opt/claude-ceo/workspace/mcp-servers/eu-ai-act/server.py"
+        "/path/to/mcp-eu-ai-act/server.py"
       ],
       "env": {},
       "metadata": {
         "name": "EU AI Act Compliance Checker",
-        "description": "Vérifie la conformité EU AI Act des projets AI",
+        "description": "Verify EU AI Act compliance for AI projects",
         "version": "1.0.0",
         "author": "ArkForge"
       }
@@ -30,48 +30,48 @@ Créer ou modifier le fichier `~/.claude/mcp.json`:
 }
 ```
 
-## 2. Configuration VS Code
+## 2. VS Code Configuration
 
-### Extension MCP pour VS Code
+### MCP Extension for VS Code
 
-1. Installer l'extension MCP pour VS Code
-2. Ajouter la configuration dans `.vscode/mcp-servers.json`:
+1. Install the MCP extension for VS Code
+2. Add the configuration in `.vscode/mcp-servers.json`:
 
 ```json
 {
   "servers": {
     "eu-ai-act-compliance": {
       "type": "python",
-      "path": "/opt/claude-ceo/workspace/mcp-servers/eu-ai-act/server.py",
+      "path": "/path/to/mcp-eu-ai-act/server.py",
       "enabled": true
     }
   }
 }
 ```
 
-## 3. Utilisation dans Claude Code
+## 3. Usage in Claude Code
 
-Une fois configuré, le serveur MCP sera disponible dans Claude Code via les commandes:
+Once configured, the MCP server will be available in Claude Code via commands:
 
-### Scanner un projet
+### Scan a Project
 
 ```
 @eu-ai-act-compliance scan_project /path/to/project
 ```
 
-### Vérifier la conformité
+### Check Compliance
 
 ```
 @eu-ai-act-compliance check_compliance /path/to/project --risk=limited
 ```
 
-### Générer un rapport
+### Generate a Report
 
 ```
 @eu-ai-act-compliance generate_report /path/to/project --risk=high
 ```
 
-## 4. Intégration programmatique
+## 4. Programmatic Integration
 
 ### Python
 
@@ -80,27 +80,27 @@ from server import MCPServer
 
 server = MCPServer()
 
-# Scanner un projet
+# Scan a project
 result = server.handle_request("scan_project", {
     "project_path": "/path/to/project"
 })
 
-# Vérifier la conformité
+# Check compliance
 result = server.handle_request("check_compliance", {
     "project_path": "/path/to/project",
     "risk_category": "high"
 })
 
-# Générer un rapport
+# Generate a report
 result = server.handle_request("generate_report", {
     "project_path": "/path/to/project",
     "risk_category": "limited"
 })
 ```
 
-### API REST (via wrapper)
+### REST API (via wrapper)
 
-Si vous souhaitez exposer le serveur MCP via une API REST, créez un wrapper Flask/FastAPI:
+If you want to expose the MCP server via a REST API, create a Flask/FastAPI wrapper:
 
 ```python
 from flask import Flask, request, jsonify
@@ -131,11 +131,11 @@ if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
 ```
 
-## 5. Intégration CI/CD
+## 5. CI/CD Integration
 
 ### GitHub Actions
 
-Créer `.github/workflows/eu-ai-act-compliance.yml`:
+Create `.github/workflows/eu-ai-act-compliance.yml`:
 
 ```yaml
 name: EU AI Act Compliance Check
@@ -161,12 +161,12 @@ jobs:
     - name: Install MCP Server
       run: |
         git clone https://github.com/ark-forge/mcp-eu-ai-act.git
-        cd eu-ai-act-mcp
+        cd mcp-eu-ai-act
         pip install -r requirements.txt
 
     - name: Run Compliance Check
       run: |
-        python3 eu-ai-act-mcp/server.py << EOF
+        python3 mcp-eu-ai-act/server.py << EOF
         from server import MCPServer
         import json
         import sys
@@ -182,17 +182,17 @@ jobs:
         print(json.dumps(result, indent=2))
 
         if compliance_pct < 80:
-            print(f"❌ Compliance below threshold: {compliance_pct}%")
+            print(f"Compliance below threshold: {compliance_pct}%")
             sys.exit(1)
         else:
-            print(f"✅ Compliance OK: {compliance_pct}%")
+            print(f"Compliance OK: {compliance_pct}%")
             sys.exit(0)
         EOF
 ```
 
 ### GitLab CI
 
-Créer `.gitlab-ci.yml`:
+Create `.gitlab-ci.yml`:
 
 ```yaml
 stages:
@@ -203,7 +203,7 @@ eu-ai-act-check:
   image: python:3.9
   script:
     - git clone https://github.com/ark-forge/mcp-eu-ai-act.git
-    - cd eu-ai-act-mcp && pip install -r requirements.txt
+    - cd mcp-eu-ai-act && pip install -r requirements.txt
     - python3 -c "
       from server import MCPServer;
       import sys;
@@ -217,24 +217,24 @@ eu-ai-act-check:
     - develop
 ```
 
-## 6. Variables d'environnement
+## 6. Environment Variables
 
-Le serveur peut être configuré avec des variables d'environnement:
+The server can be configured with environment variables:
 
 ```bash
-# Niveau de log
+# Log level
 export MCP_LOG_LEVEL=INFO
 
-# Seuil de conformité minimum
+# Minimum compliance threshold
 export MCP_COMPLIANCE_THRESHOLD=80
 
-# Catégorie de risque par défaut
+# Default risk category
 export MCP_DEFAULT_RISK_CATEGORY=limited
 ```
 
-## 7. Monitoring et Logging
+## 7. Monitoring and Logging
 
-Le serveur génère des logs qui peuvent être capturés:
+The server generates logs that can be captured:
 
 ```python
 import logging
@@ -249,69 +249,69 @@ logging.basicConfig(
 )
 ```
 
-## 8. Tests d'intégration
+## 8. Integration Tests
 
-Exécuter les tests avant déploiement:
+Run tests before deployment:
 
 ```bash
-# Tests unitaires
+# Unit tests
 python3 test_server.py
 
-# Tests d'intégration
+# Integration tests
 python3 example_usage.py
 
-# Test complet avec projet réel
+# Complete test with real project
 python3 server.py
 ```
 
-## 9. Dépendances
+## 9. Dependencies
 
-### Requirements minima
+### Minimum Requirements
 
 - Python 3.7+
-- Aucune dépendance externe (utilise uniquement la stdlib)
+- No external dependencies (uses only stdlib)
 
-### Optionnel pour fonctionnalités avancées
+### Optional for Advanced Features
 
 ```txt
-# Pour API REST
+# For REST API
 flask>=2.0.0
 fastapi>=0.95.0
 uvicorn>=0.20.0
 
-# Pour génération de rapports PDF
+# For PDF report generation
 reportlab>=3.6.0
 
-# Pour analyse avancée
+# For advanced analysis
 pyyaml>=6.0
 ```
 
-## 10. Sécurité
+## 10. Security
 
-### Bonnes pratiques
+### Best Practices
 
-- ✅ Le serveur est en lecture seule (ne modifie pas les fichiers)
-- ✅ Pas d'exécution de code arbitraire
-- ✅ Validation des chemins de fichiers
-- ✅ Gestion des erreurs robuste
-- ✅ Pas de dépendances externes vulnérables
+- The server is read-only (does not modify files)
+- No arbitrary code execution
+- File path validation
+- Robust error handling
+- No vulnerable external dependencies
 
 ### Limitations
 
-- Le serveur ne fait que scanner et analyser
-- Il ne collecte aucune donnée externe
-- Il ne communique pas sur le réseau
-- Tous les traitements sont locaux
+- The server only scans and analyzes
+- It does not collect external data
+- It does not communicate over the network
+- All processing is local
 
 ## Support
 
-Pour toute question ou problème:
+For any questions or issues:
 - Issues: GitHub repository
 - Email: support@arkforge.fr
-- Documentation: `/opt/claude-ceo/workspace/mcp-servers/eu-ai-act/README.md`
+- Documentation: README.md in the repository
 
 ---
 
 **Version**: 1.0.0
-**Dernière mise à jour**: 2026-02-09
-**Maintenu par**: ArkForge
+**Last updated**: 2026-02-09
+**Maintained by**: ArkForge

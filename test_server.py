@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Tests unitaires pour le serveur MCP EU AI Act Compliance Checker
+Unit tests for the MCP EU AI Act Compliance Checker server
 """
 
 import os
@@ -8,12 +8,11 @@ import sys
 import json
 from pathlib import Path
 
-# Import du serveur
 from server import MCPServer, EUAIActChecker, RISK_CATEGORIES
 
 
 def test_server_initialization():
-    """Test de l'initialisation du serveur"""
+    """Test server initialization"""
     print("TEST 1: Server Initialization")
     server = MCPServer()
     assert server is not None
@@ -21,11 +20,11 @@ def test_server_initialization():
     assert "scan_project" in server.tools
     assert "check_compliance" in server.tools
     assert "generate_report" in server.tools
-    print("  ✅ Server initialized correctly")
+    print("  OK Server initialized correctly")
 
 
 def test_list_tools():
-    """Test de la liste des tools"""
+    """Test tool listing"""
     print("\nTEST 2: List Tools")
     server = MCPServer()
     tools = server.list_tools()
@@ -36,11 +35,11 @@ def test_list_tools():
     assert "scan_project" in tool_names
     assert "check_compliance" in tool_names
     assert "generate_report" in tool_names
-    print("  ✅ All tools listed correctly")
+    print("  OK All tools listed correctly")
 
 
 def test_risk_categories():
-    """Test des catégories de risque"""
+    """Test risk categories"""
     print("\nTEST 3: Risk Categories")
     expected_categories = ["unacceptable", "high", "limited", "minimal"]
 
@@ -49,32 +48,28 @@ def test_risk_categories():
         assert "description" in RISK_CATEGORIES[category]
         assert "requirements" in RISK_CATEGORIES[category]
 
-    print("  ✅ All risk categories defined correctly")
+    print("  OK All risk categories defined correctly")
 
 
 def test_scan_project():
-    """Test du scan d'un projet"""
+    """Test project scanning"""
     print("\nTEST 4: Scan Project")
 
-    # Créer un projet de test
     test_dir = Path("/tmp/test-scan-project")
     test_dir.mkdir(exist_ok=True)
 
-    # Fichier avec code OpenAI
     openai_file = test_dir / "openai_code.py"
     openai_file.write_text("""
 import openai
 client = openai.ChatCompletion()
 """)
 
-    # Fichier avec code Anthropic
     anthropic_file = test_dir / "anthropic_code.py"
     anthropic_file.write_text("""
 from anthropic import Anthropic
 client = Anthropic()
 """)
 
-    # Scanner
     checker = EUAIActChecker(str(test_dir))
     results = checker.scan_project()
 
@@ -83,26 +78,23 @@ client = Anthropic()
     assert "openai" in results["detected_models"]
     assert "anthropic" in results["detected_models"]
 
-    print(f"  ✅ Scanned {results['files_scanned']} files")
-    print(f"  ✅ Detected frameworks: {', '.join(results['detected_models'].keys())}")
+    print(f"  OK Scanned {results['files_scanned']} files")
+    print(f"  OK Detected frameworks: {', '.join(results['detected_models'].keys())}")
 
 
 def test_check_compliance():
-    """Test de la vérification de conformité"""
+    """Test compliance checking"""
     print("\nTEST 5: Check Compliance")
 
     test_dir = Path("/tmp/test-compliance")
     test_dir.mkdir(exist_ok=True)
 
-    # Créer README
     readme = test_dir / "README.md"
     readme.write_text("# Test Project\nThis project uses AI models.")
 
-    # Créer un fichier Python
     py_file = test_dir / "main.py"
     py_file.write_text("import anthropic")
 
-    # Tester risque limité
     checker = EUAIActChecker(str(test_dir))
     checker.scan_project()
     compliance = checker.check_compliance("limited")
@@ -112,22 +104,20 @@ def test_check_compliance():
     assert "compliance_score" in compliance
     assert compliance["compliance_percentage"] >= 0
 
-    print(f"  ✅ Compliance checked for 'limited' risk")
-    print(f"  ✅ Score: {compliance['compliance_score']} ({compliance['compliance_percentage']}%)")
+    print(f"  OK Compliance checked for 'limited' risk")
+    print(f"  OK Score: {compliance['compliance_score']} ({compliance['compliance_percentage']}%)")
 
 
 def test_generate_report():
-    """Test de génération de rapport"""
+    """Test report generation"""
     print("\nTEST 6: Generate Report")
 
     test_dir = Path("/tmp/test-report")
     test_dir.mkdir(exist_ok=True)
 
-    # Créer des fichiers de test
     (test_dir / "README.md").write_text("# AI Project")
     (test_dir / "code.py").write_text("from anthropic import Anthropic")
 
-    # Générer rapport
     checker = EUAIActChecker(str(test_dir))
     scan_results = checker.scan_project()
     compliance_results = checker.check_compliance("limited")
@@ -140,12 +130,12 @@ def test_generate_report():
     assert "detailed_findings" in report
     assert "recommendations" in report
 
-    print("  ✅ Report generated successfully")
-    print(f"  ✅ Report contains all required sections")
+    print("  OK Report generated successfully")
+    print("  OK Report contains all required sections")
 
 
 def test_mcp_server_handle_request():
-    """Test de gestion des requêtes MCP"""
+    """Test MCP request handling"""
     print("\nTEST 7: MCP Server Handle Request")
 
     server = MCPServer()
@@ -153,13 +143,11 @@ def test_mcp_server_handle_request():
     test_dir.mkdir(exist_ok=True)
     (test_dir / "test.py").write_text("import openai")
 
-    # Test scan_project
     result = server.handle_request("scan_project", {"project_path": str(test_dir)})
     assert "tool" in result
     assert result["tool"] == "scan_project"
     assert "results" in result
 
-    # Test check_compliance
     result = server.handle_request("check_compliance", {
         "project_path": str(test_dir),
         "risk_category": "minimal"
@@ -167,7 +155,6 @@ def test_mcp_server_handle_request():
     assert result["tool"] == "check_compliance"
     assert result["results"]["risk_category"] == "minimal"
 
-    # Test generate_report
     result = server.handle_request("generate_report", {
         "project_path": str(test_dir),
         "risk_category": "limited"
@@ -175,11 +162,11 @@ def test_mcp_server_handle_request():
     assert result["tool"] == "generate_report"
     assert "report_date" in result["results"]
 
-    print("  ✅ All MCP requests handled correctly")
+    print("  OK All MCP requests handled correctly")
 
 
 def test_invalid_tool():
-    """Test de gestion d'un tool invalide"""
+    """Test invalid tool handling"""
     print("\nTEST 8: Invalid Tool Handling")
 
     server = MCPServer()
@@ -189,11 +176,11 @@ def test_invalid_tool():
     assert "Unknown tool" in result["error"]
     assert "available_tools" in result
 
-    print("  ✅ Invalid tool handled correctly")
+    print("  OK Invalid tool handled correctly")
 
 
 def test_invalid_risk_category():
-    """Test de gestion d'une catégorie de risque invalide"""
+    """Test invalid risk category handling"""
     print("\nTEST 9: Invalid Risk Category")
 
     test_dir = Path("/tmp/test-invalid-risk")
@@ -205,11 +192,11 @@ def test_invalid_risk_category():
     assert "error" in result
     assert "Invalid risk category" in result["error"]
 
-    print("  ✅ Invalid risk category handled correctly")
+    print("  OK Invalid risk category handled correctly")
 
 
 def test_nonexistent_project():
-    """Test avec un projet inexistant"""
+    """Test with non-existent project"""
     print("\nTEST 10: Nonexistent Project")
 
     checker = EUAIActChecker("/nonexistent/path/to/project")
@@ -218,11 +205,11 @@ def test_nonexistent_project():
     assert "error" in result
     assert "does not exist" in result["error"]
 
-    print("  ✅ Nonexistent project handled correctly")
+    print("  OK Nonexistent project handled correctly")
 
 
 def run_all_tests():
-    """Exécute tous les tests"""
+    """Run all tests"""
     print("=" * 60)
     print("EU AI Act Compliance Checker - Unit Tests")
     print("=" * 60)
@@ -248,10 +235,10 @@ def run_all_tests():
             test()
             passed += 1
         except AssertionError as e:
-            print(f"  ❌ FAILED: {e}")
+            print(f"  FAILED: {e}")
             failed += 1
         except Exception as e:
-            print(f"  ❌ ERROR: {e}")
+            print(f"  ERROR: {e}")
             failed += 1
 
     print("\n" + "=" * 60)
@@ -259,10 +246,10 @@ def run_all_tests():
     print("=" * 60)
 
     if failed == 0:
-        print("✅ ALL TESTS PASSED!")
+        print("ALL TESTS PASSED!")
         return 0
     else:
-        print(f"❌ {failed} TEST(S) FAILED")
+        print(f"{failed} TEST(S) FAILED")
         return 1
 
 
