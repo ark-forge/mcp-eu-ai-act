@@ -1,5 +1,6 @@
 # EU AI Act Compliance Checker - MCP Server
 
+![CI](https://github.com/ark-forge/mcp-eu-ai-act/workflows/QA%20-%20MCP%20EU%20AI%20Act/badge.svg)
 ![Version](https://img.shields.io/badge/version-1.1.0-blue)
 ![MCP](https://img.shields.io/badge/MCP-1.0-green)
 ![License](https://img.shields.io/badge/license-MIT-green)
