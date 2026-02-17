@@ -11,6 +11,10 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timezone
+from enum import Enum
+
+from mcp.server.fastmcp import FastMCP
+from smithery.decorators import smithery
 
 logger = logging.getLogger(__name__)
 
@@ -285,148 +289,87 @@ class EUAIActChecker:
         return recommendations
 
 
-# MCP Server Tools
-def scan_project_tool(project_path: str) -> Dict[str, Any]:
-    """
-    MCP Tool: Scan a project to detect AI model usage
-
-    Args:
-        project_path: Path to the project to scan
-
-    Returns:
-        Scan results with detected files and frameworks
-    """
-    checker = EUAIActChecker(project_path)
-    results = checker.scan_project()
-    return {
-        "tool": "scan_project",
-        "results": results,
-    }
+class RiskCategory(str, Enum):
+    """EU AI Act risk categories"""
+    unacceptable = "unacceptable"
+    high = "high"
+    limited = "limited"
+    minimal = "minimal"
 
 
-def check_compliance_tool(project_path: str, risk_category: str = "limited") -> Dict[str, Any]:
-    """
-    MCP Tool: Check EU AI Act compliance
+@smithery.server()
+def create_server():
+    """Create and return the EU AI Act Compliance Checker MCP server."""
+    mcp = FastMCP(
+        name="EU AI Act Compliance Checker",
+        description="Scan projects to detect AI model usage and verify EU AI Act compliance",
+    )
 
-    Args:
-        project_path: Path to the project
-        risk_category: Risk category (unacceptable|high|limited|minimal)
+    @mcp.tool()
+    def scan_project(project_path: str) -> dict:
+        """Scan a project to detect AI model usage (OpenAI, Anthropic, HuggingFace, TensorFlow, PyTorch, LangChain).
 
-    Returns:
-        Compliance verification results
-    """
-    checker = EUAIActChecker(project_path)
-    checker.scan_project()
-    compliance = checker.check_compliance(risk_category)
-    return {
-        "tool": "check_compliance",
-        "results": compliance,
-    }
+        Args:
+            project_path: Absolute path to the project to scan
+        """
+        checker = EUAIActChecker(project_path)
+        return checker.scan_project()
+
+    @mcp.tool()
+    def check_compliance(project_path: str, risk_category: RiskCategory = RiskCategory.limited) -> dict:
+        """Check EU AI Act compliance for a given risk category.
+
+        Args:
+            project_path: Absolute path to the project
+            risk_category: EU AI Act risk category (unacceptable, high, limited, minimal)
+        """
+        checker = EUAIActChecker(project_path)
+        checker.scan_project()
+        return checker.check_compliance(risk_category.value)
+
+    @mcp.tool()
+    def generate_report(project_path: str, risk_category: RiskCategory = RiskCategory.limited) -> dict:
+        """Generate a complete EU AI Act compliance report with scan results, compliance checks, and recommendations.
+
+        Args:
+            project_path: Absolute path to the project
+            risk_category: EU AI Act risk category (unacceptable, high, limited, minimal)
+        """
+        checker = EUAIActChecker(project_path)
+        scan_results = checker.scan_project()
+        compliance_results = checker.check_compliance(risk_category.value)
+        return checker.generate_report(scan_results, compliance_results)
+
+    return mcp
 
 
-def generate_report_tool(project_path: str, risk_category: str = "limited") -> Dict[str, Any]:
-    """
-    MCP Tool: Generate a complete compliance report
-
-    Args:
-        project_path: Path to the project
-        risk_category: Risk category (unacceptable|high|limited|minimal)
-
-    Returns:
-        Complete compliance report in JSON format
-    """
-    checker = EUAIActChecker(project_path)
-    scan_results = checker.scan_project()
-    compliance_results = checker.check_compliance(risk_category)
-    report = checker.generate_report(scan_results, compliance_results)
-    return {
-        "tool": "generate_report",
-        "results": report,
-    }
-
-
-# MCP Server Interface
+# Legacy interface for backward compatibility
 class MCPServer:
-    """MCP Server for EU AI Act Compliance Checker"""
+    """Legacy MCP Server interface (use create_server() for MCP protocol)"""
 
     def __init__(self):
-        self.tools = {
-            "scan_project": scan_project_tool,
-            "check_compliance": check_compliance_tool,
-            "generate_report": generate_report_tool,
+        self._tools = {
+            "scan_project": lambda **params: {"tool": "scan_project", "results": EUAIActChecker(params["project_path"]).scan_project()},
+            "check_compliance": lambda **params: {"tool": "check_compliance", "results": (lambda c: (c.scan_project(), c.check_compliance(params.get("risk_category", "limited")))[-1])(EUAIActChecker(params["project_path"]))},
+            "generate_report": lambda **params: {"tool": "generate_report", "results": (lambda c: c.generate_report(c.scan_project(), c.check_compliance(params.get("risk_category", "limited"))))(EUAIActChecker(params["project_path"]))},
         }
 
     def handle_request(self, tool_name: str, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle an MCP request"""
-        if tool_name not in self.tools:
-            return {
-                "error": f"Unknown tool: {tool_name}",
-                "available_tools": list(self.tools.keys()),
-            }
-
+        if tool_name not in self._tools:
+            return {"error": f"Unknown tool: {tool_name}", "available_tools": list(self._tools.keys())}
         try:
-            result = self.tools[tool_name](**params)
-            return result
+            return self._tools[tool_name](**params)
         except Exception as e:
-            return {
-                "error": f"Error executing {tool_name}: {str(e)}",
-            }
+            return {"error": f"Error executing {tool_name}: {str(e)}"}
 
     def list_tools(self) -> Dict[str, Any]:
-        """List available tools"""
-        return {
-            "tools": [
-                {
-                    "name": "scan_project",
-                    "description": "Scan a project to detect AI model usage",
-                    "parameters": {
-                        "project_path": "string (required) - Path to the project"
-                    },
-                },
-                {
-                    "name": "check_compliance",
-                    "description": "Check EU AI Act compliance",
-                    "parameters": {
-                        "project_path": "string (required) - Path to the project",
-                        "risk_category": "string (optional) - unacceptable|high|limited|minimal (default: limited)",
-                    },
-                },
-                {
-                    "name": "generate_report",
-                    "description": "Generate a complete compliance report",
-                    "parameters": {
-                        "project_path": "string (required) - Path to the project",
-                        "risk_category": "string (optional) - unacceptable|high|limited|minimal (default: limited)",
-                    },
-                },
-            ]
-        }
-
-
-def main():
-    """Main entry point for the MCP server - demo mode"""
-    import sys
-    server = MCPServer()
-    project_path = sys.argv[1] if len(sys.argv) > 1 else "."
-
-    tools_info = server.list_tools()
-    sys.stdout.write("=== EU AI Act Compliance Checker - MCP Server ===\n")
-    for tool in tools_info["tools"]:
-        sys.stdout.write(f"\n- {tool['name']}: {tool['description']}\n")
-
-    scan_result = server.handle_request("scan_project", {"project_path": project_path})
-    sys.stdout.write(f"\nScan: {scan_result['results']['files_scanned']} files\n")
-
-    compliance_result = server.handle_request("check_compliance", {
-        "project_path": project_path, "risk_category": "limited"
-    })
-    sys.stdout.write(f"Compliance: {compliance_result['results']['compliance_score']}\n")
-
-    report_result = server.handle_request("generate_report", {
-        "project_path": project_path, "risk_category": "limited"
-    })
-    sys.stdout.write(json.dumps(report_result, indent=2) + "\n")
+        return {"tools": [
+            {"name": "scan_project", "description": "Scan a project to detect AI model usage", "parameters": {"project_path": "string (required)"}},
+            {"name": "check_compliance", "description": "Check EU AI Act compliance", "parameters": {"project_path": "string (required)", "risk_category": "string (optional)"}},
+            {"name": "generate_report", "description": "Generate a complete compliance report", "parameters": {"project_path": "string (required)", "risk_category": "string (optional)"}},
+        ]}
 
 
 if __name__ == "__main__":
-    main()
+    server = create_server()
+    server.run()

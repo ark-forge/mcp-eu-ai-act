@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mcp-eu-ai-act"
+version = "1.1.0"
+description = "MCP Server to verify EU AI Act compliance for AI projects"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp>=1.14.1",
+    "smithery>=0.2.4",
+]
+keywords = [
+    "EU AI Act",
+    "compliance",
+    "MCP",
+    "AI regulation",
+    "risk assessment",
+]
+
+[project.urls]
+Homepage = "https://github.com/ark-forge/mcp-eu-ai-act"
+Repository = "https://github.com/ark-forge/mcp-eu-ai-act"
+Documentation = "https://arkforge.fr/mcp-eu-ai-act.html"
+
+[project.scripts]
+dev = "smithery.cli.dev:main"
+playground = "smithery.cli.playground:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
+only-include = ["server.py"]
+
+[tool.smithery]
+server = "server:create_server"

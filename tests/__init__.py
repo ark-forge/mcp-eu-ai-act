@@ -1,3 +1,3 @@
 """
-Suite de tests pour le serveur MCP EU AI Act
+Test suite for the MCP EU AI Act server
 """
