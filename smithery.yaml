@@ -13,7 +13,18 @@ startCommand:
   type: stdio
   configSchema:
     type: object
-    properties: {}
+    properties:
+      defaultRiskCategory:
+        type: string
+        title: "Default Risk Category"
+        description: "Default EU AI Act risk category for compliance checks"
+        enum:
+          - unacceptable
+          - high
+          - limited
+          - minimal
+        default: "limited"
+    required: []
   commandFunction: |-
     (config) => ({ command: "node", args: ["index.js"] })
 
