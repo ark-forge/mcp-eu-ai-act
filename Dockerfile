@@ -10,5 +10,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY server.py .
 COPY manifest.json .
 
+# Run as non-root user
+RUN useradd -r -s /bin/false mcp
+USER mcp
+
 # Set entrypoint
 ENTRYPOINT ["python3", "server.py"]

@@ -401,39 +401,28 @@ class MCPServer:
 
 
 def main():
-    """Main entry point for the MCP server"""
+    """Main entry point for the MCP server - demo mode"""
+    import sys
     server = MCPServer()
+    project_path = sys.argv[1] if len(sys.argv) > 1 else "."
 
-    print("=== EU AI Act Compliance Checker - MCP Server ===")
-    print("\nAvailable tools:")
     tools_info = server.list_tools()
+    sys.stdout.write("=== EU AI Act Compliance Checker - MCP Server ===\n")
     for tool in tools_info["tools"]:
-        print(f"\n- {tool['name']}: {tool['description']}")
+        sys.stdout.write(f"\n- {tool['name']}: {tool['description']}\n")
 
-    # Test with current project
-    print("\n\n=== Testing with current project ===")
-    project_path = "/opt/claude-ceo"
-
-    # 1. Scan
-    print("\n1. Scanning project...")
     scan_result = server.handle_request("scan_project", {"project_path": project_path})
-    print(json.dumps(scan_result, indent=2))
+    sys.stdout.write(f"\nScan: {scan_result['results']['files_scanned']} files\n")
 
-    # 2. Check compliance
-    print("\n2. Checking compliance (limited risk)...")
     compliance_result = server.handle_request("check_compliance", {
-        "project_path": project_path,
-        "risk_category": "limited"
+        "project_path": project_path, "risk_category": "limited"
     })
-    print(json.dumps(compliance_result, indent=2))
+    sys.stdout.write(f"Compliance: {compliance_result['results']['compliance_score']}\n")
 
-    # 3. Generate report
-    print("\n3. Generating full report...")
     report_result = server.handle_request("generate_report", {
-        "project_path": project_path,
-        "risk_category": "limited"
+        "project_path": project_path, "risk_category": "limited"
     })
-    print(json.dumps(report_result, indent=2))
+    sys.stdout.write(json.dumps(report_result, indent=2) + "\n")
 
 
 if __name__ == "__main__":
