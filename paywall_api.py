@@ -642,6 +642,9 @@ async def paid_scan(
     try:
         checker = EUAIActChecker(scan_path)
         scan_result = checker.scan_project()
+        compliance = checker.check_compliance("limited")
+        report = checker.generate_report(scan_result, compliance)
+        scan_result["report"] = report
     finally:
         if clone_dir:
             shutil.rmtree(clone_dir, ignore_errors=True)
