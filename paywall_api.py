@@ -44,7 +44,8 @@ if SETTINGS_ENV.exists():
 
 STRIPE_LIVE_KEY = os.environ.get("STRIPE_LIVE_SECRET_KEY", "")
 STRIPE_TEST_KEY = os.environ.get("STRIPE_TEST_SECRET_KEY", "")
-STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+STRIPE_WEBHOOK_SECRET_LIVE = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+STRIPE_WEBHOOK_SECRET_TEST = os.environ.get("STRIPE_WEBHOOK_SECRET_TEST", "")
 
 # Default to live for non-authenticated endpoints (webhooks, checkout, free scans)
 stripe.api_key = STRIPE_LIVE_KEY
@@ -857,20 +858,26 @@ async def stripe_webhook(request: Request):
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature", "")
 
-    # Verify signature if webhook secret is configured
-    if STRIPE_WEBHOOK_SECRET:
+    # Verify signature — try both live and test webhook secrets
+    event = None
+    secrets_to_try = [s for s in [STRIPE_WEBHOOK_SECRET_LIVE, STRIPE_WEBHOOK_SECRET_TEST] if s]
+    for ws in secrets_to_try:
         try:
-            event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
-        except (ValueError, stripe.SignatureVerificationError) as e:
-            logger.error("Webhook signature verification failed: %s", e)
+            event = stripe.Webhook.construct_event(payload, sig_header, ws)
+            break
+        except (ValueError, stripe.SignatureVerificationError):
+            continue
+
+    if event is None:
+        if secrets_to_try:
+            logger.error("Webhook signature verification failed (tried %d secret(s))", len(secrets_to_try))
             raise HTTPException(400, "Invalid signature")
-    else:
         # No webhook secret configured — parse raw payload
         try:
             event = json.loads(payload)
         except json.JSONDecodeError:
             raise HTTPException(400, "Invalid JSON")
-        logger.warning("Webhook received without signature verification (STRIPE_WEBHOOK_SECRET not set)")
+        logger.warning("Webhook received without signature verification")
 
     event_type = event.get("type", "")
     data = event.get("data", {}).get("object", {})
