@@ -42,17 +42,19 @@ if SETTINGS_ENV.exists():
             key, _, value = line.partition("=")
             os.environ.setdefault(key.strip(), value.strip())
 
-STRIPE_MODE = os.environ.get("STRIPE_MODE", "live")
-if STRIPE_MODE == "test":
-    STRIPE_SECRET_KEY = os.environ.get("STRIPE_TEST_SECRET_KEY", "")
-    STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_TEST_PUBLISHABLE_KEY", "")
-    logger.info("Stripe mode: TEST")
-else:
-    STRIPE_SECRET_KEY = os.environ.get("STRIPE_LIVE_SECRET_KEY", "")
-    STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_LIVE_PUBLISHABLE_KEY", "")
+STRIPE_LIVE_KEY = os.environ.get("STRIPE_LIVE_SECRET_KEY", "")
+STRIPE_TEST_KEY = os.environ.get("STRIPE_TEST_SECRET_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 
-stripe.api_key = STRIPE_SECRET_KEY
+# Default to live for non-authenticated endpoints (webhooks, checkout, free scans)
+stripe.api_key = STRIPE_LIVE_KEY
+
+
+def _stripe_key_for_api_key(api_key: str) -> str:
+    """Return Stripe secret key based on API key prefix. mcp_test_* → test, else → live."""
+    if api_key.startswith("mcp_test_"):
+        return STRIPE_TEST_KEY
+    return STRIPE_LIVE_KEY
 
 FREE_TIER_LIMIT = 10  # scans per day per IP
 PRO_PRICE_EUR = 29  # €/month
@@ -451,7 +453,7 @@ async def api_report(
 @app.post("/api/create-checkout")
 async def create_checkout_session(request: Request):
     """Create a Stripe Checkout session for Pro subscription."""
-    if not STRIPE_SECRET_KEY:
+    if not STRIPE_LIVE_KEY and not STRIPE_TEST_KEY:
         raise HTTPException(500, "Stripe not configured")
 
     body = await request.json()
@@ -503,7 +505,7 @@ async def create_checkout_session(request: Request):
 @app.post("/api/v1/setup-payment-method")
 async def setup_payment_method(request: Request):
     """Create a Stripe Checkout Session in setup mode to save a card for future off-session payments."""
-    if not STRIPE_SECRET_KEY:
+    if not STRIPE_LIVE_KEY and not STRIPE_TEST_KEY:
         raise HTTPException(500, "Stripe not configured")
 
     body = await request.json()
@@ -548,7 +550,7 @@ async def paid_scan(
     x_api_key: Optional[str] = Header(None),
 ):
     """Execute a paid scan: charge 0.50 EUR on saved card, then scan repo."""
-    if not STRIPE_SECRET_KEY:
+    if not STRIPE_LIVE_KEY and not STRIPE_TEST_KEY:
         raise HTTPException(500, "Stripe not configured")
 
     api_key = get_api_key(authorization, x_api_key)
@@ -563,6 +565,11 @@ async def paid_scan(
     if not customer_id:
         raise HTTPException(400, "No Stripe customer linked to this API key")
 
+    # Switch Stripe key based on API key prefix (test vs live)
+    sk = _stripe_key_for_api_key(api_key)
+    if not sk:
+        raise HTTPException(500, "Stripe key not configured for this mode")
+
     body = await request.json()
     repo_url = body.get("repo_url", "")
     if not repo_url:
@@ -570,19 +577,19 @@ async def paid_scan(
 
     # Step 1: Find default payment method
     try:
-        customer = stripe.Customer.retrieve(customer_id)
+        customer = stripe.Customer.retrieve(customer_id, api_key=sk)
         pm_id = None
         # Check invoice_settings default
         if customer.get("invoice_settings", {}).get("default_payment_method"):
             pm_id = customer["invoice_settings"]["default_payment_method"]
         # Fallback: list payment methods
         if not pm_id:
-            pms = stripe.PaymentMethod.list(customer=customer_id, type="card", limit=1)
+            pms = stripe.PaymentMethod.list(customer=customer_id, type="card", limit=1, api_key=sk)
             if pms.data:
                 pm_id = pms.data[0].id
         # Fallback: try link type
         if not pm_id:
-            pms = stripe.PaymentMethod.list(customer=customer_id, type="link", limit=1)
+            pms = stripe.PaymentMethod.list(customer=customer_id, type="link", limit=1, api_key=sk)
             if pms.data:
                 pm_id = pms.data[0].id
 
@@ -609,6 +616,7 @@ async def paid_scan(
                 "api_key_prefix": api_key[:12],
                 "human_clicks": "0",
             },
+            api_key=sk,
         )
 
         if intent.status != "succeeded":
@@ -673,7 +681,7 @@ async def paid_scan(
         "amount_eur": PAID_SCAN_PRICE_CENTS / 100,
         "currency": "eur",
         "status": intent.status,
-        "receipt_url": stripe.Charge.retrieve(intent.latest_charge).receipt_url if intent.latest_charge else None,
+        "receipt_url": stripe.Charge.retrieve(intent.latest_charge, api_key=sk).receipt_url if intent.latest_charge else None,
     }
 
     # Send proof email to client (best effort, non-blocking)
