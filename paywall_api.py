@@ -42,9 +42,15 @@ if SETTINGS_ENV.exists():
             key, _, value = line.partition("=")
             os.environ.setdefault(key.strip(), value.strip())
 
-STRIPE_SECRET_KEY = os.environ.get("STRIPE_LIVE_SECRET_KEY", "")
+STRIPE_MODE = os.environ.get("STRIPE_MODE", "live")
+if STRIPE_MODE == "test":
+    STRIPE_SECRET_KEY = os.environ.get("STRIPE_TEST_SECRET_KEY", "")
+    STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_TEST_PUBLISHABLE_KEY", "")
+    logger.info("Stripe mode: TEST")
+else:
+    STRIPE_SECRET_KEY = os.environ.get("STRIPE_LIVE_SECRET_KEY", "")
+    STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_LIVE_PUBLISHABLE_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
-STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_LIVE_PUBLISHABLE_KEY", "")
 
 stripe.api_key = STRIPE_SECRET_KEY
 
