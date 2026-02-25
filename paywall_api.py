@@ -659,14 +659,23 @@ async def paid_scan(
         keys[api_key]["scans_total"] = keys[api_key].get("scans_total", 0) + 1
         save_api_keys(keys)
 
+    payment_proof = {
+        "payment_intent_id": intent.id,
+        "amount_eur": PAID_SCAN_PRICE_CENTS / 100,
+        "currency": "eur",
+        "status": intent.status,
+        "receipt_url": stripe.Charge.retrieve(intent.latest_charge).receipt_url if intent.latest_charge else None,
+    }
+
+    # Send proof email to client (best effort, non-blocking)
+    client_email = key_info.get("email", "")
+    try:
+        _send_proof_email(client_email, payment_proof, scan_result, repo_url)
+    except Exception as e:
+        logger.warning("Proof email error: %s", e)
+
     return {
-        "payment_proof": {
-            "payment_intent_id": intent.id,
-            "amount_eur": PAID_SCAN_PRICE_CENTS / 100,
-            "currency": "eur",
-            "status": intent.status,
-            "receipt_url": stripe.Charge.retrieve(intent.latest_charge).receipt_url if intent.latest_charge else None,
-        },
+        "payment_proof": payment_proof,
         "scan_result": {
             "plan": "paid_scan",
             "repo_url": repo_url,
@@ -807,6 +816,85 @@ Support: contact@arkforge.fr
         logger.info("Welcome email sent via SMTP to %s", email)
     except Exception as e:
         logger.warning("Could not send welcome email via SMTP: %s", e)
+
+
+def _send_proof_email(email: str, payment_proof: dict, scan_result: dict, repo_url: str):
+    """Send transaction proof email to client after paid scan. Best effort."""
+    if not email:
+        return
+
+    import smtplib
+    import ssl
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+    from email.utils import formatdate, make_msgid
+
+    ts = datetime.now(timezone.utc).isoformat()
+    frameworks = list(scan_result.get("detected_models", {}).keys())
+    report = scan_result.get("report", {})
+    risk_score = report.get("risk_score", scan_result.get("risk_score", "N/A"))
+    files_scanned = scan_result.get("scan", {}).get("files_scanned", scan_result.get("files_scanned", 0))
+
+    body = f"""EU AI ACT COMPLIANCE SCAN — PROOF OF TRANSACTION
+{'=' * 55}
+
+Timestamp:  {ts}
+Repository: {repo_url}
+
+PAYMENT PROOF
+  Payment Intent: {payment_proof.get('payment_intent_id', 'N/A')}
+  Amount:         {payment_proof.get('amount_eur', 0.50)} EUR
+  Status:         {payment_proof.get('status', 'N/A')}
+  Receipt:        {payment_proof.get('receipt_url', 'N/A')}
+
+SCAN RESULT
+  Risk Score:     {risk_score}
+  Frameworks:     {', '.join(frameworks) if frameworks else 'none detected'}
+  Files scanned:  {files_scanned}
+
+{'=' * 55}
+This is an automated proof of an agent-to-agent transaction.
+Service: ArkForge MCP EU AI Act (https://arkforge.fr)
+
+TRANSPARENCY: This scan was executed via the ArkForge paid API.
+Both the scanning service and the agent client are open-source.
+"""
+
+    try:
+        config = {}
+        if SETTINGS_ENV.exists():
+            for line in SETTINGS_ENV.read_text().splitlines():
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    config[k.strip()] = v.strip()
+
+        smtp_host = config.get("SMTP_HOST", "ssl0.ovh.net")
+        smtp_port = int(config.get("SMTP_PORT", "465"))
+        smtp_user = config.get("IMAP_USER", "contact@arkforge.fr")
+        smtp_pass = config.get("IMAP_PASSWORD", "")
+
+        if not smtp_pass:
+            logger.warning("Proof email skipped: SMTP not configured")
+            return
+
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = f"[PROOF] EU AI Act Scan — {repo_url.split('/')[-1] if '/' in repo_url else repo_url}"
+        msg["From"] = f"ArkForge <{smtp_user}>"
+        msg["To"] = email
+        msg["Reply-To"] = smtp_user
+        msg["Date"] = formatdate(localtime=True)
+        msg["Message-ID"] = make_msgid(domain="arkforge.fr")
+        msg.attach(MIMEText(body, "plain", "utf-8"))
+
+        context = ssl.create_default_context()
+        with smtplib.SMTP_SSL(smtp_host, smtp_port, context=context, timeout=15) as server:
+            server.login(smtp_user, smtp_pass)
+            server.sendmail(smtp_user, email, msg.as_string())
+
+        logger.info("Proof email sent to %s for %s", email, repo_url)
+    except Exception as e:
+        logger.warning("Could not send proof email: %s", e)
 
 
 # --- Dashboard ---
