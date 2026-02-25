@@ -481,8 +481,8 @@ async def create_checkout_session(request: Request):
             mode="subscription",
             payment_method_types=["card"],
             line_items=[{"price": price_id, "quantity": 1}],
-            success_url="https://arkforge.fr/pricing?success=true&session_id={CHECKOUT_SESSION_ID}",
-            cancel_url="https://arkforge.fr/pricing?canceled=true",
+            success_url="https://arkforge.fr/fr/mcp-success.html?session_id={CHECKOUT_SESSION_ID}",
+            cancel_url="https://arkforge.fr/fr/pricing.html?canceled=true",
             customer_email=email if email else None,
             metadata={"product": "mcp_pro"},
         )
@@ -492,6 +492,161 @@ async def create_checkout_session(request: Request):
     except stripe.StripeError as e:
         logger.error("Stripe error: %s", e)
         raise HTTPException(500, f"Stripe error: {str(e)}")
+
+
+@app.post("/api/v1/setup-payment-method")
+async def setup_payment_method(request: Request):
+    """Create a Stripe Checkout Session in setup mode to save a card for future off-session payments."""
+    if not STRIPE_SECRET_KEY:
+        raise HTTPException(500, "Stripe not configured")
+
+    body = await request.json()
+    email = body.get("email", "")
+    if not email:
+        raise HTTPException(400, "email is required")
+
+    try:
+        # Find or create customer
+        customers = stripe.Customer.list(email=email, limit=1)
+        if customers.data:
+            customer = customers.data[0]
+        else:
+            customer = stripe.Customer.create(
+                email=email,
+                metadata={"source": "agent-client-setup"},
+            )
+
+        session = stripe.checkout.Session.create(
+            mode="setup",
+            payment_method_types=["card"],
+            customer=customer.id,
+            success_url="https://arkforge.fr/fr/mcp-success.html?card_saved=true&session_id={CHECKOUT_SESSION_ID}",
+            cancel_url="https://arkforge.fr/fr/pricing.html?canceled=true",
+            metadata={"product": "agent_client_setup", "email": email},
+        )
+
+        return {"checkout_url": session.url, "session_id": session.id, "customer_id": customer.id}
+
+    except stripe.StripeError as e:
+        logger.error("Stripe setup error: %s", e)
+        raise HTTPException(500, f"Stripe error: {str(e)}")
+
+
+PAID_SCAN_PRICE_CENTS = 50  # 0.50 EUR
+
+
+@app.post("/api/v1/paid-scan")
+async def paid_scan(
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    x_api_key: Optional[str] = Header(None),
+):
+    """Execute a paid scan: charge 0.50 EUR on saved card, then scan repo."""
+    if not STRIPE_SECRET_KEY:
+        raise HTTPException(500, "Stripe not configured")
+
+    api_key = get_api_key(authorization, x_api_key)
+    if not api_key:
+        raise HTTPException(401, "API key required. Set X-Api-Key header.")
+
+    key_info = validate_api_key(api_key)
+    if not key_info:
+        raise HTTPException(401, "Invalid or inactive API key")
+
+    customer_id = key_info.get("stripe_customer_id", "")
+    if not customer_id:
+        raise HTTPException(400, "No Stripe customer linked to this API key")
+
+    body = await request.json()
+    repo_url = body.get("repo_url", "")
+    if not repo_url:
+        raise HTTPException(400, "repo_url is required")
+
+    # Step 1: Find default payment method
+    try:
+        customer = stripe.Customer.retrieve(customer_id)
+        pm_id = None
+        # Check invoice_settings default
+        if customer.get("invoice_settings", {}).get("default_payment_method"):
+            pm_id = customer["invoice_settings"]["default_payment_method"]
+        # Fallback: list payment methods
+        if not pm_id:
+            pms = stripe.PaymentMethod.list(customer=customer_id, type="card", limit=1)
+            if pms.data:
+                pm_id = pms.data[0].id
+        # Fallback: try link type
+        if not pm_id:
+            pms = stripe.PaymentMethod.list(customer=customer_id, type="link", limit=1)
+            if pms.data:
+                pm_id = pms.data[0].id
+
+        if not pm_id:
+            raise HTTPException(400, "No payment method found. Run setup_card.py first.")
+
+    except stripe.StripeError as e:
+        logger.error("Stripe customer error: %s", e)
+        raise HTTPException(500, f"Stripe error: {str(e)}")
+
+    # Step 2: Charge 0.50 EUR off-session
+    try:
+        intent = stripe.PaymentIntent.create(
+            amount=PAID_SCAN_PRICE_CENTS,
+            currency="eur",
+            customer=customer_id,
+            payment_method=pm_id,
+            off_session=True,
+            confirm=True,
+            description=f"EU AI Act scan: {repo_url[:80]}",
+            metadata={
+                "product": "paid_scan",
+                "repo_url": repo_url[:200],
+                "api_key_prefix": api_key[:12],
+                "human_clicks": "0",
+            },
+        )
+
+        if intent.status != "succeeded":
+            raise HTTPException(402, f"Payment failed: {intent.status}")
+
+    except stripe.CardError as e:
+        logger.error("Card declined: %s", e)
+        raise HTTPException(402, f"Card declined: {e.user_message}")
+    except stripe.StripeError as e:
+        logger.error("Stripe payment error: %s", e)
+        raise HTTPException(500, f"Stripe error: {str(e)}")
+
+    # Step 3: Execute scan
+    # Use repo_url as project_path (the scanner handles URLs)
+    checker = EUAIActChecker(repo_url)
+    scan_result = checker.scan_project()
+
+    ip = get_client_ip(request)
+    summary = {
+        "frameworks_detected": list(scan_result.get("detected_models", {}).keys()),
+        "files_scanned": scan_result.get("files_scanned", 0),
+    }
+    record_scan(api_key, ip, "paid_scan", summary)
+
+    # Update scan count on API key
+    keys = load_api_keys()
+    if api_key in keys:
+        keys[api_key]["scans_total"] = keys[api_key].get("scans_total", 0) + 1
+        save_api_keys(keys)
+
+    return {
+        "payment_proof": {
+            "payment_intent_id": intent.id,
+            "amount_eur": PAID_SCAN_PRICE_CENTS / 100,
+            "currency": "eur",
+            "status": intent.status,
+            "receipt_url": intent.charges.data[0].receipt_url if intent.charges.data else None,
+        },
+        "scan_result": {
+            "plan": "paid_scan",
+            "repo_url": repo_url,
+            **scan_result,
+        },
+    }
 
 
 @app.post("/api/stripe-webhook")
@@ -523,17 +678,23 @@ async def stripe_webhook(request: Request):
     if event_type == "checkout.session.completed":
         customer_id = data.get("customer", "")
         subscription_id = data.get("subscription", "")
+        payment_intent_id = data.get("payment_intent", "")
         customer_email = data.get("customer_email", "") or data.get("customer_details", {}).get("email", "")
+        mode = data.get("mode", "")
 
-        if subscription_id:
-            api_key = create_api_key(customer_id, subscription_id, customer_email)
-            logger.info("NEW PRO CUSTOMER: %s → key created", customer_email)
+        # Generate API key for both subscription and one-time payment modes
+        ref_id = subscription_id or payment_intent_id or "unknown"
+        if customer_id or customer_email:
+            api_key = create_api_key(customer_id, ref_id, customer_email)
+            logger.info("NEW PRO CUSTOMER: %s → key created (mode=%s, ref=%s)", customer_email, mode, ref_id)
 
             # Send API key via email (best effort)
             try:
                 _send_welcome_email(customer_email, api_key)
             except Exception as e:
                 logger.error("Failed to send welcome email: %s", e)
+        else:
+            logger.warning("checkout.session.completed with no customer/email — skipping key creation")
 
     elif event_type == "customer.subscription.deleted":
         subscription_id = data.get("id", "")
