@@ -615,10 +615,36 @@ async def paid_scan(
         logger.error("Stripe payment error: %s", e)
         raise HTTPException(500, f"Stripe error: {str(e)}")
 
-    # Step 3: Execute scan
-    # Use repo_url as project_path (the scanner handles URLs)
-    checker = EUAIActChecker(repo_url)
-    scan_result = checker.scan_project()
+    # Step 3: Execute scan — clone repo if URL, else use as local path
+    import tempfile
+    import subprocess
+    import shutil
+
+    clone_dir = None
+    scan_path = repo_url
+
+    if repo_url.startswith("http://") or repo_url.startswith("https://"):
+        clone_dir = tempfile.mkdtemp(prefix="scan_")
+        try:
+            subprocess.run(
+                ["git", "clone", "--depth", "1", repo_url, clone_dir],
+                check=True, capture_output=True, text=True, timeout=60,
+            )
+            scan_path = clone_dir
+        except subprocess.CalledProcessError as e:
+            shutil.rmtree(clone_dir, ignore_errors=True)
+            logger.error("Git clone failed: %s", e.stderr)
+            raise HTTPException(400, f"Cannot clone repo: {e.stderr[:200]}")
+        except subprocess.TimeoutExpired:
+            shutil.rmtree(clone_dir, ignore_errors=True)
+            raise HTTPException(408, "Git clone timed out (60s limit)")
+
+    try:
+        checker = EUAIActChecker(scan_path)
+        scan_result = checker.scan_project()
+    finally:
+        if clone_dir:
+            shutil.rmtree(clone_dir, ignore_errors=True)
 
     ip = get_client_ip(request)
     summary = {
@@ -639,7 +665,7 @@ async def paid_scan(
             "amount_eur": PAID_SCAN_PRICE_CENTS / 100,
             "currency": "eur",
             "status": intent.status,
-            "receipt_url": intent.charges.data[0].receipt_url if intent.charges.data else None,
+            "receipt_url": stripe.Charge.retrieve(intent.latest_charge).receipt_url if intent.latest_charge else None,
         },
         "scan_result": {
             "plan": "paid_scan",
