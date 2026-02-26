@@ -3,20 +3,25 @@
 MCP EU AI Act - REST API
 FastAPI server providing:
 - Free tier: 10 scans/day per IP
-- Pro tier: via ArkForge Trust Layer (https://trust.arkforge.fr)
+- Pro tier: 29EUR/month via Stripe (https://arkforge.fr/pricing)
 - Scan, compliance check, and report endpoints
 
-Payment, API keys, webhooks, and email are handled by the Trust Layer.
+Payment via Stripe payment link. API keys sent by email after subscription.
 This service is a pure scanner with rate-limited free access.
 """
 
 import os
+import sys
 import json
+import hmac
+import hashlib
 import logging
+import secrets
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
+import stripe
 import uvicorn
 from fastapi import FastAPI, Request, HTTPException, Header
 from fastapi.responses import JSONResponse
@@ -29,11 +34,31 @@ DATA_DIR.mkdir(exist_ok=True)
 
 RATE_LIMITS_FILE = DATA_DIR / "rate_limits.json"
 SCAN_HISTORY_FILE = DATA_DIR / "scan_history.json"
+API_KEYS_FILE = DATA_DIR / "api_keys.json"
 
 FREE_TIER_LIMIT = 10  # scans per day per IP
 
 logger = logging.getLogger("eu-ai-act-api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(message)s")
+
+# --- Load settings.env for Stripe keys ---
+def _load_settings_env() -> dict:
+    """Load key=value pairs from settings.env."""
+    cfg = {}
+    env_path = os.environ.get("SETTINGS_ENV_PATH", "/opt/claude-ceo/config/settings.env")
+    try:
+        for line in Path(env_path).read_text().splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                cfg[k.strip()] = v.strip()
+    except FileNotFoundError:
+        pass
+    return cfg
+
+_settings = _load_settings_env()
+STRIPE_WEBHOOK_SECRET = _settings.get("STRIPE_WEBHOOK_SECRET", "")
+stripe.api_key = _settings.get("STRIPE_LIVE_SECRET_KEY", "")
 
 # --- Data persistence helpers ---
 
@@ -134,7 +159,17 @@ def get_client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-FREE_TIER_BANNER = f"Free tier: {FREE_TIER_LIMIT}/day — Paid scans via Trust Layer → https://trust.arkforge.fr"
+MAX_PAYLOAD_BYTES = 1_000_000  # 1 MB max request body
+
+@app.middleware("http")
+async def limit_payload_size(request: Request, call_next):
+    if request.method in ("POST", "PUT", "PATCH"):
+        content_length = request.headers.get("content-length")
+        if content_length and int(content_length) > MAX_PAYLOAD_BYTES:
+            return JSONResponse({"error": "Payload too large (max 1 MB)"}, status_code=413)
+    return await call_next(request)
+
+FREE_TIER_BANNER = f"Free tier: {FREE_TIER_LIMIT}/day — Pro: unlimited scans + CI/CD API at 29EUR/mo → https://arkforge.fr/pricing"
 
 
 def _check_free_tier(ip: str):
@@ -143,7 +178,7 @@ def _check_free_tier(ip: str):
     if not allowed:
         raise HTTPException(429, {
             "error": "Free tier limit reached (10/day)",
-            "upgrade": "https://trust.arkforge.fr",
+            "upgrade": "https://arkforge.fr/pricing",
             "reset": "Tomorrow 00:00 UTC",
         })
 
@@ -178,7 +213,7 @@ async def api_status(request: Request):
         "version": "1.1.0",
         "your_plan": "free",
         "rate_limit": usage,
-        "paid_scans": "https://trust.arkforge.fr",
+        "paid_scans": "https://arkforge.fr/pricing",
     }
 
 
@@ -281,7 +316,9 @@ async def api_report(request: Request):
 
 # --- Trust Layer internal endpoint ---
 
-INTERNAL_SECRET = os.environ.get("TRUST_LAYER_INTERNAL_SECRET", "tl_internal_9f4e2a")
+INTERNAL_SECRET = os.environ.get("TRUST_LAYER_INTERNAL_SECRET", "")
+if not INTERNAL_SECRET:
+    logger.warning("TRUST_LAYER_INTERNAL_SECRET not set — /api/v1/scan-repo will reject all requests")
 
 @app.post("/api/v1/scan-repo")
 async def scan_repo(request: Request):
@@ -341,20 +378,51 @@ async def pricing():
                     "MCP protocol access",
                 ],
             },
-            "paid": {
-                "price": "0.50 EUR/scan",
-                "description": "Pay-per-scan via ArkForge Trust Layer",
+            "pro": {
+                "price": "29 EUR/month",
+                "description": "Unlimited scans + CI/CD API for teams",
                 "features": [
                     "Unlimited scans",
-                    "Cryptographic proof per transaction",
-                    "OpenTimestamps (Bitcoin anchoring)",
-                    "Any HTTPS API via proxy",
+                    "REST API for CI/CD pipelines",
+                    "API key authentication",
+                    "Scan history dashboard",
+                    "Email alerts on risk changes",
+                    "Priority support",
                 ],
-                "setup": "https://trust.arkforge.fr/v1/keys/setup",
+                "subscribe": "https://arkforge.fr/pricing",
             },
         },
         "contact": "contact@arkforge.fr",
     }
+
+
+CONVERSIONS_FILE = DATA_DIR / "conversions.json"
+
+
+@app.post("/api/trial-tracking/conversion")
+async def track_conversion(request: Request):
+    """Track a successful Stripe conversion from the success page."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+
+    ip = get_client_ip(request)
+    conversion = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "ip": ip,
+        "session_id": body.get("session_id", ""),
+        "product": body.get("product", "unknown"),
+    }
+
+    conversions = _load_json(CONVERSIONS_FILE, [])
+    conversions.append(conversion)
+    if len(conversions) > 500:
+        conversions = conversions[-500:]
+    _save_json(CONVERSIONS_FILE, conversions)
+
+    logger.info(f"Conversion tracked: session={conversion['session_id']} product={conversion['product']}")
+    return {"status": "ok", "message": "Conversion tracked"}
 
 
 @app.get("/api/health")
@@ -362,5 +430,229 @@ async def health():
     return {"status": "ok", "service": "mcp-eu-ai-act", "version": "1.1.0", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 
+# --- Pro API key extraction helper ---
+
+def _extract_api_key(request: Request) -> Optional[str]:
+    """Extract API key from X-API-Key header or Authorization: Bearer."""
+    key = request.headers.get("x-api-key")
+    if key:
+        return key
+    auth = request.headers.get("authorization", "")
+    if auth.startswith("Bearer "):
+        return auth[7:]
+    return None
+
+
+def _verify_pro_key(request: Request) -> dict:
+    """Verify that request contains a valid Pro API key. Raises 401/403."""
+    api_key = _extract_api_key(request)
+    if not api_key:
+        raise HTTPException(401, "API key required (X-API-Key header or Authorization: Bearer)")
+    keys = _load_json(API_KEYS_FILE, {})
+    entry = keys.get(api_key)
+    if not entry or not entry.get("active"):
+        raise HTTPException(401, "Invalid or inactive API key")
+    plan = entry.get("plan", "free")
+    if plan not in ("pro", "paid_scan"):
+        raise HTTPException(403, "Pro plan required for this endpoint")
+    return {**entry, "_key": api_key}
+
+
+def _provision_api_key(email: str, stripe_customer_id: str, stripe_subscription_id: str = "unknown") -> str:
+    """Create a new Pro API key for a paying customer. Returns the key string."""
+    api_key = f"mcp_pro_{secrets.token_hex(24)}"
+    keys = _load_json(API_KEYS_FILE, {})
+    keys[api_key] = {
+        "plan": "pro",
+        "active": True,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "stripe_customer_id": stripe_customer_id,
+        "stripe_subscription_id": stripe_subscription_id,
+        "email": email,
+        "scans_total": 0,
+    }
+    _save_json(API_KEYS_FILE, keys)
+    logger.info(f"Provisioned Pro API key for {email} (customer={stripe_customer_id})")
+    return api_key
+
+
+def _send_api_key_email(email: str, api_key: str):
+    """Send the API key to the customer via email_sender."""
+    try:
+        sys.path.insert(0, "/opt/claude-ceo/automation")
+        from email_sender import send_email
+        subject = "Your ArkForge MCP EU AI Act Pro API Key"
+        body = (
+            f"Thank you for subscribing to ArkForge MCP EU AI Act Pro!\n\n"
+            f"Your API key: {api_key}\n\n"
+            f"Usage:\n"
+            f"  - HTTP header: X-API-Key: {api_key}\n"
+            f"  - Or: Authorization: Bearer {api_key}\n\n"
+            f"Documentation: https://arkforge.fr/docs\n"
+            f"Support: contact@arkforge.fr\n\n"
+            f"-- ArkForge"
+        )
+        send_email(email, subject, body, skip_warmup=True, skip_verify=True)
+        logger.info(f"API key email sent to {email}")
+    except Exception as e:
+        logger.error(f"Failed to send API key email to {email}: {e}")
+
+
+# --- Stripe Webhook ---
+
+@app.post("/api/stripe-webhook")
+async def stripe_webhook(request: Request):
+    """Handle Stripe webhook events. Auto-provisions API keys on successful checkout."""
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature", "")
+
+    if not STRIPE_WEBHOOK_SECRET:
+        logger.error("STRIPE_WEBHOOK_SECRET not configured")
+        raise HTTPException(500, "Webhook not configured")
+
+    try:
+        event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
+    except stripe.error.SignatureVerificationError:
+        logger.warning("Stripe webhook signature verification failed")
+        raise HTTPException(400, "Invalid signature")
+    except ValueError:
+        raise HTTPException(400, "Invalid payload")
+
+    event_type = event.get("type", "")
+    logger.info(f"Stripe webhook: {event_type}")
+
+    if event_type == "checkout.session.completed":
+        session = event["data"]["object"]
+        customer_email = session.get("customer_details", {}).get("email") or session.get("customer_email", "")
+        customer_id = session.get("customer", "")
+        subscription_id = session.get("subscription", "unknown") or "unknown"
+
+        if customer_email:
+            # Check if customer already has an active key
+            keys = _load_json(API_KEYS_FILE, {})
+            existing_key = None
+            for k, v in keys.items():
+                if v.get("email", "").lower() == customer_email.lower() and v.get("active"):
+                    existing_key = k
+                    break
+
+            if existing_key:
+                # Update existing key with subscription info
+                keys[existing_key]["stripe_customer_id"] = customer_id
+                keys[existing_key]["stripe_subscription_id"] = subscription_id
+                _save_json(API_KEYS_FILE, keys)
+                _send_api_key_email(customer_email, existing_key)
+                logger.info(f"Reactivated existing key for {customer_email}")
+            else:
+                api_key = _provision_api_key(customer_email, customer_id, subscription_id)
+                _send_api_key_email(customer_email, api_key)
+        else:
+            logger.warning(f"Checkout completed but no customer email: session={session.get('id')}")
+
+    elif event_type == "customer.subscription.deleted":
+        sub = event["data"]["object"]
+        sub_id = sub.get("id", "")
+        # Deactivate keys linked to this subscription
+        keys = _load_json(API_KEYS_FILE, {})
+        for k, v in keys.items():
+            if v.get("stripe_subscription_id") == sub_id and v.get("active"):
+                v["active"] = False
+                v["deactivated_at"] = datetime.now(timezone.utc).isoformat()
+                v["deactivated_reason"] = "subscription_cancelled"
+                logger.info(f"Deactivated key for cancelled subscription {sub_id}")
+        _save_json(API_KEYS_FILE, keys)
+
+    # Log all webhook events
+    webhooks_file = DATA_DIR / "stripe_webhooks.json"
+    webhooks = _load_json(webhooks_file, [])
+    webhooks.append({
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "type": event_type,
+        "event_id": event.get("id", ""),
+    })
+    if len(webhooks) > 200:
+        webhooks = webhooks[-200:]
+    _save_json(webhooks_file, webhooks)
+
+    return {"received": True}
+
+
+# --- Pro Dashboard ---
+
+@app.get("/api/v1/dashboard")
+async def pro_dashboard(request: Request):
+    """Return scan history and usage stats for authenticated Pro user."""
+    pro_info = _verify_pro_key(request)
+    api_key = pro_info["_key"]
+    key_prefix = api_key[:12] + "..."
+
+    # Load scan history, filter for this key
+    history = _load_json(SCAN_HISTORY_FILE, [])
+    my_scans = [
+        s for s in history
+        if s.get("api_key") == key_prefix or s.get("api_key") == api_key
+    ]
+
+    # Usage stats
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    scans_today = sum(1 for s in my_scans if s.get("timestamp", "").startswith(today))
+
+    last_7d_cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    scans_7d = sum(1 for s in my_scans if s.get("timestamp", "") >= last_7d_cutoff)
+
+    return {
+        "plan": pro_info.get("plan", "pro"),
+        "email": pro_info.get("email", ""),
+        "scans_total": pro_info.get("scans_total", 0),
+        "scans_today": scans_today,
+        "scans_last_7d": scans_7d,
+        "member_since": pro_info.get("created_at", ""),
+        "recent_scans": my_scans[-20:],  # Last 20 scans
+    }
+
+
+# --- Email Alerts Configuration ---
+
+ALERTS_FILE = DATA_DIR / "alert_configs.json"
+
+@app.get("/api/v1/alerts")
+async def get_alerts(request: Request):
+    """Get email alert preferences for authenticated Pro user."""
+    pro_info = _verify_pro_key(request)
+    email = pro_info.get("email", "")
+    configs = _load_json(ALERTS_FILE, {})
+    my_config = configs.get(email, {
+        "enabled": False,
+        "risk_change": True,
+        "weekly_summary": True,
+    })
+    return {"email": email, "alerts": my_config}
+
+
+@app.post("/api/v1/alerts")
+async def update_alerts(request: Request):
+    """Update email alert preferences for authenticated Pro user."""
+    pro_info = _verify_pro_key(request)
+    email = pro_info.get("email", "")
+    body = await request.json()
+
+    configs = _load_json(ALERTS_FILE, {})
+    current = configs.get(email, {})
+    if "enabled" in body:
+        current["enabled"] = bool(body["enabled"])
+    if "risk_change" in body:
+        current["risk_change"] = bool(body["risk_change"])
+    if "weekly_summary" in body:
+        current["weekly_summary"] = bool(body["weekly_summary"])
+    current["updated_at"] = datetime.now(timezone.utc).isoformat()
+    configs[email] = current
+    _save_json(ALERTS_FILE, configs)
+
+    return {"status": "ok", "email": email, "alerts": current}
+
+
 if __name__ == "__main__":
+    logger.info("Starting MCP EU AI Act REST API on 0.0.0.0:8091")
+    logger.info("Stripe configured: %s", "yes" if stripe.api_key else "NO — payments will fail")
+    logger.info("Internal secret configured: %s", "yes" if INTERNAL_SECRET else "NO — Trust Layer calls will fail")
     uvicorn.run(app, host="0.0.0.0", port=8091, log_level="info")

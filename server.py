@@ -133,7 +133,8 @@ class RateLimiter:
     """IP rate limiter with file persistence. 10 requests per calendar day (UTC) per IP.
     Counters survive server restarts via JSON file. Resets automatically when the UTC date changes."""
 
-    _PERSIST_PATH = Path(__file__).parent / "data" / "mcp_rate_limits.json"
+    # Shared with paywall_api.py so free-tier limits are enforced across both MCP and REST
+    _PERSIST_PATH = Path(__file__).parent / "data" / "rate_limits.json"
 
     def __init__(self, max_requests: int = FREE_TIER_DAILY_LIMIT):
         self.max_requests = max_requests
@@ -195,6 +196,34 @@ class RateLimiter:
 
 
 _rate_limiter = RateLimiter()
+
+# --- Scan history logging (shared with paywall_api.py) ---
+_SCAN_HISTORY_PATH = Path(__file__).parent / "data" / "scan_history.json"
+
+
+def _record_mcp_scan(api_key: Optional[str], ip: str, tool_name: str):
+    """Record an MCP tool call to scan_history.json for visibility."""
+    try:
+        history = json.loads(_SCAN_HISTORY_PATH.read_text()) if _SCAN_HISTORY_PATH.exists() else []
+    except (json.JSONDecodeError, OSError):
+        history = []
+    history.append({
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "api_key": api_key[:12] + "..." if api_key else None,
+        "ip": ip,
+        "plan": "pro" if api_key else "free",
+        "scan_type": f"mcp_{tool_name}",
+        "frameworks_detected": [],
+        "files_scanned": 0,
+    })
+    if len(history) > 1000:
+        history = history[-1000:]
+    try:
+        tmp = _SCAN_HISTORY_PATH.with_suffix(".tmp")
+        tmp.write_text(json.dumps(history, indent=2, default=str))
+        tmp.rename(_SCAN_HISTORY_PATH)
+    except OSError:
+        pass
 
 
 def _get_header(scope, name: bytes) -> Optional[str]:
@@ -354,38 +383,18 @@ class RateLimitMiddleware:
         # Only rate-limit tools/call JSON-RPC requests
         is_tool_call = False
         request_id = None
+        tool_name = None
         try:
             data = json.loads(body)
             if data.get("method") == "tools/call":
                 is_tool_call = True
                 request_id = data.get("id")
+                tool_name = (data.get("params") or {}).get("name", "unknown")
         except (json.JSONDecodeError, ValueError, TypeError):
             pass
 
         if is_tool_call:
-            # Check API key — Pro keys bypass rate limiting
-            api_key = _extract_api_key(scope)
-            if api_key:
-                key_info = _api_key_manager.verify(api_key)
-                if key_info and key_info["plan"] == "pro":
-                    # Track scan for Pro user
-                    _api_key_manager.increment_scans(api_key)
-                    # Pro user: skip rate limiting, pass through
-                    body_sent = False
-
-                    async def receive_bypass():
-                        nonlocal body_sent
-                        if not body_sent:
-                            body_sent = True
-                            return {"type": "http.request", "body": body, "more_body": False}
-                        return {"type": "http.request", "body": b"", "more_body": False}
-
-                    await self.app(scope, receive_bypass, send)
-                    return
-
-            # Free tier: apply IP rate limiting
-            # Priority: X-Real-IP (set by nginx, not spoofable) > last XFF entry
-            # (appended by closest trusted proxy) > ASGI client IP
+            # Extract IP early (needed for both pro and free logging)
             ip = _get_header(scope, b"x-real-ip")
             if not ip:
                 xff = _get_header(scope, b"x-forwarded-for")
@@ -395,6 +404,28 @@ class RateLimitMiddleware:
                 client = scope.get("client")
                 ip = client[0] if client else "unknown"
 
+            # Check API key — Pro keys bypass rate limiting
+            api_key = _extract_api_key(scope)
+            if api_key:
+                key_info = _api_key_manager.verify(api_key)
+                if key_info and key_info["plan"] == "pro":
+                    # Track scan for Pro user
+                    _api_key_manager.increment_scans(api_key)
+                    _record_mcp_scan(api_key, ip, tool_name)
+                    # Pro user: skip rate limiting, pass through
+                    body_sent = False
+
+                    async def receive_bypass():
+                        nonlocal body_sent
+                        if not body_sent:
+                            body_sent = True
+                            return {"type": "http.request", "body": body, "more_body": False}
+                        return await receive()
+
+                    await self.app(scope, receive_bypass, send)
+                    return
+
+            # Free tier: apply IP rate limiting
             allowed, remaining = _rate_limiter.check(ip)
             rl_headers = self._rate_limit_headers(remaining)
             if not allowed:
@@ -402,11 +433,13 @@ class RateLimitMiddleware:
                     "jsonrpc": "2.0",
                     "error": {
                         "code": -32000,
-                        "message": "Free tier limit reached. Upgrade to Pro: https://arkforge.fr/pricing.html",
+                        "message": "Free tier limit reached. Upgrade to Pro: https://arkforge.fr/pricing",
                     },
                     "id": request_id,
                 }, extra_headers=rl_headers)
                 return
+            # Free tier scan allowed — log it
+            _record_mcp_scan(None, ip, tool_name)
 
         # Replay buffered body to the app
         body_sent = False
@@ -416,7 +449,7 @@ class RateLimitMiddleware:
             if not body_sent:
                 body_sent = True
                 return {"type": "http.request", "body": body, "more_body": False}
-            return {"type": "http.request", "body": b"", "more_body": False}
+            return await receive()
 
         # Inject rate limit headers into successful free-tier tool call responses
         if is_tool_call:
@@ -1238,7 +1271,7 @@ class EUAIActChecker:
                     content = file_path.read_text(encoding="utf-8", errors="ignore").lower()
                     if any(marker in content for marker in markers):
                         return True
-                except:
+                except OSError:
                     pass
         return False
 
@@ -1333,7 +1366,7 @@ def create_server():
         name="ArkForge Compliance Scanner",
         instructions="Multi-regulation compliance scanner. Supports EU AI Act and GDPR. Scan projects to detect AI model usage, personal data processing, and verify regulatory compliance. Free: 10 scans/day. Pro: unlimited + CI/CD API at 29€/mo → https://arkforge.fr/pricing",
         host="0.0.0.0",
-        port=8089,
+        port=8090,
     )
 
     @mcp.tool()
@@ -1566,6 +1599,41 @@ def create_server():
         checker = GDPRChecker("/tmp")  # Templates don't need a real path
         return checker.get_templates(processing_role.value)
 
+    @mcp.tool()
+    def get_pricing() -> dict:
+        """Get pricing plans and upgrade information for the ArkForge Compliance Scanner.
+
+        Shows free tier limits, Pro plan features, and how to upgrade.
+        """
+        return {
+            "plans": {
+                "free": {
+                    "price": "0",
+                    "limit": "10 scans/day per IP",
+                    "features": [
+                        "Full compliance reports",
+                        "22 AI frameworks detected",
+                        "EU AI Act + GDPR checks",
+                    ],
+                },
+                "pro": {
+                    "price": "29 EUR/month",
+                    "limit": "Unlimited",
+                    "features": [
+                        "Unlimited scans",
+                        "CI/CD integration via REST API",
+                        "API key authentication",
+                        "Scan history dashboard",
+                        "Email alerts on risk changes",
+                        "Priority support",
+                    ],
+                    "subscribe_url": "https://arkforge.fr/pricing",
+                },
+            },
+            "pricing_page": "https://arkforge.fr/pricing",
+            "contact": "contact@arkforge.fr",
+        }
+
     return mcp
 
 
@@ -1626,9 +1694,11 @@ class MCPServer:
 
 if __name__ == "__main__":
     import sys
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(message)s")
     server = create_server()
     if "--http" in sys.argv:
         import uvicorn
+        logger.info("Starting MCP EU AI Act scanner (HTTP mode) on %s:%s", server.settings.host, server.settings.port)
         app = RateLimitMiddleware(server.streamable_http_app())
         config = uvicorn.Config(
             app,
@@ -1638,4 +1708,5 @@ if __name__ == "__main__":
         )
         uvicorn.Server(config).run()
     else:
+        logger.info("Starting MCP EU AI Act scanner (stdio mode)")
         server.run(transport="stdio")
