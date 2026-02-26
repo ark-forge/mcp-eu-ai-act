@@ -178,6 +178,23 @@ Free tier: 10 scans/day per IP. Pro API keys (`X-API-Key` header or `Authorizati
 - File scanning limited to 5,000 files and 1 MB per file
 - Certain system paths are blocked from scanning for security
 
+## ArkForge ecosystem
+
+This scanner is the first service sold autonomously through the ArkForge Trust Layer — a certifying proxy that turns API calls into verifiable, paid, tamper-proof transactions.
+
+```
+Agent Client  →  Trust Layer  →  EU AI Act Scanner
+   pays            certifies         delivers
+```
+
+| Component | Description | Repo |
+|-----------|-------------|------|
+| **Trust Layer** | Certifying proxy — billing, proof chain, verification | [ark-forge/trust-layer](https://github.com/ark-forge/trust-layer) |
+| **MCP EU AI Act** | Compliance scanner (this repo) | [ark-forge/mcp-eu-ai-act](https://github.com/ark-forge/mcp-eu-ai-act) |
+| **Agent Client** | Autonomous buyer — proof-of-concept of a non-human customer | [ark-forge/arkforge-agent-client](https://github.com/ark-forge/arkforge-agent-client) |
+
+See a live proof: [example transaction](https://arkforge.fr/trust/v/prf_20260225_222329_d17acd)
+
 ## License
 
 MIT
