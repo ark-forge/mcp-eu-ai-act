@@ -252,6 +252,7 @@ Agent Client  →  Trust Layer  →  EU AI Act Scanner
 |-----------|-------------|------|
 | **Trust Layer** | Certifying proxy — billing, proof chain, verification | [ark-forge/trust-layer](https://github.com/ark-forge/trust-layer) |
 | **MCP EU AI Act** | Compliance scanner (this repo) | [ark-forge/mcp-eu-ai-act](https://github.com/ark-forge/mcp-eu-ai-act) |
+| **Proof Spec** | Open specification + test vectors for the proof format | [ark-forge/proof-spec](https://github.com/ark-forge/proof-spec) |
 | **Agent Client** | Autonomous buyer — proof-of-concept of a non-human customer | [ark-forge/arkforge-agent-client](https://github.com/ark-forge/arkforge-agent-client) |
 
 See a live proof: [example transaction](https://arkforge.fr/trust/v/prf_20260225_222329_d17acd)

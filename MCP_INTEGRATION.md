@@ -1,317 +1,175 @@
-# MCP Integration - EU AI Act Compliance Checker
+# MCP Integration — EU AI Act Compliance Scanner
 
-## MCP Configuration
+## 1. Claude Desktop
 
-To integrate this server into an MCP-compatible system (Claude Code, VS Code, etc.), follow the steps below.
-
-## 1. Claude Code Configuration
-
-### MCP Configuration File
-
-Create or modify the `~/.claude/mcp.json` file:
+Add to `claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
-    "eu-ai-act-compliance": {
+    "eu-ai-act": {
       "command": "python3",
-      "args": [
-        "/path/to/mcp-eu-ai-act/server.py"
-      ],
-      "env": {},
-      "metadata": {
-        "name": "EU AI Act Compliance Checker",
-        "description": "Verify EU AI Act compliance for AI projects",
-        "version": "1.0.0",
-        "author": "ArkForge"
-      }
+      "args": ["/absolute/path/to/mcp-eu-ai-act/server.py"]
     }
   }
 }
 ```
 
-## 2. VS Code Configuration
+Replace `/absolute/path/to/` with the actual installation directory (must be absolute).
 
-### MCP Extension for VS Code
+## 2. Claude Code
 
-1. Install the MCP extension for VS Code
-2. Add the configuration in `.vscode/mcp-servers.json`:
+```bash
+claude mcp add eu-ai-act python3 /absolute/path/to/mcp-eu-ai-act/server.py
+```
+
+## 3. VS Code / Cursor
+
+Add to `.vscode/mcp.json` or `.cursor/mcp.json`:
 
 ```json
 {
-  "servers": {
-    "eu-ai-act-compliance": {
-      "type": "python",
-      "path": "/path/to/mcp-eu-ai-act/server.py",
-      "enabled": true
+  "mcpServers": {
+    "eu-ai-act": {
+      "command": "python3",
+      "args": ["/absolute/path/to/mcp-eu-ai-act/server.py"]
     }
   }
 }
 ```
 
-## 3. Usage in Claude Code
+## 4. HTTP Mode
 
-Once configured, the MCP server will be available in Claude Code via commands:
+For remote access, CI/CD, or non-MCP clients:
 
-### Scan a Project
-
-```
-@eu-ai-act-compliance scan_project /path/to/project
-```
-
-### Check Compliance
-
-```
-@eu-ai-act-compliance check_compliance /path/to/project --risk=limited
+```bash
+pip install uvicorn
+python3 server.py --http
+# Listening on 0.0.0.0:8089
 ```
 
-### Generate a Report
+## 5. REST API
 
-```
-@eu-ai-act-compliance generate_report /path/to/project --risk=high
-```
+A separate HTTP API (`paywall_api.py`) provides rate-limited REST endpoints:
 
-## 4. Programmatic Integration
-
-### Python
-
-```python
-from server import MCPServer
-
-server = MCPServer()
-
-# Scan a project
-result = server.handle_request("scan_project", {
-    "project_path": "/path/to/project"
-})
-
-# Check compliance
-result = server.handle_request("check_compliance", {
-    "project_path": "/path/to/project",
-    "risk_category": "high"
-})
-
-# Generate a report
-result = server.handle_request("generate_report", {
-    "project_path": "/path/to/project",
-    "risk_category": "limited"
-})
+```bash
+python3 paywall_api.py
+# Listening on 0.0.0.0:8091
 ```
 
-### REST API (via wrapper)
+### Scan via REST
 
-If you want to expose the MCP server via a REST API, create a Flask/FastAPI wrapper:
+```bash
+# Free tier (10 scans/day per IP, no auth)
+curl -X POST https://arkforge.fr/mcp/api/v1/scan \
+  -H "Content-Type: application/json" \
+  -d '{"project_path": "/path/to/your/project"}'
 
-```python
-from flask import Flask, request, jsonify
-from server import MCPServer
-
-app = Flask(__name__)
-server = MCPServer()
-
-@app.route('/api/scan', methods=['POST'])
-def scan():
-    data = request.json
-    result = server.handle_request("scan_project", data)
-    return jsonify(result)
-
-@app.route('/api/compliance', methods=['POST'])
-def compliance():
-    data = request.json
-    result = server.handle_request("check_compliance", data)
-    return jsonify(result)
-
-@app.route('/api/report', methods=['POST'])
-def report():
-    data = request.json
-    result = server.handle_request("generate_report", data)
-    return jsonify(result)
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+# Pro tier (unlimited, API key required)
+curl -X POST https://arkforge.fr/mcp/api/v1/scan \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your_pro_key" \
+  -d '{"project_path": "/path/to/your/project"}'
 ```
 
-## 5. CI/CD Integration
+### REST Endpoints
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/v1/status` | None | Service status + rate limit info |
+| `GET` | `/api/usage` | None | Free-tier usage for your IP |
+| `POST` | `/api/v1/scan` | Free/Pro | Scan for AI frameworks |
+| `POST` | `/api/v1/check-compliance` | Free/Pro | Check EU AI Act compliance |
+| `POST` | `/api/v1/generate-report` | Free/Pro | Full compliance report |
+| `POST` | `/api/v1/scan-repo` | Internal | Scan a GitHub repo (Trust Layer integration) |
+
+## 6. CI/CD Integration
 
 ### GitHub Actions
 
-Create `.github/workflows/eu-ai-act-compliance.yml`:
+Use the REST API to add compliance checks to your pipeline:
 
 ```yaml
-name: EU AI Act Compliance Check
+name: EU AI Act Compliance
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   compliance:
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-
-    - name: Install MCP Server
+    - name: EU AI Act Compliance Scan
       run: |
-        git clone https://github.com/ark-forge/mcp-eu-ai-act.git
-        cd mcp-eu-ai-act
-        pip install -r requirements.txt
+        RESULT=$(curl -sf -X POST https://arkforge.fr/mcp/api/v1/generate-report \
+          -H "Content-Type: application/json" \
+          -d "{\"project_path\": \"$GITHUB_WORKSPACE\", \"risk_category\": \"high\"}")
 
-    - name: Run Compliance Check
-      run: |
-        python3 mcp-eu-ai-act/server.py << EOF
-        from server import MCPServer
-        import json
-        import sys
+        echo "$RESULT" | python3 -m json.tool
 
-        server = MCPServer()
-        result = server.handle_request("generate_report", {
-            "project_path": ".",
-            "risk_category": "high"
-        })
+        SCORE=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin)['results']['compliance_summary']['compliance_percentage'])")
+        echo "Compliance score: ${SCORE}%"
 
-        compliance_pct = result['results']['compliance_summary']['compliance_percentage']
-
-        print(json.dumps(result, indent=2))
-
-        if compliance_pct < 80:
-            print(f"Compliance below threshold: {compliance_pct}%")
-            sys.exit(1)
-        else:
-            print(f"Compliance OK: {compliance_pct}%")
-            sys.exit(0)
-        EOF
+        if [ "$(echo "$SCORE < 80" | bc)" -eq 1 ]; then
+          echo "::error::Compliance below 80% threshold"
+          exit 1
+        fi
 ```
 
 ### GitLab CI
 
-Create `.gitlab-ci.yml`:
-
 ```yaml
-stages:
-  - compliance
-
 eu-ai-act-check:
-  stage: compliance
-  image: python:3.9
+  stage: test
+  image: python:3.12
   script:
-    - git clone https://github.com/ark-forge/mcp-eu-ai-act.git
-    - cd mcp-eu-ai-act && pip install -r requirements.txt
-    - python3 -c "
-      from server import MCPServer;
-      import sys;
-      server = MCPServer();
-      result = server.handle_request('check_compliance', {'project_path': '.', 'risk_category': 'high'});
-      pct = result['results']['compliance_percentage'];
-      print(f'Compliance: {pct}%');
-      sys.exit(0 if pct >= 80 else 1)"
-  only:
-    - main
-    - develop
+    - |
+      RESULT=$(curl -sf -X POST https://arkforge.fr/mcp/api/v1/check-compliance \
+        -H "Content-Type: application/json" \
+        -d '{"project_path": ".", "risk_category": "high"}')
+      echo "$RESULT" | python3 -m json.tool
+      PCT=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin)['results']['compliance_percentage'])")
+      echo "Compliance: ${PCT}%"
+      [ "$(echo "$PCT >= 80" | bc)" -eq 1 ] || exit 1
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
 ```
 
-## 6. Environment Variables
+## 7. Dependencies
 
-The server can be configured with environment variables:
+**Required:**
+- Python 3.10+
+- `mcp` library (for STDIO mode)
 
+**For REST API:**
+- `fastapi`
+- `uvicorn`
+- `stripe` (for Pro tier billing)
+
+Install all:
 ```bash
-# Log level
-export MCP_LOG_LEVEL=INFO
-
-# Minimum compliance threshold
-export MCP_COMPLIANCE_THRESHOLD=80
-
-# Default risk category
-export MCP_DEFAULT_RISK_CATEGORY=limited
+pip install -r requirements.txt
 ```
 
-## 7. Monitoring and Logging
+## 8. Security
 
-The server generates logs that can be captured:
-
-```python
-import logging
-
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('/var/log/eu-ai-act-mcp.log'),
-        logging.StreamHandler()
-    ]
-)
-```
-
-## 8. Integration Tests
-
-Run tests before deployment:
-
-```bash
-# Unit tests
-python3 test_server.py
-
-# Integration tests
-python3 example_usage.py
-
-# Complete test with real project
-python3 server.py
-```
-
-## 9. Dependencies
-
-### Minimum Requirements
-
-- Python 3.7+
-- No external dependencies (uses only stdlib)
-
-### Optional for Advanced Features
-
-```txt
-# For REST API
-flask>=2.0.0
-fastapi>=0.95.0
-uvicorn>=0.20.0
-
-# For PDF report generation
-reportlab>=3.6.0
-
-# For advanced analysis
-pyyaml>=6.0
-```
-
-## 10. Security
-
-### Best Practices
-
-- The server is read-only (does not modify files)
+- Read-only: the server never modifies scanned files
+- Path validation: blocks system directories (`/etc`, `/proc`, `/sys`, etc.)
+- Payload size limit: 1 MB max on REST endpoints
 - No arbitrary code execution
-- File path validation
-- Robust error handling
-- No vulnerable external dependencies
-
-### Limitations
-
-- The server only scans and analyzes
-- It does not collect external data
-- It does not communicate over the network
-- All processing is local
+- All processing is local (MCP mode) or on the server (REST mode)
 
 ## Support
 
-For any questions or issues:
-- Issues: GitHub repository
-- Email: support@arkforge.fr
-- Documentation: README.md in the repository
+- Issues: [github.com/ark-forge/mcp-eu-ai-act/issues](https://github.com/ark-forge/mcp-eu-ai-act/issues)
+- Email: contact@arkforge.fr
 
 ---
 
-**Version**: 1.0.0
-**Last updated**: 2026-02-09
+**Version**: 1.2.0
 **Maintained by**: ArkForge

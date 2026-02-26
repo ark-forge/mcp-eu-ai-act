@@ -12,16 +12,11 @@
 
 ## Installation Methods
 
-### ❌ Method 1: Smithery Install (NOT AVAILABLE)
+### ⚠️ Method 1: Smithery Install (NOT YET AVAILABLE)
 
-**Status**: Package not yet published on Smithery registry
-**Command tested**: `npx smithery install @arkforge/mcp-eu-ai-act`
-**Result**: Package not found at https://smithery.ai/server/@arkforge/mcp-eu-ai-act
+**Status**: GitHub repo published at [ark-forge/mcp-eu-ai-act](https://github.com/ark-forge/mcp-eu-ai-act). Smithery gateway has authentication issues (platform-side).
 
-**Next steps required**:
-1. Create GitHub repository: https://github.com/ark-forge/mcp-eu-ai-act
-2. Publish package to Smithery registry
-3. Update package.json with correct repository URLs
+**Next step**: Smithery publication pending platform fix.
 
 ---
 
@@ -142,21 +137,12 @@ Replace `/path/to/` with actual installation directory.
 
 ---
 
-## Blockers for Smithery Publication
+## Remaining Blockers
 
-1. **GitHub Repository Missing**
-   - package.json references non-existent repo
-   - URL: https://github.com/ark-forge/mcp-eu-ai-act
-   - Action: Create public GitHub repository
-
-2. **Package Not Registered**
-   - Not published to Smithery registry
-   - Action: Submit to Smithery after GitHub creation
-
-3. **Documentation Updates Needed**
-   - Update README with installation instructions
-   - Add Smithery badge when published
-   - Include usage examples for Claude Desktop
+1. **Smithery Publication**
+   - GitHub repo exists: [ark-forge/mcp-eu-ai-act](https://github.com/ark-forge/mcp-eu-ai-act)
+   - Smithery gateway authentication fails (platform-side issue)
+   - Action: Retry publication when Smithery fixes auth
 
 ---
 
@@ -185,7 +171,7 @@ Replace `/path/to/` with actual installation directory.
 | Test | Status | Details |
 |------|--------|---------|
 | Smithery CLI | ✅ Installed | v3.19.0 via npx |
-| Package Registry | ❌ Not Found | Not published on smithery.ai |
+| Package Registry | ⚠️ Pending | GitHub published, Smithery gateway issue |
 | Manual Install | ✅ Success | Clean environment test |
 | Server Startup | ✅ Working | Process runs stable |
 | STDIO Protocol | ✅ Working | Accepts JSON-RPC requests |
@@ -211,9 +197,9 @@ Replace `/path/to/` with actual installation directory.
 **Manual installation: FUNCTIONAL** ✅
 The MCP server can be installed and runs correctly via manual setup. Server accepts connections and responds to protocol requests.
 
-**Smithery installation: BLOCKED** ❌
-Requires GitHub repository creation and package publication before `smithery install @arkforge/mcp-eu-ai-act` will work.
+**Smithery installation: PENDING** ⚠️
+GitHub repo published. Smithery gateway authentication issue pending platform-side fix.
 
-**Recommendation**: 
+**Recommendation**:
 - Use manual install for immediate deployment
-- Complete GitHub + Smithery publication for wider distribution
+- Smithery publication will enable one-click install once gateway issue is resolved
