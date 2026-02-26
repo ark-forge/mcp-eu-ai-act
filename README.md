@@ -11,7 +11,24 @@ pip install mcp
 python3 server.py
 ```
 
-Pure Python. Single dependency (`mcp`). Runs on Python 3.8+.
+Runs on Python 3.10+.
+
+### Full install
+
+```bash
+git clone https://github.com/ark-forge/mcp-eu-ai-act.git
+cd mcp-eu-ai-act
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+python3 server.py
+```
+
+### Run tests
+
+```bash
+pip install pytest
+pytest tests/ -v
+```
 
 ## Usage Examples
 
@@ -133,6 +150,50 @@ Returns starter markdown templates for each required compliance document. Save t
 ### GDPR Tools
 
 Also includes `gdpr_scan_project`, `gdpr_check_compliance`, `gdpr_generate_report`, and `gdpr_generate_templates` for GDPR personal data processing compliance.
+
+## REST API
+
+A separate HTTP API (`paywall_api.py`) provides rate-limited REST endpoints for CI/CD and external clients.
+
+```bash
+python3 paywall_api.py
+# Listening on 0.0.0.0:8091
+```
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/v1/status` | None | Service status + your rate limit |
+| `GET` | `/api/usage` | None | Current free-tier usage for your IP |
+| `POST` | `/api/v1/scan` | Free/Pro | Scan a project for AI frameworks |
+| `POST` | `/api/v1/check-compliance` | Free/Pro | Check EU AI Act compliance |
+| `POST` | `/api/v1/generate-report` | Free/Pro | Full compliance report |
+| `POST` | `/api/v1/scan-repo` | Internal | Scan a GitHub repo (Trust Layer integration) |
+
+**Free tier**: 10 scans/day per IP, no sign-up required.
+**Pro tier**: Unlimited scans, `X-API-Key` header. 29 EUR/month via [arkforge.fr/pricing](https://arkforge.fr/pricing).
+
+### Example: scan via REST
+
+```bash
+curl -X POST https://arkforge.fr/mcp/api/v1/scan \
+  -H "Content-Type: application/json" \
+  -d '{"project_path": "/path/to/your/project"}'
+```
+
+## Configuration
+
+For the REST API (Stripe payments, email notifications), create a `settings.env`:
+
+```env
+STRIPE_LIVE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+TRUST_LAYER_INTERNAL_SECRET=<random-64-char-hex>
+SMTP_HOST=ssl0.ovh.net
+IMAP_USER=contact@example.com
+IMAP_PASSWORD=...
+```
+
+Set `SETTINGS_ENV_PATH` to the file location (defaults to `/opt/claude-ceo/config/settings.env`).
 
 ## Supported Frameworks (16)
 
