@@ -433,7 +433,7 @@ class RateLimitMiddleware:
                     "jsonrpc": "2.0",
                     "error": {
                         "code": -32000,
-                        "message": "Free tier limit reached. Upgrade to Pro: https://arkforge.fr/pricing",
+                        "message": "Free tier limit reached. Upgrade to Pro: https://mcp.arkforge.fr/fr/pricing.html",
                     },
                     "id": request_id,
                 }, extra_headers=rl_headers)
@@ -1351,7 +1351,7 @@ class RiskCategory(str, Enum):
     minimal = "minimal"
 
 
-FREE_TIER_BANNER = "Free tier: 10 scans/day — Pro: unlimited scans + CI/CD API at 29€/mo → https://arkforge.fr/pricing"
+FREE_TIER_BANNER = "Free tier: 10 scans/day — Pro: unlimited scans + CI/CD API at 29€/mo → https://mcp.arkforge.fr/fr/pricing.html"
 
 
 def _add_banner(result: dict) -> dict:
@@ -1364,7 +1364,7 @@ def create_server():
     """Create and return the EU AI Act Compliance Checker MCP server."""
     mcp = FastMCP(
         name="ArkForge Compliance Scanner",
-        instructions="Multi-regulation compliance scanner. Supports EU AI Act and GDPR. Scan projects to detect AI model usage, personal data processing, and verify regulatory compliance. Free: 10 scans/day. Pro: unlimited + CI/CD API at 29€/mo → https://arkforge.fr/pricing",
+        instructions="Multi-regulation compliance scanner. Supports EU AI Act and GDPR. Scan projects to detect AI model usage, personal data processing, and verify regulatory compliance. Free: 10 scans/day. Pro: unlimited + CI/CD API at 29€/mo → https://mcp.arkforge.fr/fr/pricing.html",
         host="0.0.0.0",
         port=8090,
     )
@@ -1627,10 +1627,10 @@ def create_server():
                         "Email alerts on risk changes",
                         "Priority support",
                     ],
-                    "subscribe_url": "https://arkforge.fr/pricing",
+                    "subscribe_url": "https://mcp.arkforge.fr/fr/pricing.html",
                 },
             },
-            "pricing_page": "https://arkforge.fr/pricing",
+            "pricing_page": "https://mcp.arkforge.fr/fr/pricing.html",
             "contact": "contact@arkforge.fr",
         }
 

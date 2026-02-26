@@ -3,7 +3,7 @@
 MCP EU AI Act - REST API
 FastAPI server providing:
 - Free tier: 10 scans/day per IP
-- Pro tier: 29EUR/month via Stripe (https://arkforge.fr/pricing)
+- Pro tier: 29EUR/month via Stripe (https://mcp.arkforge.fr/fr/pricing.html)
 - Scan, compliance check, and report endpoints
 
 Payment via Stripe payment link. API keys sent by email after subscription.
@@ -169,7 +169,7 @@ async def limit_payload_size(request: Request, call_next):
             return JSONResponse({"error": "Payload too large (max 1 MB)"}, status_code=413)
     return await call_next(request)
 
-FREE_TIER_BANNER = f"Free tier: {FREE_TIER_LIMIT}/day — Pro: unlimited scans + CI/CD API at 29EUR/mo → https://arkforge.fr/pricing"
+FREE_TIER_BANNER = f"Free tier: {FREE_TIER_LIMIT}/day — Pro: unlimited scans + CI/CD API at 29EUR/mo → https://mcp.arkforge.fr/fr/pricing.html"
 
 
 def _check_free_tier(ip: str):
@@ -178,7 +178,7 @@ def _check_free_tier(ip: str):
     if not allowed:
         raise HTTPException(429, {
             "error": "Free tier limit reached (10/day)",
-            "upgrade": "https://arkforge.fr/pricing",
+            "upgrade": "https://mcp.arkforge.fr/fr/pricing.html",
             "reset": "Tomorrow 00:00 UTC",
         })
 
@@ -213,7 +213,7 @@ async def api_status(request: Request):
         "version": "1.1.0",
         "your_plan": "free",
         "rate_limit": usage,
-        "paid_scans": "https://arkforge.fr/pricing",
+        "paid_scans": "https://mcp.arkforge.fr/fr/pricing.html",
     }
 
 
@@ -389,7 +389,7 @@ async def pricing():
                     "Email alerts on risk changes",
                     "Priority support",
                 ],
-                "subscribe": "https://arkforge.fr/pricing",
+                "subscribe": "https://mcp.arkforge.fr/fr/pricing.html",
             },
         },
         "contact": "contact@arkforge.fr",
@@ -488,7 +488,7 @@ def _send_api_key_email(email: str, api_key: str):
             f"Usage:\n"
             f"  - HTTP header: X-API-Key: {api_key}\n"
             f"  - Or: Authorization: Bearer {api_key}\n\n"
-            f"Documentation: https://arkforge.fr/docs\n"
+            f"Documentation: https://mcp.arkforge.fr/docs\n"
             f"Support: contact@arkforge.fr\n\n"
             f"-- ArkForge"
         )

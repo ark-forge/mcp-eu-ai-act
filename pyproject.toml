@@ -23,7 +23,7 @@ keywords = [
 [project.urls]
 Homepage = "https://github.com/ark-forge/mcp-eu-ai-act"
 Repository = "https://github.com/ark-forge/mcp-eu-ai-act"
-Documentation = "https://arkforge.fr/mcp-eu-ai-act.html"
+Documentation = "https://mcp.arkforge.fr/fr/mcp-eu-ai-act.html"
 
 [tool.hatch.build.targets.wheel]
 packages = ["."]

@@ -61,12 +61,12 @@ python3 paywall_api.py
 
 ```bash
 # Free tier (10 scans/day per IP, no auth)
-curl -X POST https://arkforge.fr/mcp/api/v1/scan \
+curl -X POST https://mcp.arkforge.fr/mcp/api/v1/scan \
   -H "Content-Type: application/json" \
   -d '{"project_path": "/path/to/your/project"}'
 
 # Pro tier (unlimited, API key required)
-curl -X POST https://arkforge.fr/mcp/api/v1/scan \
+curl -X POST https://mcp.arkforge.fr/mcp/api/v1/scan \
   -H "Content-Type: application/json" \
   -H "X-API-Key: your_pro_key" \
   -d '{"project_path": "/path/to/your/project"}'
@@ -106,7 +106,7 @@ jobs:
 
     - name: EU AI Act Compliance Scan
       run: |
-        RESULT=$(curl -sf -X POST https://arkforge.fr/mcp/api/v1/generate-report \
+        RESULT=$(curl -sf -X POST https://mcp.arkforge.fr/mcp/api/v1/generate-report \
           -H "Content-Type: application/json" \
           -d "{\"project_path\": \"$GITHUB_WORKSPACE\", \"risk_category\": \"high\"}")
 
@@ -129,7 +129,7 @@ eu-ai-act-check:
   image: python:3.12
   script:
     - |
-      RESULT=$(curl -sf -X POST https://arkforge.fr/mcp/api/v1/check-compliance \
+      RESULT=$(curl -sf -X POST https://mcp.arkforge.fr/mcp/api/v1/check-compliance \
         -H "Content-Type: application/json" \
         -d '{"project_path": ".", "risk_category": "high"}')
       echo "$RESULT" | python3 -m json.tool

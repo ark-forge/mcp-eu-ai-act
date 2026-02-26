@@ -170,12 +170,12 @@ python3 paywall_api.py
 | `POST` | `/api/v1/scan-repo` | Internal | Scan a GitHub repo (Trust Layer integration) |
 
 **Free tier**: 10 scans/day per IP, no sign-up required.
-**Pro tier**: Unlimited scans, `X-API-Key` header. 29 EUR/month via [arkforge.fr/pricing](https://arkforge.fr/pricing).
+**Pro tier**: Unlimited scans, `X-API-Key` header. 29 EUR/month via [mcp.arkforge.fr/fr/pricing.html](https://mcp.arkforge.fr/fr/pricing.html).
 
 ### Example: scan via REST
 
 ```bash
-curl -X POST https://arkforge.fr/mcp/api/v1/scan \
+curl -X POST https://mcp.arkforge.fr/mcp/api/v1/scan \
   -H "Content-Type: application/json" \
   -d '{"project_path": "/path/to/your/project"}'
 ```
@@ -255,7 +255,6 @@ Agent Client  →  Trust Layer  →  EU AI Act Scanner
 | **Proof Spec** | Open specification + test vectors for the proof format | [ark-forge/proof-spec](https://github.com/ark-forge/proof-spec) |
 | **Agent Client** | Autonomous buyer — proof-of-concept of a non-human customer | [ark-forge/arkforge-agent-client](https://github.com/ark-forge/arkforge-agent-client) |
 
-See a live proof: [example transaction](https://arkforge.fr/trust/v/prf_20260225_222329_d17acd)
 
 ## License
 

@@ -115,7 +115,7 @@ function walkDir(dir: string, maxFiles: number): string[] {
   return results;
 }
 
-const FREE_TIER_BANNER = "Free tier: 10 scans/day — Pro: unlimited scans + CI/CD API at 29€/mo → https://arkforge.fr/pricing";
+const FREE_TIER_BANNER = "Free tier: 10 scans/day — Pro: unlimited scans + CI/CD API at 29€/mo → https://mcp.arkforge.fr/fr/pricing.html";
 
 function addBanner(result: Record<string, any>): Record<string, any> {
   result.upgrade = FREE_TIER_BANNER;
@@ -838,19 +838,19 @@ function extractApiKey(req: { headers: Record<string, string | string[] | undefi
 function createMcpServer() {
   const srv = new McpServer({ name: "ArkForge Compliance Scanner", version: "1.2.0" });
 
-  srv.tool("scan_project", "Scan a project to detect AI model usage (OpenAI, Anthropic, HuggingFace, TensorFlow, PyTorch, LangChain, Gemini, Mistral, Cohere, Bedrock, Azure OpenAI, Ollama, LlamaIndex, Replicate, Groq). Free: 10 scans/day. Pro: unlimited + CI/CD API → https://arkforge.fr/pricing",
+  srv.tool("scan_project", "Scan a project to detect AI model usage (OpenAI, Anthropic, HuggingFace, TensorFlow, PyTorch, LangChain, Gemini, Mistral, Cohere, Bedrock, Azure OpenAI, Ollama, LlamaIndex, Replicate, Groq). Free: 10 scans/day. Pro: unlimited + CI/CD API → https://mcp.arkforge.fr/fr/pricing.html",
     { project_path: z.string().describe("Absolute path to the project to scan") },
     async ({ project_path }) => ({ content: [{ type: "text" as const, text: JSON.stringify(addBanner(scanProject(project_path)), null, 2) }] })
   );
 
-  srv.tool("check_compliance", "Check EU AI Act compliance for a given risk category. Free: 10 scans/day. Pro: unlimited → https://arkforge.fr/pricing", {
+  srv.tool("check_compliance", "Check EU AI Act compliance for a given risk category. Free: 10 scans/day. Pro: unlimited → https://mcp.arkforge.fr/fr/pricing.html", {
     project_path: z.string().describe("Absolute path to the project"),
     risk_category: z.enum(["unacceptable", "high", "limited", "minimal"]).default("limited").describe("EU AI Act risk category"),
   }, async ({ project_path, risk_category }) => ({
     content: [{ type: "text" as const, text: JSON.stringify(addBanner(checkCompliance(project_path, risk_category)), null, 2) }],
   }));
 
-  srv.tool("generate_report", "Generate a complete EU AI Act compliance report with scan results, compliance checks, and recommendations. Free: 10 scans/day. Pro: unlimited → https://arkforge.fr/pricing", {
+  srv.tool("generate_report", "Generate a complete EU AI Act compliance report with scan results, compliance checks, and recommendations. Free: 10 scans/day. Pro: unlimited → https://mcp.arkforge.fr/fr/pricing.html", {
     project_path: z.string().describe("Absolute path to the project"),
     risk_category: z.enum(["unacceptable", "high", "limited", "minimal"]).default("limited").describe("EU AI Act risk category"),
   }, async ({ project_path, risk_category }) => ({
@@ -859,26 +859,26 @@ function createMcpServer() {
 
   // --- GDPR Tools ---
 
-  srv.tool("gdpr_scan_project", "Scan a project to detect personal data processing patterns (GDPR). Detects: PII fields, database queries, cookies, tracking, analytics, geolocation, consent mechanisms, encryption, data deletion. Free: 10 scans/day. Pro: unlimited → https://arkforge.fr/pricing",
+  srv.tool("gdpr_scan_project", "Scan a project to detect personal data processing patterns (GDPR). Detects: PII fields, database queries, cookies, tracking, analytics, geolocation, consent mechanisms, encryption, data deletion. Free: 10 scans/day. Pro: unlimited → https://mcp.arkforge.fr/fr/pricing.html",
     { project_path: z.string().describe("Absolute path to the project to scan") },
     async ({ project_path }) => ({ content: [{ type: "text" as const, text: JSON.stringify(addBanner(gdprScanProject(project_path)), null, 2) }] })
   );
 
-  srv.tool("gdpr_check_compliance", "Check GDPR compliance for a project based on its data processing role. Free: 10 scans/day. Pro: unlimited → https://arkforge.fr/pricing", {
+  srv.tool("gdpr_check_compliance", "Check GDPR compliance for a project based on its data processing role. Free: 10 scans/day. Pro: unlimited → https://mcp.arkforge.fr/fr/pricing.html", {
     project_path: z.string().describe("Absolute path to the project"),
     processing_role: z.enum(["controller", "processor", "minimal_processing"]).default("controller").describe("GDPR processing role"),
   }, async ({ project_path, processing_role }) => ({
     content: [{ type: "text" as const, text: JSON.stringify(addBanner(gdprCheckCompliance(project_path, processing_role)), null, 2) }],
   }));
 
-  srv.tool("gdpr_generate_report", "Generate a complete GDPR compliance report with data processing scan, compliance checks, and recommendations. Free: 10 scans/day. Pro: unlimited → https://arkforge.fr/pricing", {
+  srv.tool("gdpr_generate_report", "Generate a complete GDPR compliance report with data processing scan, compliance checks, and recommendations. Free: 10 scans/day. Pro: unlimited → https://mcp.arkforge.fr/fr/pricing.html", {
     project_path: z.string().describe("Absolute path to the project"),
     processing_role: z.enum(["controller", "processor", "minimal_processing"]).default("controller").describe("GDPR processing role"),
   }, async ({ project_path, processing_role }) => ({
     content: [{ type: "text" as const, text: JSON.stringify(addBanner(gdprGenerateReport(project_path, processing_role)), null, 2) }],
   }));
 
-  srv.tool("gdpr_generate_templates", "Generate GDPR compliance document templates (privacy policy, DPIA, records of processing, data breach procedure). Templates include GDPR article references and fill-in sections. Free: 10 scans/day. Pro: unlimited → https://arkforge.fr/pricing", {
+  srv.tool("gdpr_generate_templates", "Generate GDPR compliance document templates (privacy policy, DPIA, records of processing, data breach procedure). Templates include GDPR article references and fill-in sections. Free: 10 scans/day. Pro: unlimited → https://mcp.arkforge.fr/fr/pricing.html", {
     processing_role: z.enum(["controller", "processor", "minimal_processing"]).default("controller").describe("GDPR processing role"),
   }, async ({ processing_role }) => ({
     content: [{ type: "text" as const, text: JSON.stringify(addBanner(gdprGenerateTemplates(processing_role)), null, 2) }],
@@ -1025,7 +1025,7 @@ const httpServer = createHttpServer(async (req, res) => {
               jsonrpc: "2.0",
               error: {
                 code: -32000,
-                message: `Rate limit exceeded (${FREE_TIER_DAILY_LIMIT}/day free tier). Upgrade to Pro for unlimited scans: https://arkforge.fr/pricing`,
+                message: `Rate limit exceeded (${FREE_TIER_DAILY_LIMIT}/day free tier). Upgrade to Pro for unlimited scans: https://mcp.arkforge.fr/fr/pricing.html`,
               },
               id: toolsCallReq.id || null,
             }));
