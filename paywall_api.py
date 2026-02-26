@@ -316,7 +316,7 @@ async def api_report(request: Request):
 
 # --- Trust Layer internal endpoint ---
 
-INTERNAL_SECRET = os.environ.get("TRUST_LAYER_INTERNAL_SECRET", "")
+INTERNAL_SECRET = os.environ.get("TRUST_LAYER_INTERNAL_SECRET", "") or _settings.get("TRUST_LAYER_INTERNAL_SECRET", "")
 if not INTERNAL_SECRET:
     logger.warning("TRUST_LAYER_INTERNAL_SECRET not set — /api/v1/scan-repo will reject all requests")
 
