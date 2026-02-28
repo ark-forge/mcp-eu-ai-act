@@ -1077,6 +1077,18 @@ def _validate_project_path(project_path: str) -> tuple[bool, str]:
         if resolved_str == blocked or resolved_str.startswith(blocked + "/"):
             return False, f"Access denied: scanning {blocked} is not allowed for security reasons"
 
+    # Block /home at insufficient depth or sensitive subdirectories
+    # /home → blocked, /home/user → blocked, /home/user/.ssh → blocked
+    # /home/user/project → allowed (legitimate project path)
+    if resolved_str == "/home" or resolved_str.startswith("/home/"):
+        parts = resolved_str.split("/")  # ['', 'home', ...]
+        if len(parts) < 4:
+            # /home or /home/user — too shallow
+            return False, "Access denied: scanning /home is not allowed for security reasons"
+        if len(parts) >= 4 and parts[3].startswith("."):
+            # /home/user/.ssh, /home/user/.gnupg, etc. — sensitive dotdirs
+            return False, "Access denied: scanning /home is not allowed for security reasons"
+
     # Block symlinks that escape to blocked paths
     if resolved != Path(project_path):
         for blocked in BLOCKED_PATHS:
