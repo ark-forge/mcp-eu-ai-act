@@ -35,6 +35,7 @@ only-include = ["server.py"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--tb=short -q"
+asyncio_mode = "auto"
 
 [tool.coverage.run]
 source = ["server.py"]
