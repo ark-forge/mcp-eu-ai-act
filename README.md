@@ -1,5 +1,9 @@
 # EU AI Act Compliance Scanner — MCP Server
 
+[![GitHub Stars](https://img.shields.io/github/stars/ark-forge/mcp-eu-ai-act?style=flat&label=⭐%20Star%20this%20repo)](https://github.com/ark-forge/mcp-eu-ai-act/stargazers)
+
+If this tool helps your compliance work, a ⭐ on GitHub helps others discover it.
+
 Static analysis tool that scans codebases for AI framework usage and checks compliance against EU AI Act requirements.
 
 ## Quick Start
