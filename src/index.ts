@@ -703,8 +703,8 @@ function gdprGenerateTemplates(processingRole: string) {
 
 // --- API Key Management (Paywall Step 2) ---
 
-const API_KEYS_ROOT = path.join(path.dirname(new URL(import.meta.url).pathname), "..", "api_keys.json");
-const API_KEYS_DATA = path.join(path.dirname(new URL(import.meta.url).pathname), "..", "data", "api_keys.json");
+const API_KEYS_ROOT = path.join(__dirname, "..", "api_keys.json");
+const API_KEYS_DATA = path.join(__dirname, "..", "data", "api_keys.json");
 
 class ApiKeyManager {
   private keys: Map<string, { email: string; plan: string; active: boolean }> = new Map();
@@ -751,7 +751,7 @@ const apiKeyManager = new ApiKeyManager();
 
 // --- Rate Limiting (Paywall Step 1) ---
 const FREE_TIER_DAILY_LIMIT = 10;
-const RATE_LIMITS_PATH = path.join(path.dirname(new URL(import.meta.url).pathname), "..", "data", "rate_limits.json");
+const RATE_LIMITS_PATH = path.join(__dirname, "..", "data", "rate_limits.json");
 
 class RateLimiter {
   private clients: Map<string, { count: number; reset_at: number }> = new Map();
