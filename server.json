@@ -1,26 +1,24 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.ark-forge/mcp-eu-ai-act",
-  "description": "MCP Server for EU AI Act & GDPR Compliance Checking. Scans codebases for 16 AI frameworks, checks compliance across risk categories, generates reports and documentation templates.",
+  "description": "EU AI Act compliance MCP server. Scans AI codebases, classifies risk, provides remediation guidance.",
+  "version": "1.1.0",
   "repository": {
     "url": "https://github.com/ark-forge/mcp-eu-ai-act",
     "source": "github"
-  },
-  "version_detail": {
-    "version": "1.1.0"
   },
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@arkforge/mcp-eu-ai-act",
       "version": "1.1.0",
-      "runtime_hint": "node",
+      "runtimeHint": "node",
       "transport": {
         "type": "stdio"
       },
       "environmentVariables": [
         {
-          "description": "Optional: ArkForge API key for Pro features (>10 scans/day). Free tier requires no API key.",
+          "description": "ArkForge API key for Pro features (>10 scans/day). Free tier: no key needed.",
           "isRequired": false,
           "format": "string",
           "isSecret": true,
