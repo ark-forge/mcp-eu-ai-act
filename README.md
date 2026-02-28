@@ -170,7 +170,7 @@ python3 paywall_api.py
 | `POST` | `/api/v1/scan-repo` | Internal | Scan a GitHub repo (Trust Layer integration) |
 
 **Free tier**: 10 scans/day per IP, no sign-up required.
-**Pro tier**: Unlimited scans, `X-API-Key` header. 29 EUR/month via [mcp.arkforge.fr/fr/pricing.html](https://mcp.arkforge.fr/fr/pricing.html).
+**Pro tier**: Unlimited scans, `X-API-Key` header. 29 EUR/month via [mcp.arkforge.fr/fr/pricing.html](https://mcp.arkforge.fr/fr/pricing.html?utm_source=pypi).
 
 ### Example: scan via REST
 
@@ -238,6 +238,23 @@ Free tier: 10 scans/day per IP. Pro API keys (`X-API-Key` header or `Authorizati
 - Compliance checks verify documentation exists, not its content quality
 - File scanning limited to 5,000 files and 1 MB per file
 - Certain system paths are blocked from scanning for security
+
+## Certify your scans with Trust Layer
+
+Turn any compliance scan into a **tamper-proof, verifiable proof** with [ArkForge Trust Layer](https://arkforge.fr/trust?utm_source=pypi):
+
+- **Signed proofs** — Ed25519 digital signatures on every scan result
+- **Tamper-proof** — SHA-256 hash chain, independently verifiable
+- **Regulatory-ready** — timestamped evidence for EU AI Act audits
+
+```bash
+# Get a certified compliance proof in one call
+curl -X POST https://arkforge.fr/trust/v1/proofs \
+  -H "X-API-Key: YOUR_KEY" \
+  -d '{"service": "eu-ai-act", "action": "scan", "path": "/your/project"}'
+```
+
+Free tier available (100 proofs/month, no credit card). [Get started →](https://arkforge.fr/trust?utm_source=pypi)
 
 ## ArkForge ecosystem
 

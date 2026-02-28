@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mcp-eu-ai-act"
-version = "1.1.0"
+version = "1.2.0"
 description = "MCP Server to verify EU AI Act compliance for AI projects"
 readme = "README.md"
 license = "MIT"
@@ -18,12 +18,15 @@ keywords = [
     "MCP",
     "AI regulation",
     "risk assessment",
+    "trust-layer",
+    "ai-certification",
+    "ai-proof",
 ]
 
 [project.urls]
 Homepage = "https://github.com/ark-forge/mcp-eu-ai-act"
 Repository = "https://github.com/ark-forge/mcp-eu-ai-act"
-Documentation = "https://mcp.arkforge.fr/fr/mcp-eu-ai-act.html"
+Documentation = "https://mcp.arkforge.fr/fr/mcp-eu-ai-act.html?utm_source=pypi"
 
 [tool.hatch.build.targets.wheel]
 packages = ["."]
