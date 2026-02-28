@@ -7,6 +7,12 @@
     "url": "https://github.com/ark-forge/mcp-eu-ai-act",
     "source": "github"
   },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://mcp.arkforge.fr/mcp"
+    }
+  ],
   "packages": [
     {
       "registryType": "npm",
