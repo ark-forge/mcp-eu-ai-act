@@ -1087,9 +1087,12 @@ const httpServer = createHttpServer(async (req, res) => {
   res.end(JSON.stringify({ error: "Bad Request: No valid session. Send initialize first." }));
 });
 
-httpServer.listen(PORT, "0.0.0.0", () => {
-  console.log(`MCP EU AI Act server listening on http://0.0.0.0:${PORT}/mcp`);
-  console.log("Server card: /.well-known/mcp/server-card.json");
-  console.log("Supports: POST (JSON-RPC), GET (SSE), DELETE (session close), OPTIONS (CORS)");
-  console.log("Public server - no authentication required");
-});
+// Only start HTTP server when running as main module (not when imported by Smithery scanner)
+if (require.main === module || process.argv[1]?.endsWith("index.js") || process.argv[1]?.endsWith("index.cjs")) {
+  httpServer.listen(PORT, "0.0.0.0", () => {
+    console.log(`MCP EU AI Act server listening on http://0.0.0.0:${PORT}/mcp`);
+    console.log("Server card: /.well-known/mcp/server-card.json");
+    console.log("Supports: POST (JSON-RPC), GET (SSE), DELETE (session close), OPTIONS (CORS)");
+    console.log("Public server - no authentication required");
+  });
+}
