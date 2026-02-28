@@ -38,14 +38,11 @@ addopts = "--tb=short -q"
 asyncio_mode = "auto"
 
 [tool.coverage.run]
-source = ["."]
+source = ["server", "gdpr_module", "paywall_api"]
 omit = [
     ".venv/*",
     "venv/*",
     "node_modules/*",
-    "example_usage.py",
-    "test_json_format.py",
-    "tests/*",
     "dist/*",
     "__pycache__/*",
     "*/site-packages/*",
