@@ -277,6 +277,12 @@ Agent Client  →  Trust Layer  →  EU AI Act Scanner
 | **Agent Client** | Autonomous buyer — proof-of-concept of a non-human customer | [ark-forge/arkforge-agent-client](https://github.com/ark-forge/arkforge-agent-client) |
 
 
+## Community
+
+- **Questions / integration help** → [GitHub Discussions Q&A](https://github.com/ark-forge/mcp-eu-ai-act/discussions/8)
+- **Bug reports** → [Open an issue](https://github.com/ark-forge/mcp-eu-ai-act/issues)
+- **Feature requests** → [Open an issue](https://github.com/ark-forge/mcp-eu-ai-act/issues) or join the discussion
+
 ## License
 
 MIT
