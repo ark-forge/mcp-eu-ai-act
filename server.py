@@ -1026,6 +1026,269 @@ RISK_CATEGORY_INDICATORS = {
 }
 
 
+# Mapping: keyword → EU AI Act article reference + description
+# Used by suggest_risk_category to enrich matches with legal citations
+KEYWORD_ARTICLE_MAP: dict[str, dict[str, str]] = {
+    # Unacceptable — Art. 5 (prohibited practices)
+    "social scoring": {
+        "article": "Art. 5(1)(c)",
+        "description": "Social scoring by public or private actors leading to detrimental treatment",
+    },
+    "social credit": {
+        "article": "Art. 5(1)(c)",
+        "description": "Social scoring by public or private actors leading to detrimental treatment",
+    },
+    "mass surveillance": {
+        "article": "Art. 5(1)(h)",
+        "description": "Real-time remote biometric identification in publicly accessible spaces",
+    },
+    "biometric identification real-time": {
+        "article": "Art. 5(1)(h)",
+        "description": "Real-time remote biometric identification in publicly accessible spaces",
+    },
+    "subliminal manipulation": {
+        "article": "Art. 5(1)(a)",
+        "description": "AI systems using subliminal techniques to distort behaviour",
+    },
+    "exploit vulnerabilities": {
+        "article": "Art. 5(1)(b)",
+        "description": "AI systems exploiting vulnerabilities of specific groups",
+    },
+    "emotion recognition workplace": {
+        "article": "Art. 5(1)(f)",
+        "description": "Prohibited emotion recognition in workplaces and educational institutions",
+    },
+    "emotion recognition education": {
+        "article": "Art. 5(1)(f)",
+        "description": "Prohibited emotion recognition in workplaces and educational institutions",
+    },
+    "predictive policing individual": {
+        "article": "Art. 5(1)(d)",
+        "description": "Individual criminal risk assessment based solely on profiling",
+    },
+    # High-risk — Art. 6 + Annex III
+    "recruitment": {
+        "article": "Annex III(4)(a)",
+        "description": "AI for recruitment or selection of natural persons",
+    },
+    "hiring": {
+        "article": "Annex III(4)(a)",
+        "description": "AI for recruitment or selection of natural persons",
+    },
+    "credit scoring": {
+        "article": "Annex III(5)(b)",
+        "description": "AI evaluating creditworthiness or establishing credit scores",
+    },
+    "credit assessment": {
+        "article": "Annex III(5)(b)",
+        "description": "AI evaluating creditworthiness or establishing credit scores",
+    },
+    "insurance pricing": {
+        "article": "Annex III(5)(b)",
+        "description": "AI used in insurance risk assessment and pricing",
+    },
+    "law enforcement": {
+        "article": "Annex III(6)",
+        "description": "AI used by law enforcement for risk assessment, evidence reliability or crime prediction",
+    },
+    "border control": {
+        "article": "Annex III(7)",
+        "description": "AI assisting in migration, asylum and border control management",
+    },
+    "immigration": {
+        "article": "Annex III(7)",
+        "description": "AI assisting in migration, asylum and border control management",
+    },
+    "asylum": {
+        "article": "Annex III(7)",
+        "description": "AI assisting in migration, asylum and border control management",
+    },
+    "education admission": {
+        "article": "Annex III(3)(a)",
+        "description": "AI for admission or assignment of persons to educational institutions",
+    },
+    "student assessment": {
+        "article": "Annex III(3)(b)",
+        "description": "AI for evaluating learning outcomes and assessing students",
+    },
+    "critical infrastructure": {
+        "article": "Annex III(2)",
+        "description": "AI as safety component in critical infrastructure (water, gas, electricity, transport)",
+    },
+    "medical device": {
+        "article": "Art. 6(1)(a)",
+        "description": "AI as safety component of a product under Union harmonisation legislation (medical devices)",
+    },
+    "medical diagnosis": {
+        "article": "Annex III(5)(a)",
+        "description": "AI intended to be used for triage or prioritisation of medical care",
+    },
+    "biometric": {
+        "article": "Annex III(1)(a)",
+        "description": "AI for remote biometric identification of natural persons",
+    },
+    "facial recognition": {
+        "article": "Annex III(1)(a)",
+        "description": "AI for remote biometric identification of natural persons",
+    },
+    "justice": {
+        "article": "Annex III(8)",
+        "description": "AI assisting judicial authorities in researching and interpreting facts and law",
+    },
+    "court": {
+        "article": "Annex III(8)",
+        "description": "AI assisting judicial authorities in researching and interpreting facts and law",
+    },
+    "democratic process": {
+        "article": "Annex III(8)",
+        "description": "AI influencing democratic and electoral processes",
+    },
+    "election": {
+        "article": "Annex III(8)",
+        "description": "AI influencing democratic and electoral processes",
+    },
+    "essential services": {
+        "article": "Annex III(5)(b)",
+        "description": "AI evaluating eligibility for essential public services and benefits",
+    },
+    "emergency services": {
+        "article": "Annex III(2)",
+        "description": "AI as safety component in critical infrastructure including emergency response",
+    },
+    "safety component": {
+        "article": "Art. 6(1)(b)",
+        "description": "AI as a safety component of a product under harmonisation legislation",
+    },
+    # Limited-risk — Art. 52 (transparency obligations)
+    "chatbot": {
+        "article": "Art. 52(1)",
+        "description": "AI systems interacting with natural persons must disclose they are AI",
+    },
+    "chat bot": {
+        "article": "Art. 52(1)",
+        "description": "AI systems interacting with natural persons must disclose they are AI",
+    },
+    "conversational": {
+        "article": "Art. 52(1)",
+        "description": "AI systems interacting with natural persons must disclose they are AI",
+    },
+    "content generation": {
+        "article": "Art. 52(3)",
+        "description": "AI-generated content must be marked as artificially generated or manipulated",
+    },
+    "text generation": {
+        "article": "Art. 52(3)",
+        "description": "AI-generated text must be marked as artificially generated",
+    },
+    "image generation": {
+        "article": "Art. 52(3)",
+        "description": "AI-generated images must be marked as artificially generated",
+    },
+    "deepfake": {
+        "article": "Art. 52(3)",
+        "description": "Deep fakes must be disclosed as artificially generated or manipulated",
+    },
+    "synthetic media": {
+        "article": "Art. 52(3)",
+        "description": "Synthetic media must be disclosed as artificially generated or manipulated",
+    },
+    "recommendation": {
+        "article": "Art. 52(1)",
+        "description": "AI recommendation systems interacting with users must be transparent",
+    },
+    "customer support bot": {
+        "article": "Art. 52(1)",
+        "description": "AI systems interacting with natural persons must disclose they are AI",
+    },
+    "virtual assistant": {
+        "article": "Art. 52(1)",
+        "description": "AI systems interacting with natural persons must disclose they are AI",
+    },
+    "ai assistant": {
+        "article": "Art. 52(1)",
+        "description": "AI systems interacting with natural persons must disclose they are AI",
+    },
+    # Minimal-risk — Recital 86 (voluntary code of conduct, no mandatory article)
+    "spam filter": {
+        "article": "Recital 86",
+        "description": "Minimal-risk AI — voluntary code of conduct encouraged, no mandatory obligations",
+    },
+    "spam detection": {
+        "article": "Recital 86",
+        "description": "Minimal-risk AI — voluntary code of conduct encouraged, no mandatory obligations",
+    },
+    "video game": {
+        "article": "Recital 86",
+        "description": "Minimal-risk AI — voluntary code of conduct encouraged, no mandatory obligations",
+    },
+    "search optimization": {
+        "article": "Recital 86",
+        "description": "Minimal-risk AI — voluntary code of conduct encouraged, no mandatory obligations",
+    },
+    "inventory management": {
+        "article": "Recital 86",
+        "description": "Minimal-risk AI — voluntary code of conduct encouraged, no mandatory obligations",
+    },
+    "autocomplete": {
+        "article": "Recital 86",
+        "description": "Minimal-risk AI — voluntary code of conduct encouraged, no mandatory obligations",
+    },
+    "spell check": {
+        "article": "Recital 86",
+        "description": "Minimal-risk AI — voluntary code of conduct encouraged, no mandatory obligations",
+    },
+    "translation": {
+        "article": "Recital 86",
+        "description": "Minimal-risk AI — voluntary code of conduct encouraged, no mandatory obligations",
+    },
+}
+
+
+def _enrich_matches_with_articles(
+    matches: dict[str, dict],
+) -> tuple[dict[str, dict], list[str]]:
+    """Enrich keyword matches with EU AI Act article references.
+
+    For each category's matched_keywords, looks up KEYWORD_ARTICLE_MAP to attach
+    article and description. Collects all unique articles as relevant_articles.
+
+    Returns:
+        (enriched_matches, relevant_articles_sorted)
+    """
+    enriched: dict[str, dict] = {}
+    all_articles: set[str] = set()
+
+    for category, info in matches.items():
+        enriched_keywords = []
+        for kw in info["matched_keywords"]:
+            entry: dict[str, str] = {"keyword": kw}
+            mapping = KEYWORD_ARTICLE_MAP.get(kw)
+            if mapping:
+                entry["article"] = mapping["article"]
+                entry["description"] = mapping["description"]
+                all_articles.add(mapping["article"])
+            enriched_keywords.append(entry)
+        enriched[category] = {
+            **info,
+            "matched_keywords": enriched_keywords,
+        }
+
+    # Sort articles: Art. 5 → Art. 6 → Annex III → Art. 52 → Recital
+    def _article_sort_key(art: str) -> tuple[int, str]:
+        if art.startswith("Art. 5"):
+            return (0, art)
+        if art.startswith("Art. 6"):
+            return (1, art)
+        if art.startswith("Annex III"):
+            return (2, art)
+        if art.startswith("Art. 52"):
+            return (3, art)
+        return (4, art)
+
+    relevant_articles = sorted(all_articles, key=_article_sort_key)
+    return enriched, relevant_articles
+
+
 # Security: directories that must NEVER be scanned
 # Dynamically resolve the installation root (4 levels up from server.py)
 _INSTALL_ROOT = os.environ.get("ARKFORGE_ROOT", str(Path(__file__).resolve().parent.parent.parent.parent))
@@ -1438,34 +1701,38 @@ def create_server():
             system_description: Description of what your AI system does (e.g. "chatbot for customer support", "CV screening tool for recruitment")
         """
         description_lower = system_description.lower()
-        matches = {}
+        raw_matches: dict[str, dict] = {}
 
         for category, info in RISK_CATEGORY_INDICATORS.items():
             matched_keywords = [kw for kw in info["keywords"] if kw in description_lower]
             if matched_keywords:
-                matches[category] = {
+                raw_matches[category] = {
                     "matched_keywords": matched_keywords,
                     "match_count": len(matched_keywords),
                     "description": info["description"],
                 }
 
-        if not matches:
+        if not raw_matches:
             suggested = "limited"
             confidence = "low"
             reasoning = "No specific risk indicators detected. Defaulting to 'limited' (most common for AI applications). Review the category descriptions below to confirm."
+            enriched_matches: dict[str, dict] = {}
+            relevant_articles: list[str] = []
         else:
             # Pick highest-risk matched category
             priority = ["unacceptable", "high", "limited", "minimal"]
-            suggested = next(cat for cat in priority if cat in matches)
-            match_info = matches[suggested]
+            suggested = next(cat for cat in priority if cat in raw_matches)
+            match_info = raw_matches[suggested]
             confidence = "high" if match_info["match_count"] >= 2 else "medium"
             reasoning = f"Matched {match_info['match_count']} indicator(s): {', '.join(match_info['matched_keywords'])}. {match_info['description']}."
+            enriched_matches, relevant_articles = _enrich_matches_with_articles(raw_matches)
 
         return {
             "suggested_category": suggested,
             "confidence": confidence,
             "reasoning": reasoning,
-            "all_matches": matches,
+            "relevant_articles": relevant_articles,
+            "all_matches": enriched_matches,
             "categories_reference": {
                 cat: {
                     "description": RISK_CATEGORIES[cat]["description"],
@@ -1666,20 +1933,23 @@ class MCPServer:
 
     def _suggest_risk_category(self, system_description: str) -> Dict[str, Any]:
         description_lower = system_description.lower()
-        matches = {}
+        raw_matches: dict = {}
         for category, info in RISK_CATEGORY_INDICATORS.items():
             matched_keywords = [kw for kw in info["keywords"] if kw in description_lower]
             if matched_keywords:
-                matches[category] = {"matched_keywords": matched_keywords, "match_count": len(matched_keywords), "description": info["description"]}
-        if not matches:
+                raw_matches[category] = {"matched_keywords": matched_keywords, "match_count": len(matched_keywords), "description": info["description"]}
+        if not raw_matches:
             suggested, confidence = "limited", "low"
             reasoning = "No specific risk indicators detected. Defaulting to 'limited'."
+            enriched_matches: dict = {}
+            relevant_articles: list = []
         else:
             priority = ["unacceptable", "high", "limited", "minimal"]
-            suggested = next(cat for cat in priority if cat in matches)
-            confidence = "high" if matches[suggested]["match_count"] >= 2 else "medium"
-            reasoning = f"Matched: {', '.join(matches[suggested]['matched_keywords'])}. {matches[suggested]['description']}."
-        return {"tool": "suggest_risk_category", "results": {"suggested_category": suggested, "confidence": confidence, "reasoning": reasoning, "all_matches": matches}}
+            suggested = next(cat for cat in priority if cat in raw_matches)
+            confidence = "high" if raw_matches[suggested]["match_count"] >= 2 else "medium"
+            reasoning = f"Matched: {', '.join(raw_matches[suggested]['matched_keywords'])}. {raw_matches[suggested]['description']}."
+            enriched_matches, relevant_articles = _enrich_matches_with_articles(raw_matches)
+        return {"tool": "suggest_risk_category", "results": {"suggested_category": suggested, "confidence": confidence, "reasoning": reasoning, "relevant_articles": relevant_articles, "all_matches": enriched_matches}}
 
     def _generate_compliance_templates(self, risk_category: str) -> Dict[str, Any]:
         if risk_category == "unacceptable":

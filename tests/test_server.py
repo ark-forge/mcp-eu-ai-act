@@ -651,6 +651,75 @@ class TestSuggestRiskCategory:
         )
         assert result["results"]["confidence"] == "high"
 
+    def test_relevant_articles_present(self, mcp_server):
+        """suggest_risk_category includes relevant_articles field."""
+        result = mcp_server.handle_request(
+            "suggest_risk_category", {"system_description": "AI tool for recruitment"}
+        )
+        assert "relevant_articles" in result["results"]
+        assert isinstance(result["results"]["relevant_articles"], list)
+
+    def test_relevant_articles_high_risk_recruitment(self, mcp_server):
+        """Recruitment keyword maps to Annex III(4)(a)."""
+        result = mcp_server.handle_request(
+            "suggest_risk_category", {"system_description": "AI tool for recruitment"}
+        )
+        articles = result["results"]["relevant_articles"]
+        assert "Annex III(4)(a)" in articles
+
+    def test_relevant_articles_unacceptable_social_scoring(self, mcp_server):
+        """Social scoring maps to Art. 5(1)(c)."""
+        result = mcp_server.handle_request(
+            "suggest_risk_category", {"system_description": "social scoring system"}
+        )
+        articles = result["results"]["relevant_articles"]
+        assert "Art. 5(1)(c)" in articles
+
+    def test_relevant_articles_limited_chatbot(self, mcp_server):
+        """Chatbot maps to Art. 52(1)."""
+        result = mcp_server.handle_request(
+            "suggest_risk_category", {"system_description": "chatbot for customer support"}
+        )
+        articles = result["results"]["relevant_articles"]
+        assert "Art. 52(1)" in articles
+
+    def test_relevant_articles_empty_for_no_match(self, mcp_server):
+        """No keyword match → empty relevant_articles list."""
+        result = mcp_server.handle_request(
+            "suggest_risk_category", {"system_description": "a generic software tool"}
+        )
+        assert result["results"]["relevant_articles"] == []
+
+    def test_all_matches_enriched_with_article(self, mcp_server):
+        """all_matches entries include article and description fields."""
+        result = mcp_server.handle_request(
+            "suggest_risk_category", {"system_description": "AI tool for recruitment and hiring"}
+        )
+        high_matches = result["results"]["all_matches"].get("high", {})
+        assert "matched_keywords" in high_matches
+        for entry in high_matches["matched_keywords"]:
+            assert "keyword" in entry
+            # Keywords with known article mappings should have article field
+            if entry["keyword"] in ("recruitment", "hiring"):
+                assert "article" in entry
+                assert entry["article"] == "Annex III(4)(a)"
+
+    def test_relevant_articles_sorted_art5_before_annex(self, mcp_server):
+        """Art. 5 articles appear before Annex III in sorted relevant_articles."""
+        # social scoring (Art. 5) + biometric (Annex III)
+        result = mcp_server.handle_request(
+            "suggest_risk_category",
+            {"system_description": "social scoring system using biometric identification real-time"},
+        )
+        articles = result["results"]["relevant_articles"]
+        if "Art. 5(1)(c)" in articles and "Art. 5(1)(h)" in articles:
+            idx_5c = articles.index("Art. 5(1)(c)")
+            idx_5h = articles.index("Art. 5(1)(h)")
+            annex_indices = [i for i, a in enumerate(articles) if a.startswith("Annex")]
+            for annex_idx in annex_indices:
+                assert idx_5c < annex_idx
+                assert idx_5h < annex_idx
+
 
 # ============================================================
 # 8. API Key Manager
