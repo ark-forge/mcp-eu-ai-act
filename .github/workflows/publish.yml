@@ -24,7 +24,20 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Check NPM_TOKEN availability
+        id: check_npm
+        run: |
+          if [ -n "$NPM_TOKEN_VAL" ]; then
+            echo "available=true" >> $GITHUB_OUTPUT
+          else
+            echo "available=false" >> $GITHUB_OUTPUT
+            echo "::warning::NPM_TOKEN not configured — skipping npm publish"
+          fi
+        env:
+          NPM_TOKEN_VAL: ${{ secrets.NPM_TOKEN }}
+
       - name: Publish to npm
+        if: steps.check_npm.outputs.available == 'true'
         # Requires NPM_TOKEN secret in repo settings.
         # Create token at https://www.npmjs.com/settings (type: Publish)
         # then add as repository secret named NPM_TOKEN.
