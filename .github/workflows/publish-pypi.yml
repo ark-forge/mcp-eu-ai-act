@@ -7,11 +7,13 @@ on:
 
 permissions:
   contents: read
-  id-token: write
+  id-token: write  # Required for PyPI Trusted Publishing (OIDC)
 
 jobs:
   publish-pypi:
     runs-on: ubuntu-latest
+    # NOTE: 'environment: pypi' is required for Trusted Publishing.
+    # Alternatively, set PYPI_TOKEN secret in repo settings (no environment needed).
     environment: pypi
     steps:
       - uses: actions/checkout@v4
@@ -27,5 +29,10 @@ jobs:
       - name: Build package
         run: python -m build
 
-      - name: Publish to PyPI
+      - name: Publish to PyPI (Trusted Publishing or API token)
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          # If PYPI_TOKEN secret is set, use it. Otherwise use OIDC Trusted Publishing.
+          # To use Trusted Publishing: configure publisher on https://pypi.org/manage/account/publishing/
+          #   Owner: ark-forge | Repo: mcp-eu-ai-act | Workflow: publish-pypi.yml | Env: pypi
+          password: ${{ secrets.PYPI_TOKEN }}
