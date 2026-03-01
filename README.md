@@ -282,6 +282,11 @@ Agent Client  →  Trust Layer  →  EU AI Act Scanner
 - **Questions / integration help** → [GitHub Discussions Q&A](https://github.com/ark-forge/mcp-eu-ai-act/discussions/8)
 - **Bug reports** → [Open an issue](https://github.com/ark-forge/mcp-eu-ai-act/issues)
 - **Feature requests** → [Open an issue](https://github.com/ark-forge/mcp-eu-ai-act/issues) or join the discussion
+- **Share your experience** → [Tell us what compliance gaps you found](https://github.com/ark-forge/mcp-eu-ai-act/discussions/3)
+
+---
+
+**Found this useful?** A ⭐ on GitHub helps other compliance teams discover the scanner. Takes 2 seconds and helps a lot.
 
 ## License
 
