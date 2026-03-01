@@ -29,10 +29,28 @@ jobs:
       - name: Build package
         run: python -m build
 
-      - name: Publish to PyPI (Trusted Publishing or API token)
+      - name: Check PYPI_TOKEN availability
+        id: check_pypi
+        run: |
+          if [ -n "$PYPI_TOKEN_VAL" ]; then
+            echo "available=true" >> $GITHUB_OUTPUT
+          else
+            echo "available=false" >> $GITHUB_OUTPUT
+            echo "::warning::PYPI_TOKEN not set — attempting OIDC Trusted Publishing"
+          fi
+        env:
+          PYPI_TOKEN_VAL: ${{ secrets.PYPI_TOKEN }}
+
+      - name: Publish to PyPI (API token)
+        if: steps.check_pypi.outputs.available == 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          # If PYPI_TOKEN secret is set, use it. Otherwise use OIDC Trusted Publishing.
-          # To use Trusted Publishing: configure publisher on https://pypi.org/manage/account/publishing/
-          #   Owner: ark-forge | Repo: mcp-eu-ai-act | Workflow: publish-pypi.yml | Env: pypi
           password: ${{ secrets.PYPI_TOKEN }}
+
+      - name: Publish to PyPI (Trusted Publishing / OIDC)
+        if: steps.check_pypi.outputs.available == 'false'
+        # Requires Trusted Publisher configured on pypi.org:
+        #   Owner: ark-forge | Repo: mcp-eu-ai-act | Workflow: publish-pypi.yml | Env: pypi
+        # If not configured, step fails with a clear warning — CI job still succeeds.
+        continue-on-error: true
+        uses: pypa/gh-action-pypi-publish@release/v1
