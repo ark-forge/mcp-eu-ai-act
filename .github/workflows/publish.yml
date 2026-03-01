@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual trigger (e.g. credentials now configured)'
+        required: false
+        default: 'manual'
 
 permissions:
   contents: read
