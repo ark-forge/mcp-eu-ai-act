@@ -26,16 +26,11 @@ jobs:
 
       - name: Publish to npm
         # Requires NPM_TOKEN secret in repo settings.
-        # Create token at https://www.npmjs.com/settings/<user>/tokens (type: Publish, Granular)
+        # Create token at https://www.npmjs.com/settings (type: Publish)
         # then add as repository secret named NPM_TOKEN.
-        if: ${{ secrets.NPM_TOKEN != '' }}
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Skip npm publish (NPM_TOKEN not configured)
-        if: ${{ secrets.NPM_TOKEN == '' }}
-        run: echo "NPM_TOKEN not set — skipping npm publish. Configure the secret to enable."
 
       - name: Install mcp-publisher
         run: |
