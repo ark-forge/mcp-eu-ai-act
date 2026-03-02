@@ -193,17 +193,23 @@ jobs:
       - name: Install security tools
         run: |
           python -m pip install --upgrade pip
-          pip install bandit safety
+          pip install bandit
+
+      - name: Install pip-audit
+        run: pip install pip-audit
 
       - name: Run Bandit (security linter)
         run: |
           bandit -r . -f json -o bandit-report.json || true
           bandit -r . -ll || true
 
-      - name: Check dependencies for vulnerabilities
+      - name: Check dependencies for vulnerabilities (pip-audit)
         run: |
           if [ -f requirements.txt ]; then
-            safety check -r requirements.txt --json || echo "⚠️ Some vulnerabilities found, check logs"
+            pip-audit -r requirements.txt --format=json -o pip-audit-report.json || echo "⚠️ Vulnerabilities found, check pip-audit-report.json"
+            pip-audit -r requirements.txt || true
+          else
+            echo "No requirements.txt found, skipping pip-audit"
           fi
 
       - name: Upload security reports
@@ -212,6 +218,7 @@ jobs:
           name: security-reports
           path: |
             bandit-report.json
+            pip-audit-report.json
           retention-days: 30
 
   build-status:
