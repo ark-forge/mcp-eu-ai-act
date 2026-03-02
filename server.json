@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.ark-forge/mcp-eu-ai-act",
   "description": "EU AI Act compliance MCP server. Scans AI codebases, classifies risk, provides remediation guidance.",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "repository": {
     "url": "https://github.com/ark-forge/mcp-eu-ai-act",
     "source": "github"
@@ -11,26 +11,6 @@
     {
       "type": "streamable-http",
       "url": "https://mcp.arkforge.fr/mcp"
-    }
-  ],
-  "packages": [
-    {
-      "registryType": "npm",
-      "identifier": "@arkforge/mcp-eu-ai-act",
-      "version": "1.4.0",
-      "runtimeHint": "node",
-      "transport": {
-        "type": "stdio"
-      },
-      "environmentVariables": [
-        {
-          "description": "ArkForge API key for Pro features (>10 scans/day). Free tier: no key needed.",
-          "isRequired": false,
-          "format": "string",
-          "isSecret": true,
-          "name": "ARKFORGE_API_KEY"
-        }
-      ]
     }
   ]
 }

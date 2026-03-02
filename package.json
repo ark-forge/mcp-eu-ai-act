@@ -1,6 +1,6 @@
 {
   "name": "@arkforge/mcp-eu-ai-act",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "MCP Server for EU AI Act Compliance Checking",
   "mcpName": "io.github.ark-forge/mcp-eu-ai-act",
   "module": "./src/index.ts",
