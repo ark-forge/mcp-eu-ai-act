@@ -5,6 +5,17 @@ All notable changes to the EU AI Act Compliance Scanner MCP Server will be docum
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-03-02
+
+### Added
+- `combined_compliance_report` MCP tool: detects GDPR + EU AI Act dual-compliance hotspots in a single scan
+  - File-level correlation: identifies files where both regulations apply simultaneously
+  - Overlap detection for 5 patterns: AI+PII, AI+automated tracking, AI+geolocation, AI+file uploads, AI+cookie tracking
+  - Combined requirements per file, citing specific articles (GDPR Art. 22/35, EU AI Act Art. 11/13/14)
+  - Priority scoring (critical/high/medium/low) based on risk category and data sensitivity
+  - Key insight summary for quick triage
+- 27 new tests for `combined_compliance_report` (418 total)
+
 ## [1.2.0] - 2026-02-26
 
 ### Added

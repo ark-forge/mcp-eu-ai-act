@@ -1758,6 +1758,119 @@ def _add_banner(result: dict) -> dict:
     return result
 
 
+def _compute_combined_requirements(
+    frameworks: List[str],
+    gdpr_categories: List[str],
+    risk_category: str,
+) -> Dict[str, Any]:
+    """Compute combined GDPR + EU AI Act requirements for a dual-flagged file."""
+    requirements: List[str] = []
+    overlap_types: List[str] = []
+
+    has_pii = "pii_fields" in gdpr_categories or "database_queries" in gdpr_categories
+    has_tracking = "user_tracking" in gdpr_categories or "analytics" in gdpr_categories
+    has_uploads = "file_uploads" in gdpr_categories
+    has_cookies = "cookie_operations" in gdpr_categories
+    has_geo = "geolocation" in gdpr_categories
+
+    if has_pii:
+        overlap_types.append("ai_processing_personal_data")
+        requirements += [
+            "DPIA mandatory (GDPR Art. 35) — AI system processing personal data triggers Data Protection Impact Assessment",
+            "Technical documentation required (EU AI Act Art. 11) — document data sources, model behavior, and risk mitigation",
+            "Dual transparency: inform users under GDPR Art. 13-14 AND EU AI Act Art. 13",
+            "Data minimization (GDPR Art. 5(1)(c)) — only process personal data strictly needed for the AI task",
+        ]
+        if risk_category == "high":
+            requirements.append(
+                "High-risk AI + personal data: human oversight MANDATORY (EU AI Act Art. 14) AND data subject rights must be preserved (GDPR Art. 15-22)"
+            )
+
+    if has_tracking:
+        overlap_types.append("ai_automated_tracking")
+        requirements += [
+            "Automated decision-making risk (GDPR Art. 22) — if AI produces decisions affecting individuals, right to human review applies",
+            "Human oversight mandatory (EU AI Act Art. 14) — meaningful human control over AI-driven tracking outcomes",
+            "Privacy notice must disclose AI-based profiling (GDPR Art. 13(2)(f))",
+        ]
+
+    if has_geo:
+        overlap_types.append("ai_geolocation_processing")
+        requirements += [
+            "Geolocation data requires explicit legal basis (GDPR Art. 6) — inferred sensitive attributes may require Art. 9 basis",
+            "EU AI Act: location-based AI profiling may trigger higher risk classification (Annex III)",
+        ]
+
+    if has_uploads:
+        overlap_types.append("ai_processing_user_uploads")
+        requirements += [
+            "User uploads as AI input: purpose limitation applies (GDPR Art. 5(1)(b)) — disclose AI processing in privacy notice",
+            "Data retention limits: files fed to AI must not be retained beyond stated purpose (GDPR Art. 5(1)(e))",
+        ]
+
+    if has_cookies:
+        overlap_types.append("ai_cookie_tracking")
+        requirements += [
+            "Cookie-based AI tracking: prior consent required under ePrivacy Directive + GDPR Art. 7",
+        ]
+
+    if not requirements:
+        overlap_types = ["dual_regulation_applies"]
+        requirements = [
+            "Both EU AI Act and GDPR apply to this file — review data flows and document AI system behavior",
+        ]
+
+    if has_pii and risk_category == "high":
+        priority = "critical"
+    elif has_pii or (has_tracking and risk_category in ["high", "limited"]):
+        priority = "high"
+    elif has_tracking or has_uploads or has_geo:
+        priority = "medium"
+    else:
+        priority = "low"
+
+    return {
+        "overlap_type": overlap_types,
+        "requirements": requirements,
+        "priority": priority,
+    }
+
+
+def _generate_combined_insight(
+    dual_flags: List[Dict[str, Any]],
+    eu_scan: Dict[str, Any],
+    gdpr_scan: Dict[str, Any],
+) -> str:
+    """Generate a concise actionable insight for the combined report."""
+    n = len(dual_flags)
+    if n == 0:
+        has_ai = bool(eu_scan.get("ai_files"))
+        processes_pii = gdpr_scan.get("processing_summary", {}).get("processes_personal_data", False)
+        if has_ai and not processes_pii:
+            return "AI frameworks detected but no personal data processing found in scanned files. GDPR may still apply if personal data is processed at runtime."
+        if not has_ai:
+            return "No AI frameworks detected. EU AI Act does not apply. Review GDPR compliance independently."
+        return "No file-level overlap detected. Both regulations may still apply at the system level — review data flows manually."
+
+    critical = [f for f in dual_flags if f["priority"] == "critical"]
+    high = [f for f in dual_flags if f["priority"] == "high"]
+
+    if critical:
+        return (
+            f"{n} dual-compliance hotspot(s) — {len(critical)} critical (high-risk AI + personal data). "
+            "Prioritize DPIA (GDPR Art. 35) and human oversight implementation (EU AI Act Art. 14)."
+        )
+    if high:
+        return (
+            f"{n} dual-compliance hotspot(s) — {len(high)} high priority. "
+            "DPIA likely required; review transparency obligations under both regulations."
+        )
+    return (
+        f"{n} dual-compliance hotspot(s) found. "
+        "Both GDPR and EU AI Act requirements apply simultaneously — review combined obligations per file."
+    )
+
+
 def create_server():
     """Create and return the EU AI Act Compliance Checker MCP server."""
     mcp = FastMCP(
@@ -2003,6 +2116,92 @@ def create_server():
         """
         checker = GDPRChecker("/tmp")  # Templates don't need a real path
         return checker.get_templates(processing_role.value)
+
+    @mcp.tool()
+    def combined_compliance_report(
+        project_path: str,
+        risk_category: RiskCategory = RiskCategory.limited,
+        processing_role: ProcessingRole = ProcessingRole.controller,
+    ) -> dict:
+        """Detect GDPR + EU AI Act dual-compliance hotspots in a single scan.
+
+        Runs both the EU AI Act scanner and the GDPR scanner, then correlates their
+        findings at the file level. Identifies files where BOTH regulations apply
+        simultaneously and returns the combined obligations for each hotspot.
+
+        Key overlaps detected:
+        - AI + personal data processing → DPIA (GDPR Art. 35) + technical docs (EU AI Act Art. 11) + dual transparency
+        - AI + automated tracking → GDPR Art. 22 (right to explanation) + EU AI Act Art. 14 (human oversight)
+        - AI + geolocation → sensitive data legal basis + higher EU AI Act risk classification
+        - AI + file uploads → purpose limitation + data retention obligations
+
+        Args:
+            project_path: Absolute path to the project to scan
+            risk_category: EU AI Act risk category (unacceptable, high, limited, minimal)
+            processing_role: Your GDPR role (controller, processor, or minimal_processing)
+        """
+        is_safe, error_msg = _validate_project_path(project_path)
+        if not is_safe:
+            return {"error": error_msg}
+
+        eu_checker = EUAIActChecker(project_path)
+        eu_scan = eu_checker.scan_project()
+
+        gdpr_checker = GDPRChecker(project_path)
+        gdpr_scan = gdpr_checker.scan_project()
+
+        ai_file_map: Dict[str, List[str]] = {
+            entry["file"]: entry["frameworks"] for entry in eu_scan.get("ai_files", [])
+        }
+        gdpr_file_map: Dict[str, List[str]] = {
+            entry["file"]: entry["categories"] for entry in gdpr_scan.get("flagged_files", [])
+        }
+
+        dual_flagged = sorted(set(ai_file_map.keys()) & set(gdpr_file_map.keys()))
+
+        dual_compliance_flags = []
+        for file in dual_flagged:
+            combined = _compute_combined_requirements(
+                ai_file_map[file], gdpr_file_map[file], risk_category.value
+            )
+            dual_compliance_flags.append({
+                "file": file,
+                "eu_ai_act": {
+                    "frameworks": ai_file_map[file],
+                    "risk_category": risk_category.value,
+                },
+                "gdpr": {
+                    "patterns": gdpr_file_map[file],
+                },
+                "overlap_type": combined["overlap_type"],
+                "combined_requirements": combined["requirements"],
+                "priority": combined["priority"],
+            })
+
+        priority_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+        dual_compliance_flags.sort(key=lambda x: priority_order.get(x["priority"], 99))
+
+        return _add_banner({
+            "project_path": project_path,
+            "scan_summary": {
+                "eu_ai_act_files": len(ai_file_map),
+                "gdpr_flagged_files": len(gdpr_file_map),
+                "dual_compliance_hotspots": len(dual_flagged),
+            },
+            "dual_compliance_flags": dual_compliance_flags,
+            "regulations_summary": {
+                "eu_ai_act": {
+                    "detected_frameworks": list(eu_scan.get("detected_models", {}).keys()),
+                    "risk_category_applied": risk_category.value,
+                },
+                "gdpr": {
+                    "processing_role": processing_role.value,
+                    "processes_personal_data": gdpr_scan.get("processing_summary", {}).get("processes_personal_data", False),
+                    "risk_level": gdpr_scan.get("processing_summary", {}).get("risk_level", "unknown"),
+                },
+            },
+            "key_insight": _generate_combined_insight(dual_compliance_flags, eu_scan, gdpr_scan),
+        })
 
     @mcp.tool()
     def get_pricing() -> dict:
