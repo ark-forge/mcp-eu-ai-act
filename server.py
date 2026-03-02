@@ -11,6 +11,7 @@ import json
 import time
 import secrets
 import logging
+import contextvars
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timezone
@@ -197,6 +198,9 @@ class RateLimiter:
 
 
 _rate_limiter = RateLimiter()
+
+# Context variable: remaining scans for the current request (set by middleware, read by _add_banner)
+_scan_remaining: contextvars.ContextVar = contextvars.ContextVar('scan_remaining', default=None)
 
 # --- Scan history logging (shared with paywall_api.py) ---
 _SCAN_HISTORY_PATH = Path(__file__).parent / "data" / "scan_history.json"
@@ -439,8 +443,9 @@ class RateLimitMiddleware:
                     "id": request_id,
                 }, extra_headers=rl_headers)
                 return
-            # Free tier scan allowed — log it
+            # Free tier scan allowed — log it and expose remaining count to banner
             _record_mcp_scan(None, ip, tool_name)
+            _scan_remaining.set(remaining)
 
         # Replay buffered body to the app
         body_sent = False
@@ -1749,11 +1754,18 @@ class RiskCategory(str, Enum):
 
 FREE_TIER_BANNER = "Free tier: 10 scans/day — Pro: unlimited scans + CI/CD API at 29€/mo → https://mcp.arkforge.fr/fr/pricing.html?utm_source=pypi"
 TRUST_LAYER_CTA = "Certify this compliance scan with ArkForge Trust Layer — tamper-proof, verifiable, signed proofs → https://arkforge.fr/trust?utm_source=pypi"
+_PRICING_URL = "https://mcp.arkforge.fr/fr/pricing.html?utm_source=pypi"
 
 
 def _add_banner(result: dict) -> dict:
-    """Add free tier upgrade banner and Trust Layer CTA to MCP tool responses."""
-    result["upgrade"] = FREE_TIER_BANNER
+    """Add contextual free tier upgrade banner and Trust Layer CTA to MCP tool responses."""
+    remaining = _scan_remaining.get()
+    if remaining is not None and remaining <= 1:
+        result["upgrade"] = f"⚠️ Last scan today! Upgrade to Pro for unlimited scans + CI/CD API at 29€/mo → {_PRICING_URL}"
+    elif remaining is not None and remaining <= 3:
+        result["upgrade"] = f"⚠️ Only {remaining} scan(s) left today. Pro: unlimited scans + CI/CD API at 29€/mo → {_PRICING_URL}"
+    else:
+        result["upgrade"] = FREE_TIER_BANNER
     result["trust_layer"] = TRUST_LAYER_CTA
     return result
 
