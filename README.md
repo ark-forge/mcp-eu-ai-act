@@ -171,7 +171,7 @@ python3 paywall_api.py
 | `POST` | `/api/v1/scan` | Free/Pro | Scan a project for AI frameworks |
 | `POST` | `/api/v1/check-compliance` | Free/Pro | Check EU AI Act compliance |
 | `POST` | `/api/v1/generate-report` | Free/Pro | Full compliance report |
-| `POST` | `/api/v1/scan-repo` | Internal | Scan a GitHub repo (Trust Layer integration) |
+| `POST` | `/api/v1/scan-repo` | Free (rate-limited) | Scan a GitHub repo by URL |
 
 **Free tier**: 10 scans/day per IP, no sign-up required.
 **Pro tier**: Unlimited scans, `X-API-Key` header. 29 EUR/month via [mcp.arkforge.fr/fr/pricing.html](https://mcp.arkforge.fr/fr/pricing.html?utm_source=pypi).

@@ -314,18 +314,13 @@ async def api_report(request: Request):
     }
 
 
-# --- Trust Layer internal endpoint ---
-
-INTERNAL_SECRET = os.environ.get("TRUST_LAYER_INTERNAL_SECRET", "") or _settings.get("TRUST_LAYER_INTERNAL_SECRET", "")
-if not INTERNAL_SECRET:
-    logger.warning("TRUST_LAYER_INTERNAL_SECRET not set — /api/v1/scan-repo will reject all requests")
+# --- Public scan endpoint (rate-limited) ---
 
 @app.post("/api/v1/scan-repo")
 async def scan_repo(request: Request):
-    """Scan a GitHub repo — called by Trust Layer (no payment here, billing handled upstream).
-    Protected by internal secret header."""
-    if request.headers.get("X-Internal-Secret") != INTERNAL_SECRET:
-        raise HTTPException(403, "Forbidden")
+    """Scan a GitHub repo — public endpoint, rate-limited."""
+    ip = get_client_ip(request)
+    _check_free_tier(ip)
 
     body = await request.json()
     repo_url = body.get("repo_url", "")
@@ -353,8 +348,7 @@ async def scan_repo(request: Request):
     finally:
         shutil.rmtree(clone_dir, ignore_errors=True)
 
-    ip = get_client_ip(request)
-    record_scan(ip, "trust_layer_scan", {
+    record_scan(ip, "scan_repo", {
         "frameworks_detected": list(scan_result.get("detected_models", {}).keys()),
         "files_scanned": scan_result.get("files_scanned", 0),
     })
