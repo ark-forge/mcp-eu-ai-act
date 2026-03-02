@@ -57,6 +57,19 @@ jobs:
         if: steps.check_pypi.outputs.available == 'false'
         # Requires Trusted Publisher configured on pypi.org:
         #   Owner: ark-forge | Repo: mcp-eu-ai-act | Workflow: publish-pypi.yml | Env: pypi
-        # If not configured, step fails with a clear warning — CI job still succeeds.
-        continue-on-error: true
+        # Setup: https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/
         uses: pypa/gh-action-pypi-publish@release/v1
+
+      - name: Verify publish succeeded
+        run: |
+          echo "Checking if mcp-eu-ai-act was published to PyPI..."
+          sleep 10
+          if curl -sf "https://pypi.org/pypi/mcp-eu-ai-act/json" > /dev/null 2>&1; then
+            echo "Package found on PyPI"
+          else
+            echo "::error::Package NOT found on PyPI after publish attempt."
+            echo "::error::Configure Trusted Publisher on pypi.org → Your projects → Publishing → Add pending publisher:"
+            echo "::error::  Owner: ark-forge | Repository: mcp-eu-ai-act | Workflow: publish-pypi.yml | Environment: pypi"
+            echo "::error::Or set PYPI_TOKEN secret in repository settings."
+            exit 1
+          fi
