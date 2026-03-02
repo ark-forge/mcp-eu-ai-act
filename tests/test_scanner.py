@@ -101,6 +101,67 @@ class TestFrameworkDetection:
         assert "openai" not in result["detected_models"]
 
 
+class TestFollowImports:
+    """Verify follow_imports propagation through Python import graph."""
+
+    def test_direct_import_no_propagation_needed(self):
+        """When AI import is direct, follow_imports adds no extra files."""
+        proj = _make_project({"app.py": "import openai\nclient = openai.ChatCompletion.create()"})
+        checker = EUAIActChecker(proj)
+        result = checker.scan_project(follow_imports=True)
+        assert result.get("follow_imports_applied") is True
+        assert result["propagated_files"] == []
+
+    def test_transitive_import_detected(self):
+        """File importing from AI-flagged file should appear in propagated_files."""
+        proj = _make_project({
+            "core/ai_engine.py": "from openai import OpenAI\nclient = OpenAI()",
+            "routes/analyze.py": "from core.ai_engine import run_analysis\n",
+        })
+        checker = EUAIActChecker(proj)
+        result = checker.scan_project(follow_imports=True)
+        assert result.get("follow_imports_applied") is True
+        propagated_files = [p["file"] for p in result["propagated_files"]]
+        assert any("analyze" in f for f in propagated_files), (
+            f"routes/analyze.py should be propagated, got: {propagated_files}"
+        )
+
+    def test_propagated_file_in_detected_models(self):
+        """Propagated files appear in detected_models so compliance checks cover them."""
+        proj = _make_project({
+            "ai_core.py": "from anthropic import Anthropic\n",
+            "handler.py": "from ai_core import process\n",
+        })
+        checker = EUAIActChecker(proj)
+        result = checker.scan_project(follow_imports=True)
+        anthropic_files = result["detected_models"].get("anthropic", [])
+        assert any("handler" in f for f in anthropic_files), (
+            f"handler.py should be in detected_models['anthropic'], got: {anthropic_files}"
+        )
+
+    def test_non_ai_project_no_propagation(self):
+        """No propagation when no AI frameworks are detected."""
+        proj = _make_project({
+            "utils.py": "import math\n",
+            "app.py": "from utils import compute\n",
+        })
+        checker = EUAIActChecker(proj)
+        result = checker.scan_project(follow_imports=True)
+        assert result.get("follow_imports_applied") is True
+        assert result["propagated_files"] == []
+
+    def test_follow_imports_false_by_default(self):
+        """follow_imports is False by default — no propagated_files key."""
+        proj = _make_project({
+            "core/ai_engine.py": "from openai import OpenAI\n",
+            "routes/analyze.py": "from core.ai_engine import run_analysis\n",
+        })
+        checker = EUAIActChecker(proj)
+        result = checker.scan_project()
+        assert "follow_imports_applied" not in result
+        assert "propagated_files" not in result
+
+
 class TestCompliance:
     """Verify compliance check logic."""
 

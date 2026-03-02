@@ -4,6 +4,7 @@ MCP Server: EU AI Act Compliance Checker
 Scans projects to detect AI model usage and verify EU AI Act compliance
 """
 
+import ast
 import os
 import re
 import json
@@ -1361,6 +1362,62 @@ def _validate_project_path(project_path: str) -> tuple[bool, str]:
     return True, ""
 
 
+def _resolve_import_to_file(mod_name: str, module_to_file: Dict[str, str], out: List[str]) -> None:
+    """Resolve a dotted module name to a local file path via prefix matching."""
+    parts = mod_name.split(".")
+    for i in range(len(parts), 0, -1):
+        key = ".".join(parts[:i])
+        if key in module_to_file:
+            out.append(module_to_file[key])
+            break
+
+
+def _build_python_import_graph(project_path: Path) -> Dict[str, List[str]]:
+    """Build a forward import graph for Python files in the project.
+
+    Returns {rel_file_path: [imported_rel_file_paths]}.
+    Only intra-project imports are tracked (external packages ignored).
+    """
+    # Map dotted module name → relative file path
+    module_to_file: Dict[str, str] = {}
+    all_py_files: List[Path] = []
+
+    for py_file in project_path.rglob("*.py"):
+        if SKIP_DIRS.intersection(py_file.parts):
+            continue
+        all_py_files.append(py_file)
+        rel = str(py_file.relative_to(project_path))
+        mod = rel.replace("\\", "/").replace("/", ".")
+        if mod.endswith(".py"):
+            mod = mod[:-3]
+        if mod.endswith(".__init__"):
+            mod = mod[:-9]
+        module_to_file[mod] = rel
+
+    forward_graph: Dict[str, List[str]] = {}
+
+    for py_file in all_py_files:
+        rel = str(py_file.relative_to(project_path))
+        deps: List[str] = []
+        try:
+            content = py_file.read_text(encoding="utf-8", errors="ignore")
+            tree = ast.parse(content, filename=str(py_file))
+        except SyntaxError:
+            forward_graph[rel] = deps
+            continue
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    _resolve_import_to_file(alias.name, module_to_file, deps)
+            elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+                _resolve_import_to_file(node.module, module_to_file, deps)
+
+        forward_graph[rel] = list(set(deps))
+
+    return forward_graph
+
+
 class EUAIActChecker:
     """EU AI Act compliance checker"""
 
@@ -1370,8 +1427,14 @@ class EUAIActChecker:
         self.files_scanned = 0
         self.ai_files = []
 
-    def scan_project(self) -> Dict[str, Any]:
-        """Scan the project to detect AI model usage"""
+    def scan_project(self, follow_imports: bool = False) -> Dict[str, Any]:
+        """Scan the project to detect AI model usage.
+
+        Args:
+            follow_imports: When True, trace AI framework usage through the Python import graph.
+                            Files that import (directly or transitively) from AI-flagged files
+                            are also marked as compliance-relevant. Python only.
+        """
         logger.info("Scanning project: %s", self.project_path)
 
         # Security: validate path before scanning
@@ -1406,11 +1469,69 @@ class EUAIActChecker:
             elif file_path.name in CONFIG_FILE_NAMES:
                 self._scan_config_file(file_path)
 
-        return {
+        result: Dict[str, Any] = {
             "files_scanned": self.files_scanned,
             "ai_files": self.ai_files,
             "detected_models": self.detected_models,
         }
+
+        if follow_imports:
+            propagated = self._propagate_ai_risk_via_imports()
+            result["propagated_files"] = propagated
+            result["follow_imports_applied"] = True
+
+        return result
+
+    def _propagate_ai_risk_via_imports(self) -> List[Dict[str, Any]]:
+        """Propagate AI risk labels to Python files that import from AI-flagged files.
+
+        Uses a reverse BFS from directly-flagged files through the import graph.
+        Returns the list of newly-propagated file entries (not already in ai_files).
+        Also updates self.detected_models so these files appear in compliance checks.
+        """
+        direct_ai_frameworks: Dict[str, List[str]] = {
+            entry["file"]: entry["frameworks"] for entry in self.ai_files
+        }
+        if not direct_ai_frameworks:
+            return []
+
+        forward_graph = _build_python_import_graph(self.project_path)
+
+        # Build reverse graph: dep → [files that import dep]
+        reverse_graph: Dict[str, List[str]] = {}
+        for src, deps in forward_graph.items():
+            for dep in deps:
+                reverse_graph.setdefault(dep, []).append(src)
+
+        # BFS: track {file → frameworks} for all visited nodes
+        visited_frameworks: Dict[str, List[str]] = dict(direct_ai_frameworks)
+        queue: List[str] = list(direct_ai_frameworks.keys())
+        propagated: List[Dict[str, Any]] = []
+
+        while queue:
+            current = queue.pop(0)
+            current_frameworks = visited_frameworks.get(current, [])
+
+            for importer in reverse_graph.get(current, []):
+                if importer not in visited_frameworks:
+                    visited_frameworks[importer] = list(current_frameworks)
+                    queue.append(importer)
+
+                    propagated.append({
+                        "file": importer,
+                        "transitive_frameworks": list(set(current_frameworks)),
+                        "imports_from": current,
+                        "propagated": True,
+                    })
+
+                    # Add to detected_models so compliance checks include these files
+                    for fw in current_frameworks:
+                        if fw not in self.detected_models:
+                            self.detected_models[fw] = []
+                        if importer not in self.detected_models[fw]:
+                            self.detected_models[fw].append(importer)
+
+        return propagated
 
     def _scan_file(self, file_path: Path):
         """Scan a file for AI patterns"""
@@ -1647,17 +1768,20 @@ def create_server():
     )
 
     @mcp.tool()
-    def scan_project(project_path: str) -> dict:
+    def scan_project(project_path: str, follow_imports: bool = False) -> dict:
         """Scan a project to detect AI model usage (OpenAI, Anthropic, Google Gemini, Vertex AI, Mistral, Cohere, HuggingFace, TensorFlow, PyTorch, LangChain, AWS Bedrock, Azure OpenAI, Ollama, LlamaIndex, Replicate, Groq).
 
         Args:
             project_path: Absolute path to the project to scan
+            follow_imports: When True, trace AI framework usage through the Python import graph.
+                            Files that import (directly or transitively) from AI-flagged files
+                            are also flagged as compliance-relevant (EU AI Act Art. 11-13).
         """
         is_safe, error_msg = _validate_project_path(project_path)
         if not is_safe:
             return {"error": error_msg, "detected_models": {}}
         checker = EUAIActChecker(project_path)
-        return _add_banner(checker.scan_project())
+        return _add_banner(checker.scan_project(follow_imports=follow_imports))
 
     @mcp.tool()
     def check_compliance(project_path: str, risk_category: RiskCategory = RiskCategory.limited) -> dict:
