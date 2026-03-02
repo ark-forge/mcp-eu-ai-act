@@ -648,5 +648,5 @@ async def update_alerts(request: Request):
 if __name__ == "__main__":
     logger.info("Starting MCP EU AI Act REST API on 0.0.0.0:8091")
     logger.info("Stripe configured: %s", "yes" if stripe.api_key else "NO — payments will fail")
-    logger.info("Internal secret configured: %s", "yes" if INTERNAL_SECRET else "NO — Trust Layer calls will fail")
+    logger.info("/api/v1/scan-repo: public endpoint, rate-limited (no internal secret required)")
     uvicorn.run(app, host="0.0.0.0", port=8091, log_level="info")
