@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+# pre-commit — détection de secrets avant chaque commit
+# Installé via : git config core.hooksPath .githooks
+
+set -euo pipefail
+
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+ERRORS=0
+
+# Fichiers stagés (hors suppressions, hors hook lui-même)
+STAGED=$(git diff --cached --name-only --diff-filter=ACMR | grep -v "^\.githooks/" || true)
+
+if [ -z "$STAGED" ]; then
+    exit 0
+fi
+
+check() {
+    local label="$1"
+    local pattern="$2"
+    local exclude="${3:-}"
+
+    if [ -n "$exclude" ]; then
+        matches=$(echo "$STAGED" | xargs grep -lP "$pattern" 2>/dev/null | grep -vE "$exclude" || true)
+    else
+        matches=$(echo "$STAGED" | xargs grep -lP "$pattern" 2>/dev/null || true)
+    fi
+
+    if [ -n "$matches" ]; then
+        echo -e "${RED}[SECRET DETECTED] $label${NC}"
+        echo "$matches" | while read -r f; do
+            echo -e "  ${YELLOW}$f${NC}"
+            grep -nP "$pattern" "$f" 2>/dev/null | grep -vE "${exclude:-^$}" | head -3 | sed 's/^/    /'
+        done
+        ERRORS=$((ERRORS + 1))
+    fi
+}
+
+echo "Scanning staged files for secrets..."
+
+# Clés privées PEM
+check "Clé privée PEM" \
+    "-----BEGIN (EC |RSA |OPENSSH |DSA )?PRIVATE KEY-----"
+
+# Stripe live
+check "Stripe live key (sk_live_)" \
+    "sk_live_[A-Za-z0-9]{20,}" \
+    "\.env\.example|test_.*\.py|\.md$"
+
+# Stripe restricted live
+check "Stripe restricted live (rk_live_)" \
+    "rk_live_[A-Za-z0-9]{20,}" \
+    "\.env\.example|test_.*\.py|\.md$"
+
+# GitHub tokens
+check "GitHub token (ghp_/ghs_/gho_/github_pat_)" \
+    "gh[pso]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{80,}"
+
+# AWS keys
+check "AWS access key (AKIA)" \
+    "AKIA[0-9A-Z]{16}"
+
+# Anthropic / OpenAI
+check "Anthropic API key (sk-ant-)" \
+    "sk-ant-[A-Za-z0-9\-]{20,}" \
+    "\.env\.example|test_.*\.py|\.md$"
+
+check "OpenAI API key (sk-...T3Blb)" \
+    "sk-[A-Za-z0-9]{48}" \
+    "\.env\.example|test_.*\.py|\.md$"
+
+# Mots de passe hardcodés dans le code (toutes extensions)
+check "Password hardcodé (code)" \
+    "(password|passwd|imap_password|smtp_password|db_password)\s*=\s*['\"][^'\"]{8,}['\"]" \
+    "test_.*\.py|conftest\.py|\.env\.example|config\.py"
+
+# Mots de passe dans les docs/README/commentaires
+# Détecte "password: valeur_reelle" mais pas "password: xxx", "password: <...>", "password: your_"
+check "Password dans doc/commentaire" \
+    "(password|mot de passe|mdp|pwd|passwd)\s*[:=]\s*(?!xxx|your_|<|\.\.\.|\*|example|changeme|placeholder|CHANGE|SECRET)[^\s'\"<]{6,}" \
+    "\.env\.example|test_.*\.py|conftest\.py"
+
+# URLs avec credentials embarqués (http://user:pass@host)
+check "Credentials dans URL" \
+    "https?://[^@\s]{3,}:[^@\s]{3,}@[a-zA-Z0-9]" \
+    "\.env\.example|test_.*\.py"
+
+# Tokens JWT hardcodés (eyJ... = header base64 d'un JWT)
+check "JWT token hardcodé" \
+    "eyJ[A-Za-z0-9+/]{30,}\.[A-Za-z0-9+/]{30,}" \
+    "test_.*\.py|conftest\.py|\.env\.example"
+
+# Variables d'environnement avec vraie valeur dans les docs
+# Détecte FOO_SECRET=valeur_reelle mais pas FOO_SECRET=sk_test_fake ou FOO=xxx
+check "Variable secrète avec valeur réelle dans doc" \
+    "^(STRIPE_LIVE|STRIPE_SECRET|IMAP_PASSWORD|SMTP_PASSWORD|TELEGRAM_BOT_TOKEN|INTERNAL_SECRET|VAULT_MASTER_KEY)\s*=\s*(?!sk_test_|sk_live_xxx|your_|xxx|<|\.\.\.|\*|changeme)[^\s]{8,}" \
+    "\.env\.example|test_.*\.py|config\.py"
+
+# Clés Mistral / autres LLM
+check "Mistral API key" \
+    "[A-Za-z0-9]{32,}(mistral|MISTRAL)" \
+    "\.env\.example|test_.*\.py"
+
+# Emails personnels dans les docs (hors domaines attendus)
+check "Email personnel dans doc" \
+    "[a-zA-Z0-9._%+-]{4,}@(?!(arkforge\.fr|example\.(com|org)|test\.com|gmail\.com|mailbox\.org|busilezas))[a-zA-Z0-9.-]+\.(fr|com|io|net|org|dev)" \
+    "test_.*\.py|conftest\.py|\.env\.example|certs/"
+
+# Fichiers suspects stagés directement
+for f in $STAGED; do
+    case "$f" in
+        *.pem|*.key|*.p12|*.pfx|*.jks|*.keystore)
+            # Autoriser uniquement les certs publics connus
+            if [[ "$f" != *"certs/cacert.pem"* && "$f" != *"certs/tsa.crt"* ]]; then
+                echo -e "${RED}[SECRET DETECTED] Fichier clé/cert stagé : $f${NC}"
+                ERRORS=$((ERRORS + 1))
+            fi
+            ;;
+        .env|.env.local|.env.production|config/settings.env)
+            echo -e "${RED}[SECRET DETECTED] Fichier env stagé : $f${NC}"
+            ERRORS=$((ERRORS + 1))
+            ;;
+    esac
+done
+
+if [ "$ERRORS" -gt 0 ]; then
+    echo ""
+    echo -e "${RED}COMMIT BLOQUÉ — $ERRORS type(s) de secret détecté(s).${NC}"
+    echo "Retirez les secrets des fichiers stagés avant de committer."
+    echo "Si c'est un faux positif, utilisez : git commit --no-verify (déconseillé)"
+    exit 1
+fi
+
+echo "OK — aucun secret détecté."
+exit 0
