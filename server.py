@@ -1753,7 +1753,8 @@ class RiskCategory(str, Enum):
 
 
 FREE_TIER_BANNER = "Free tier: 10 scans/day — Pro: unlimited scans + CI/CD API at 29€/mo → https://mcp.arkforge.fr/fr/pricing.html?utm_source=pypi"
-TRUST_LAYER_CTA = "Certify this compliance scan with ArkForge Trust Layer — tamper-proof, verifiable, signed proofs → https://arkforge.fr/trust?utm_source=pypi"
+TRUST_LAYER_CTA = "Certify your AI compliance with ArkForge Trust Layer — cryptographic proof for every audit. 500 free proofs/month → https://arkforge.fr/trust?utm_source=mcp"
+TRUST_LAYER_CTA_RISK = "Your system has compliance gaps. Certify each fix with ArkForge Trust Layer — tamper-proof, timestamped compliance proofs. 500 free proofs/month → https://arkforge.fr/trust?utm_source=mcp"
 _PRICING_URL = "https://mcp.arkforge.fr/fr/pricing.html?utm_source=pypi"
 
 
@@ -1766,7 +1767,9 @@ def _add_banner(result: dict) -> dict:
         result["upgrade"] = f"⚠️ Only {remaining} scan(s) left today. Pro: unlimited scans + CI/CD API at 29€/mo → {_PRICING_URL}"
     else:
         result["upgrade"] = FREE_TIER_BANNER
-    result["trust_layer"] = TRUST_LAYER_CTA
+    pct = result.get("compliance_percentage") or (result.get("compliance_summary") or {}).get("compliance_percentage")
+    has_gaps = isinstance(pct, (int, float)) and pct < 100
+    result["trust_layer"] = TRUST_LAYER_CTA_RISK if has_gaps else TRUST_LAYER_CTA
     return result
 
 
