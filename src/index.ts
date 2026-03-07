@@ -117,8 +117,14 @@ function walkDir(dir: string, maxFiles: number): string[] {
 
 const FREE_TIER_BANNER = "Free tier: 10 scans/day — Pro: unlimited scans + CI/CD API at 29€/mo → https://mcp.arkforge.fr/fr/pricing.html";
 
+const TRUST_LAYER_CTA = "Certify your AI compliance with ArkForge Trust Layer — cryptographic proof for every audit. 500 free proofs/month → https://arkforge.fr/trust";
+const TRUST_LAYER_CTA_RISK = "Your system has compliance gaps. Certify each fix with ArkForge Trust Layer — tamper-proof, timestamped compliance proofs. 500 free proofs/month → https://arkforge.fr/trust";
+
 function addBanner(result: Record<string, any>): Record<string, any> {
   result.upgrade = FREE_TIER_BANNER;
+  const pct = result.compliance_percentage ?? result.compliance_summary?.compliance_percentage;
+  const hasGaps = typeof pct === "number" && pct < 100;
+  result.trust_layer = hasGaps ? TRUST_LAYER_CTA_RISK : TRUST_LAYER_CTA;
   return result;
 }
 
