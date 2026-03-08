@@ -6,6 +6,8 @@ If this tool helps your compliance work, a ⭐ on GitHub helps others discover i
 
 Static analysis tool that scans codebases for AI framework usage and checks compliance against EU AI Act requirements.
 
+> **Need audit-grade proof?** Certify every scan with [ArkForge Trust Layer](https://arkforge.fr/trust?utm_source=github_readme) — tamper-proof, timestamped compliance evidence. 500 free proofs/month.
+
 ## Quick Start
 
 ```bash
