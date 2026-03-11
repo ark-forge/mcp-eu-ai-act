@@ -6,7 +6,7 @@ If this tool helps your compliance work, a ⭐ on GitHub helps others discover i
 
 Static analysis tool that scans codebases for AI framework usage and checks compliance against EU AI Act requirements.
 
-> **Need audit-grade proof?** Certify every scan with [ArkForge Trust Layer](https://arkforge.fr/trust?utm_source=github_readme) — tamper-proof, timestamped compliance evidence. 500 free proofs/month.
+> **Need audit-grade proof?** Certify every scan with [ArkForge Trust Layer](https://arkforge.tech/trust?utm_source=github_readme) — tamper-proof, timestamped compliance evidence. 500 free proofs/month.
 
 ## Quick Start
 
@@ -247,7 +247,7 @@ Free tier: 10 scans/day per IP. Pro API keys (`X-API-Key` header or `Authorizati
 
 ## Certify your scans with Trust Layer
 
-Turn any compliance scan into a **tamper-proof, verifiable proof** with [ArkForge Trust Layer](https://arkforge.fr/trust?utm_source=pypi):
+Turn any compliance scan into a **tamper-proof, verifiable proof** with [ArkForge Trust Layer](https://arkforge.tech/trust?utm_source=pypi):
 
 - **Signed proofs** — Ed25519 digital signatures on every scan result
 - **Tamper-proof** — SHA-256 hash chain, independently verifiable
@@ -255,12 +255,12 @@ Turn any compliance scan into a **tamper-proof, verifiable proof** with [ArkForg
 
 ```bash
 # Get a certified compliance proof in one call
-curl -X POST https://arkforge.fr/trust/v1/proofs \
+curl -X POST https://trust.arkforge.tech/v1/proofs \
   -H "X-API-Key: YOUR_KEY" \
   -d '{"service": "eu-ai-act", "action": "scan", "path": "/your/project"}'
 ```
 
-Free tier available (100 proofs/month, no credit card). [Get started →](https://arkforge.fr/trust?utm_source=pypi)
+Free tier available (100 proofs/month, no credit card). [Get started →](https://arkforge.tech/trust?utm_source=pypi)
 
 ## ArkForge ecosystem
 

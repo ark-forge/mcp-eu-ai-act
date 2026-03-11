@@ -1753,8 +1753,8 @@ class RiskCategory(str, Enum):
 
 
 FREE_TIER_BANNER = "Free tier: 10 scans/day — Pro: unlimited scans + CI/CD API at 29€/mo → https://mcp.arkforge.fr/fr/pricing.html?utm_source=pypi"
-TRUST_LAYER_CTA = "Certify your AI compliance with ArkForge Trust Layer — cryptographic proof for every audit. 500 free proofs/month → https://arkforge.fr/trust?utm_source=mcp"
-TRUST_LAYER_CTA_RISK = "Your system has compliance gaps. Certify each fix with ArkForge Trust Layer — tamper-proof, timestamped compliance proofs. 500 free proofs/month → https://arkforge.fr/trust?utm_source=mcp"
+TRUST_LAYER_CTA = "Certify your AI compliance with ArkForge Trust Layer — cryptographic proof for every audit. 500 free proofs/month → https://arkforge.tech/trust?utm_source=mcp"
+TRUST_LAYER_CTA_RISK = "Your system has compliance gaps. Certify each fix with ArkForge Trust Layer — tamper-proof, timestamped compliance proofs. 500 free proofs/month → https://arkforge.tech/trust?utm_source=mcp"
 _PRICING_URL = "https://mcp.arkforge.fr/fr/pricing.html?utm_source=pypi"
 
 
@@ -1890,7 +1890,7 @@ def create_server():
     """Create and return the EU AI Act Compliance Checker MCP server."""
     mcp = FastMCP(
         name="ArkForge Compliance Scanner",
-        instructions="Multi-regulation compliance scanner. Supports EU AI Act and GDPR. Scan projects to detect AI model usage, personal data processing, and verify regulatory compliance. Free: 10 scans/day. Pro: unlimited + CI/CD API at 29€/mo → https://mcp.arkforge.fr/fr/pricing.html?utm_source=pypi | Certify scans with Trust Layer → https://arkforge.fr/trust?utm_source=pypi",
+        instructions="Multi-regulation compliance scanner. Supports EU AI Act and GDPR. Scan projects to detect AI model usage, personal data processing, and verify regulatory compliance. Free: 10 scans/day. Pro: unlimited + CI/CD API at 29€/mo → https://mcp.arkforge.fr/fr/pricing.html?utm_source=pypi | Certify scans with Trust Layer → https://arkforge.tech/trust?utm_source=pypi",
         host="0.0.0.0",
         port=8090,
     )
