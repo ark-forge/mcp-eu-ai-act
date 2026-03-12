@@ -1,0 +1,23 @@
+{
+  "$schema": "https://glama.ai/mcp/schemas/server.json",
+  "maintainers": ["ark-forge"],
+  "categories": ["compliance", "legal", "ai-governance"],
+  "license": "MIT",
+  "homepage": "https://arkforge.tech",
+  "repository": "https://github.com/ark-forge/mcp-eu-ai-act",
+  "tools": [
+    "scan_project",
+    "check_compliance",
+    "generate_report",
+    "suggest_risk_category",
+    "generate_compliance_templates",
+    "validate_api_key",
+    "gdpr_scan_project",
+    "gdpr_check_compliance",
+    "gdpr_generate_report",
+    "gdpr_generate_templates",
+    "combined_compliance_report",
+    "get_pricing"
+  ],
+  "env": {}
+}
