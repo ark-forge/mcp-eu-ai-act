@@ -1,4 +1,1 @@
 mcp>=1.0.0
-fastapi>=0.100.0
-uvicorn>=0.24.0
-stripe>=7.0.0

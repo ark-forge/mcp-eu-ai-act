@@ -14,7 +14,7 @@ import argparse
 
 from server import EUAIActChecker, RISK_CATEGORIES, ACTIONABLE_GUIDANCE
 
-PRICING_URL = "https://mcp.arkforge.fr/fr/pricing.html?utm_source=cli"
+PRICING_URL = "https://arkforge.tech/trust?utm_source=cli"
 
 PRO_FEATURES = [
     "Detailed per-article risk scores with remediation priorities",
