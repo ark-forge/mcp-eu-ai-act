@@ -1,0 +1,34 @@
+{
+  "$schema": "https://glama.ai/mcp/schemas/server.json",
+  "maintainers": ["ark-forge"],
+  "categories": ["ai-governance", "compliance", "security"],
+  "license": "MIT",
+  "homepage": "https://arkforge.tech",
+  "repository": "https://github.com/ark-forge/mcp-eu-ai-act",
+  "tools": [
+    {
+      "name": "scan_project",
+      "description": "Scan a project to detect AI model usage (OpenAI, Anthropic, Mistral, etc.) for EU AI Act compliance."
+    },
+    {
+      "name": "check_compliance",
+      "description": "Check EU AI Act compliance for a given risk category (unacceptable, high, limited, minimal)."
+    },
+    {
+      "name": "generate_report",
+      "description": "Generate a complete EU AI Act compliance report with scan results, compliance checks, and recommendations."
+    },
+    {
+      "name": "suggest_risk_category",
+      "description": "Suggest the most likely EU AI Act risk category based on your AI system description."
+    },
+    {
+      "name": "generate_compliance_templates",
+      "description": "Generate starter compliance document templates for your EU AI Act risk category."
+    },
+    {
+      "name": "combined_compliance_report",
+      "description": "EU AI Act + GDPR dual-compliance hotspot scan for a project."
+    }
+  ]
+}
