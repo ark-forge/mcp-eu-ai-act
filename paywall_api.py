@@ -152,11 +152,15 @@ app.add_middleware(
 )
 
 
+_TRUSTED_PROXIES = {"127.0.0.1"}
+
 def get_client_ip(request: Request) -> str:
-    forwarded = request.headers.get("X-Forwarded-For", "")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    peer = request.client.host if request.client else "unknown"
+    if peer in _TRUSTED_PROXIES:
+        forwarded = request.headers.get("X-Forwarded-For", "")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
+    return peer
 
 
 MAX_PAYLOAD_BYTES = 1_000_000  # 1 MB max request body
@@ -646,7 +650,7 @@ async def update_alerts(request: Request):
 
 
 if __name__ == "__main__":
-    logger.info("Starting MCP EU AI Act REST API on 0.0.0.0:8091")
+    logger.info("Starting MCP EU AI Act REST API on 127.0.0.1:8091")
     logger.info("Stripe configured: %s", "yes" if stripe.api_key else "NO — payments will fail")
     logger.info("/api/v1/scan-repo: public endpoint, rate-limited (no internal secret required)")
-    uvicorn.run(app, host="0.0.0.0", port=8091, log_level="info")
+    uvicorn.run(app, host="127.0.0.1", port=8091, log_level="info")

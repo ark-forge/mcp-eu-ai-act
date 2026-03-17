@@ -338,11 +338,15 @@ async def limit_payload(request: Request, call_next):
             return JSONResponse({"error": "Payload too large (max 1 MB)"}, status_code=413)
     return await call_next(request)
 
+_TRUSTED_PROXIES = {"127.0.0.1"}
+
 def _get_client_ip(request: Request) -> str:
-    forwarded = request.headers.get("X-Forwarded-For", "")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    peer = request.client.host if request.client else "unknown"
+    if peer in _TRUSTED_PROXIES:
+        forwarded = request.headers.get("X-Forwarded-For", "")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
+    return peer
 
 # --- Endpoints ---
 
@@ -531,4 +535,4 @@ async def get_job(job_id: str):
 if __name__ == "__main__":
     port = int(os.environ.get("EUAIACT_API_PORT", "8200"))
     logger.info("Starting EU AI Act Marketplace API on 0.0.0.0:%d", port)
-    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
+    uvicorn.run(app, host="127.0.0.1", port=port, log_level="info")
