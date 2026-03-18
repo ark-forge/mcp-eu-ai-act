@@ -3,7 +3,7 @@ namespace: arkforge
 name: mcp-eu-ai-act
 displayName: "@arkforge/mcp-eu-ai-act"
 description: "Automated EU AI Act compliance verification for AI projects"
-version: "1.1.0"
+version: "1.5.0"
 license: "MIT"
 homepage: "https://github.com/ark-forge/mcp-eu-ai-act"
 repository: "https://github.com/ark-forge/mcp-eu-ai-act"
@@ -26,7 +26,7 @@ startCommand:
         default: "limited"
     required: []
   commandFunction: |-
-    (config) => ({ command: "node", args: ["index.js"] })
+    (config) => ({ command: "python3", args: ["server.py"] })
 
 # Build configuration  
 build:
@@ -49,4 +49,4 @@ keywords:
   
 author:
   name: ArkForge
-  url: https://mcp.arkforge.fr
+  url: https://arkforge.tech

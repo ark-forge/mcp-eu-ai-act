@@ -176,12 +176,12 @@ python3 paywall_api.py
 | `POST` | `/api/v1/scan-repo` | Free (rate-limited) | Scan a GitHub repo by URL |
 
 **Free tier**: 10 scans/day per IP, no sign-up required.
-**Pro tier**: Unlimited scans, `X-API-Key` header. 29 EUR/month via [mcp.arkforge.fr/fr/pricing.html](https://mcp.arkforge.fr/fr/pricing.html?utm_source=pypi).
+**Pro tier**: Unlimited scans, `X-API-Key` header. 29 EUR/month via [arkforge.tech/fr/pricing.html](https://arkforge.tech/fr/pricing.html?utm_source=pypi).
 
 ### Example: scan via REST
 
 ```bash
-curl -X POST https://mcp.arkforge.fr/mcp/api/v1/scan \
+curl -X POST https://arkforge.tech/mcp/api/v1/scan \
   -H "Content-Type: application/json" \
   -d '{"project_path": "/path/to/your/project"}'
 ```

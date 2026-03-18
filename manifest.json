@@ -1,7 +1,7 @@
 {
   "name": "eu-ai-act-compliance-checker",
-  "version": "1.1.0",
-  "description": "MCP Server to verify EU AI Act compliance for projects using AI models",
+  "version": "1.5.0",
+  "description": "MCP Server to verify EU AI Act and GDPR compliance for projects using AI models",
   "author": "ArkForge",
   "license": "MIT",
   "mcp_version": "1.0",
@@ -11,126 +11,31 @@
     "class": "MCPServer"
   },
   "tools": [
-    {
-      "name": "scan_project",
-      "description": "Scan a project to detect AI model usage (OpenAI, Anthropic, HuggingFace, TensorFlow, PyTorch, LangChain)",
-      "input_schema": {
-        "type": "object",
-        "properties": {
-          "project_path": {
-            "type": "string",
-            "description": "Absolute path to the project to scan"
-          }
-        },
-        "required": ["project_path"]
-      },
-      "output_schema": {
-        "type": "object",
-        "properties": {
-          "files_scanned": {
-            "type": "integer",
-            "description": "Number of files scanned"
-          },
-          "ai_files": {
-            "type": "array",
-            "description": "Files containing AI code",
-            "items": {
-              "type": "object",
-              "properties": {
-                "file": {"type": "string"},
-                "frameworks": {"type": "array", "items": {"type": "string"}}
-              }
-            }
-          },
-          "detected_models": {
-            "type": "object",
-            "description": "Detected frameworks and associated files"
-          }
-        }
-      }
-    },
-    {
-      "name": "check_compliance",
-      "description": "Check EU AI Act compliance for a given risk category",
-      "input_schema": {
-        "type": "object",
-        "properties": {
-          "project_path": {
-            "type": "string",
-            "description": "Absolute path to the project"
-          },
-          "risk_category": {
-            "type": "string",
-            "enum": ["unacceptable", "high", "limited", "minimal"],
-            "default": "limited",
-            "description": "EU AI Act risk category"
-          }
-        },
-        "required": ["project_path"]
-      },
-      "output_schema": {
-        "type": "object",
-        "properties": {
-          "risk_category": {"type": "string"},
-          "description": {"type": "string"},
-          "requirements": {
-            "type": "array",
-            "items": {"type": "string"}
-          },
-          "compliance_status": {
-            "type": "object",
-            "description": "Status of each compliance check"
-          },
-          "compliance_score": {"type": "string"},
-          "compliance_percentage": {"type": "number"}
-        }
-      }
-    },
-    {
-      "name": "generate_report",
-      "description": "Generate a complete compliance report in JSON format",
-      "input_schema": {
-        "type": "object",
-        "properties": {
-          "project_path": {
-            "type": "string",
-            "description": "Absolute path to the project"
-          },
-          "risk_category": {
-            "type": "string",
-            "enum": ["unacceptable", "high", "limited", "minimal"],
-            "default": "limited",
-            "description": "EU AI Act risk category"
-          }
-        },
-        "required": ["project_path"]
-      },
-      "output_schema": {
-        "type": "object",
-        "properties": {
-          "report_date": {"type": "string"},
-          "project_path": {"type": "string"},
-          "scan_summary": {"type": "object"},
-          "compliance_summary": {"type": "object"},
-          "detailed_findings": {"type": "object"},
-          "recommendations": {
-            "type": "array",
-            "items": {"type": "string"}
-          }
-        }
-      }
-    }
+    {"name": "scan_project", "description": "Scan a project to detect AI model usage (OpenAI, Anthropic, Mistral, etc.)"},
+    {"name": "check_compliance", "description": "Check EU AI Act compliance for a given risk category"},
+    {"name": "generate_report", "description": "Generate a complete EU AI Act compliance report in JSON format"},
+    {"name": "suggest_risk_category", "description": "Suggest the appropriate EU AI Act risk category for a project"},
+    {"name": "generate_compliance_templates", "description": "Generate compliance documentation templates (DPIA, conformity declaration, etc.)"},
+    {"name": "validate_api_key", "description": "Validate an API key for authenticated access"},
+    {"name": "gdpr_scan_project", "description": "Scan a project for GDPR data processing hotspots"},
+    {"name": "gdpr_check_compliance", "description": "Check GDPR compliance for a project"},
+    {"name": "gdpr_generate_report", "description": "Generate a GDPR compliance report"},
+    {"name": "gdpr_generate_templates", "description": "Generate GDPR documentation templates (privacy notice, DPA, etc.)"},
+    {"name": "combined_compliance_report", "description": "EU AI Act + GDPR dual-compliance hotspot scan"},
+    {"name": "get_pricing", "description": "Get pricing information for API access tiers"}
   ],
   "categories": [
     "compliance",
     "ai",
     "legal",
     "eu-ai-act",
+    "gdpr",
     "security"
   ],
   "tags": [
     "compliance",
     "eu-ai-act",
+    "gdpr",
     "artificial-intelligence",
     "legal",
     "risk-assessment",

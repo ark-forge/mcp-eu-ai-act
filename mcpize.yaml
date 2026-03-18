@@ -1,0 +1,18 @@
+# MCPize manifest - https://mcpize.com
+# MCP EU AI Act Compliance Checker
+# Deploy: mcpize login && mcpize deploy
+version: 1
+name: mcp-eu-ai-act
+runtime: container
+startCommand:
+  type: stdio
+  command: python3
+  args:
+    - server.py
+credentials:
+  - name: DEFAULT_RISK_CATEGORY
+    required: false
+    description: Default EU AI Act risk category for compliance checks
+    mapping:
+      env: DEFAULT_RISK_CATEGORY
+credentials_mode: per_user
