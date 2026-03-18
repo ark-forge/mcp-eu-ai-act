@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from enum import Enum
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from gdpr_module import GDPRChecker, GDPR_TEMPLATES, GDPR_REQUIREMENTS
 
 logger = logging.getLogger(__name__)
@@ -1893,6 +1894,9 @@ def create_server():
         instructions="Multi-regulation compliance scanner. Supports EU AI Act and GDPR. Scan projects to detect AI model usage, personal data processing, and verify regulatory compliance. Free: 10 scans/day. Pro: unlimited + CI/CD API at 29€/mo → https://mcp.arkforge.fr/fr/pricing.html?utm_source=pypi | Certify scans with Trust Layer → https://arkforge.tech/trust?utm_source=pypi",
         host="127.0.0.1",
         port=8090,
+        transport_security=TransportSecuritySettings(
+            allowed_hosts=["mcp.arkforge.fr", "127.0.0.1:8090", "localhost:8090"],
+        ),
     )
 
     @mcp.tool()
