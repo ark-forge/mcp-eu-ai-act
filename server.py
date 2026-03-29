@@ -1894,6 +1894,7 @@ def create_server():
         instructions="Multi-regulation compliance scanner. Supports EU AI Act and GDPR. Scan projects to detect AI model usage, personal data processing, and verify regulatory compliance. Free: 10 scans/day. Pro: unlimited + CI/CD API at 29€/mo → https://mcp.arkforge.fr/fr/pricing.html?utm_source=pypi | Certify scans with Trust Layer → https://arkforge.tech/trust?utm_source=pypi",
         host="127.0.0.1",
         port=8090,
+        json_response=True,
         transport_security=TransportSecuritySettings(
             allowed_hosts=["mcp.arkforge.fr", "127.0.0.1:8090", "localhost:8090"],
         ),
