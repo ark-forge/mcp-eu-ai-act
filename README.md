@@ -36,6 +36,10 @@ pip install pytest
 pytest tests/ -v
 ```
 
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/ark-forge-mcp-eu-ai-act).
+
 ## Usage Examples
 
 Once connected via MCP (see integration below), call tools by name.
