@@ -254,7 +254,7 @@ def scan(req: ScanRequest, request: Request):
             meta={
                 "risk_category_used": req.risk_category,
                 "filename": safe_name,
-                "pricing": "https://mcp.arkforge.fr/fr/pricing.html?utm_source=rapidapi",
+                "pricing": "https://arkforge.tech/en/pricing.html?utm_source=rapidapi",
                 "trust_layer": "https://arkforge.tech/trust?utm_source=rapidapi",
             },
         )
