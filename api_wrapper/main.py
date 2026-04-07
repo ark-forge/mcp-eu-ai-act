@@ -15,6 +15,13 @@ import json
 import sys
 import tempfile
 import shutil
+import hmac
+import hashlib
+import base64
+import urllib.parse
+import urllib.request
+import logging
+import os
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Optional
@@ -27,7 +34,9 @@ _parent = str(Path(__file__).resolve().parent.parent)
 if _parent not in sys.path:
     sys.path.insert(0, _parent)
 
-from server import EUAIActChecker, RISK_CATEGORIES, ACTIONABLE_GUIDANCE
+from server import EUAIActChecker, RISK_CATEGORIES, ACTIONABLE_GUIDANCE, _api_key_manager
+
+logger = logging.getLogger(__name__)
 
 # --- Rate limiting config ---
 _PARENT_DIR = Path(__file__).resolve().parent.parent
@@ -260,6 +269,148 @@ def scan(req: ScanRequest, request: Request):
         )
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+@app.post("/api/checkout")
+async def checkout(request: Request):
+    """Create a Stripe Checkout Session for pro or certified plan."""
+    stripe_secret = os.environ.get("STRIPE_SECRET_KEY")
+    if not stripe_secret:
+        raise HTTPException(status_code=503, detail={"error": "Stripe not configured"})
+
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail={"error": "Invalid JSON body"})
+
+    plan = body.get("plan", "")
+    email = body.get("email", "")
+
+    if plan not in ("pro", "certified"):
+        raise HTTPException(
+            status_code=400,
+            detail={"error": f"Invalid plan '{plan}'. Must be 'pro' or 'certified'"},
+        )
+
+    if plan == "pro":
+        price_id = os.environ.get("STRIPE_PRICE_PRO", "")
+    else:
+        price_id = os.environ.get("STRIPE_PRICE_CERTIFIED", "")
+
+    if not price_id:
+        raise HTTPException(
+            status_code=503,
+            detail={"error": f"Stripe price not configured for plan '{plan}'"},
+        )
+
+    params = {
+        "payment_method_types[0]": "card",
+        "mode": "subscription",
+        "success_url": "https://arkforge.tech/en/mcp-eu-ai-act.html?checkout=success",
+        "cancel_url": "https://arkforge.tech/en/mcp-eu-ai-act.html?checkout=cancel",
+        "line_items[0][price]": price_id,
+        "line_items[0][quantity]": "1",
+        "metadata[plan]": plan,
+        "metadata[email]": email,
+    }
+    if email:
+        params["customer_email"] = email
+
+    encoded = urllib.parse.urlencode(params).encode("utf-8")
+    credentials = base64.b64encode(f"{stripe_secret}:".encode()).decode()
+    req = urllib.request.Request(
+        "https://api.stripe.com/v1/checkout/sessions",
+        data=encoded,
+        headers={
+            "Authorization": f"Basic {credentials}",
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req) as resp:
+            session = json.loads(resp.read().decode())
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode()
+        logger.error("Stripe API error %s: %s", e.code, error_body)
+        try:
+            stripe_err = json.loads(error_body)
+            detail = stripe_err.get("error", {}).get("message", "Stripe error")
+        except Exception:
+            detail = "Stripe API error"
+        raise HTTPException(status_code=502, detail={"error": detail})
+    except Exception as e:
+        logger.error("Stripe request failed: %s", e)
+        raise HTTPException(status_code=502, detail={"error": "Failed to reach Stripe"})
+
+    logger.info("Stripe checkout session created: %s plan=%s email=%s", session.get("id"), plan, email)
+    return {"checkout_url": session.get("url"), "session_id": session.get("id")}
+
+
+@app.post("/api/webhook")
+async def webhook(request: Request):
+    """Handle Stripe webhook events."""
+    webhook_secret = os.environ.get("STRIPE_WEBHOOK_SECRET")
+    if not webhook_secret:
+        raise HTTPException(status_code=503, detail={"error": "Stripe webhook not configured"})
+
+    raw_body = await request.body()
+    sig_header = request.headers.get("stripe-signature", "")
+
+    # Parse timestamp and v1 signature from Stripe-Signature header
+    # Format: t=timestamp,v1=signature[,v1=signature...]
+    ts = None
+    v1_sig = None
+    for part in sig_header.split(","):
+        part = part.strip()
+        if part.startswith("t="):
+            ts = part[2:]
+        elif part.startswith("v1="):
+            v1_sig = part[3:]
+
+    if not ts or not v1_sig:
+        raise HTTPException(status_code=400, detail={"error": "Invalid signature header"})
+
+    # Compute expected signature
+    signed_payload = f"{ts}.{raw_body.decode('utf-8')}"
+    expected = hmac.new(
+        webhook_secret.encode("utf-8"),
+        signed_payload.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+    if not hmac.compare_digest(expected, v1_sig):
+        raise HTTPException(status_code=400, detail={"error": "Invalid signature"})
+
+    try:
+        event = json.loads(raw_body)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail={"error": "Invalid JSON payload"})
+
+    event_type = event.get("type", "")
+    logger.info("Stripe webhook received: %s", event_type)
+
+    if event_type == "checkout.session.completed":
+        obj = event.get("data", {}).get("object", {})
+        email = obj.get("customer_email") or obj.get("metadata", {}).get("email", "")
+        plan = obj.get("metadata", {}).get("plan", "pro")
+        if email:
+            entry = _api_key_manager.register_key(email, plan)
+            logger.info(
+                "Stripe checkout completed — registered key %s for %s plan=%s",
+                entry.get("key"),
+                email,
+                plan,
+            )
+        else:
+            logger.warning("Stripe checkout.session.completed: no email found in event")
+
+    elif event_type == "customer.subscription.deleted":
+        obj = event.get("data", {}).get("object", {})
+        customer_id = obj.get("customer", "unknown")
+        logger.info("Stripe subscription deleted for customer: %s", customer_id)
+
+    return {"received": True}
 
 
 if __name__ == "__main__":

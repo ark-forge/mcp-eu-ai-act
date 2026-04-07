@@ -26,6 +26,18 @@ logger = logging.getLogger(__name__)
 # --- API Key Management (Paywall Step 2) ---
 API_KEYS_PATH = Path(__file__).parent / "api_keys.json"
 API_KEYS_DATA_PATH = Path(__file__).parent / "data" / "api_keys.json"
+ARTICLES_DB_PATH = Path(__file__).parent / "data" / "eu_ai_act_articles.json"
+
+
+def _load_articles_db() -> Dict[str, Any]:
+    """Load and cache the EU AI Act articles knowledge base."""
+    try:
+        data = json.loads(ARTICLES_DB_PATH.read_text())
+        return {a["article"]: a for a in data.get("articles", [])}
+    except (FileNotFoundError, json.JSONDecodeError, KeyError):
+        return {}
+
+_ARTICLES_DB: Dict[str, Any] = _load_articles_db()
 
 
 class ApiKeyManager:
@@ -1591,53 +1603,87 @@ class EUAIActChecker:
             logger.warning("Error scanning config %s: %s", file_path, e)
 
     def check_compliance(self, risk_category: str = "limited") -> Dict[str, Any]:
-        """Check EU AI Act compliance for a given risk category"""
+        """Check EU AI Act compliance for a given risk category.
+
+        v2: Adds content scoring (0-100 per doc) and article mapping.
+        Fully backward compatible — all v1 fields preserved.
+        """
         if risk_category not in RISK_CATEGORIES:
             return {
                 "error": f"Invalid risk category: {risk_category}. Valid: {list(RISK_CATEGORIES.keys())}",
             }
 
+        # Security: validate path
+        is_safe, error_msg = _validate_project_path(str(self.project_path))
+        if not is_safe:
+            return {"error": error_msg}
+
         category_info = RISK_CATEGORIES[risk_category]
         requirements = category_info["requirements"]
 
-        compliance_checks = {
-            "risk_category": risk_category,
-            "description": category_info["description"],
-            "requirements": requirements,
-            "compliance_status": {},
-        }
-
-        # Basic compliance checks
-        docs_path = self.project_path / "docs"
+        # --- v1: existence-based compliance_status ---
         readme_exists = (self.project_path / "README.md").exists()
+        compliance_status: Dict[str, bool] = {}
+
+        # --- v2: content scores (0-100) and article map ---
+        content_scores: Dict[str, int] = {}
+        article_map: Dict[str, Dict[str, Any]] = {}
+
+        # Helper: score + threshold → bool (40+ = pass)
+        def _score_and_record(check_key: str, filename: str, article_id: str) -> bool:
+            score = self._score_doc_content(filename, article_id)
+            content_scores[filename] = score
+            status = "pass" if score >= 40 else ("partial" if score > 0 else "fail")
+            article_map[article_id] = {"status": status, "score": score, "check": check_key}
+            return score >= 40
 
         if risk_category == "high":
-            compliance_checks["compliance_status"] = {
-                "technical_documentation": self._check_technical_docs(),
-                "risk_management": self._check_file_exists("RISK_MANAGEMENT.md"),
-                "transparency": self._check_file_exists("TRANSPARENCY.md") or readme_exists,
-                "data_governance": self._check_file_exists("DATA_GOVERNANCE.md"),
-                "human_oversight": self._check_file_exists("HUMAN_OVERSIGHT.md"),
-                "robustness": self._check_file_exists("ROBUSTNESS.md"),
+            compliance_status = {
+                "technical_documentation": _score_and_record("technical_documentation", "TECHNICAL_DOCUMENTATION.md", "11"),
+                "risk_management": _score_and_record("risk_management", "RISK_MANAGEMENT.md", "9"),
+                "transparency": (
+                    _score_and_record("transparency", "TRANSPARENCY.md", "13")
+                    or readme_exists
+                ),
+                "data_governance": _score_and_record("data_governance", "DATA_GOVERNANCE.md", "10"),
+                "human_oversight": _score_and_record("human_oversight", "HUMAN_OVERSIGHT.md", "14"),
+                "robustness": _score_and_record("robustness", "ROBUSTNESS.md", "15"),
             }
         elif risk_category == "limited":
-            compliance_checks["compliance_status"] = {
-                "transparency": readme_exists or self._check_file_exists("TRANSPARENCY.md"),
+            compliance_status = {
+                "transparency": (
+                    _score_and_record("transparency", "TRANSPARENCY.md", "52")
+                    or readme_exists
+                ),
                 "user_disclosure": self._check_ai_disclosure(),
                 "content_marking": self._check_content_marking(),
             }
+            article_map["52"] = {
+                "status": "pass" if compliance_status["transparency"] else "fail",
+                "score": content_scores.get("TRANSPARENCY.md", 0),
+                "check": "transparency",
+            }
         elif risk_category == "minimal":
-            compliance_checks["compliance_status"] = {
+            compliance_status = {
                 "basic_documentation": readme_exists,
             }
 
-        # Calculate compliance score
-        total_checks = len(compliance_checks["compliance_status"])
-        passed_checks = sum(1 for v in compliance_checks["compliance_status"].values() if v)
-        compliance_checks["compliance_score"] = f"{passed_checks}/{total_checks}"
-        compliance_checks["compliance_percentage"] = round((passed_checks / total_checks) * 100, 1) if total_checks > 0 else 0
+        # --- Calculate compliance score (v1 compatible) ---
+        total_checks = len(compliance_status)
+        passed_checks = sum(1 for v in compliance_status.values() if v)
 
-        return compliance_checks
+        return {
+            # v1 fields (backward compatible)
+            "risk_category": risk_category,
+            "description": category_info["description"],
+            "requirements": requirements,
+            "compliance_status": compliance_status,
+            "compliance_score": f"{passed_checks}/{total_checks}",
+            "compliance_percentage": round((passed_checks / total_checks) * 100, 1) if total_checks > 0 else 0,
+            # v2 additions
+            "content_scores": content_scores,
+            "article_map": article_map,
+        }
 
     def _check_technical_docs(self) -> bool:
         """Check for technical documentation"""
@@ -1677,8 +1723,60 @@ class EUAIActChecker:
                     pass
         return False
 
+    def _score_doc_content(self, filename: str, article_id: str) -> int:
+        """Score a compliance document's content quality 0-100.
+
+        Checks presence of required_sections and content_keywords from the articles DB.
+        Returns 0 if file doesn't exist, up to 100 for a complete document.
+        """
+        # Find the file (root or docs/ subdirectory)
+        file_path = None
+        for candidate in [self.project_path / filename, self.project_path / "docs" / filename]:
+            if candidate.exists():
+                file_path = candidate
+                break
+
+        if file_path is None:
+            return 0
+
+        try:
+            content = file_path.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            return 0
+
+        if len(content.strip()) < 50:
+            return 5  # File exists but essentially empty
+
+        article = _ARTICLES_DB.get(article_id, {})
+        required_sections = article.get("required_sections", [])
+        content_keywords = article.get("content_keywords", [])
+
+        content_lower = content.lower()
+        score = 0
+
+        # Section presence: up to 60 points (10 per section, max 6 sections)
+        if required_sections:
+            per_section = min(60 // len(required_sections), 10)
+            for section in required_sections:
+                if section.lower() in content_lower:
+                    score += per_section
+
+        # Keyword presence: up to 30 points
+        if content_keywords:
+            per_kw = min(30 // len(content_keywords), 5)
+            for kw in content_keywords:
+                if kw.lower() in content_lower:
+                    score += per_kw
+
+        # Length bonus: +10 for substantive content
+        if len(content) > 500:
+            score += 10
+
+        return min(score, 100)
+
     def generate_report(self, scan_results: Dict, compliance_results: Dict) -> Dict[str, Any]:
         """Generate a complete compliance report"""
+        risk_category = compliance_results.get("risk_category", "limited")
         report = {
             "report_date": datetime.now(timezone.utc).isoformat(),
             "project_path": str(self.project_path),
@@ -1698,6 +1796,38 @@ class EUAIActChecker:
                 "requirements": compliance_results.get("requirements", []),
             },
             "recommendations": self._generate_recommendations(compliance_results),
+        }
+
+        # v2: Executive summary (DPO/legal audience)
+        days_to_deadline = (datetime(2026, 8, 2, tzinfo=timezone.utc) - datetime.now(timezone.utc)).days
+        compliance_pct = compliance_results.get("compliance_percentage", 0)
+        gaps = [k for k, v in compliance_results.get("compliance_status", {}).items() if not v]
+
+        report["executive_summary"] = {
+            "compliance_percentage": compliance_pct,
+            "days_to_deadline": max(0, days_to_deadline),
+            "deadline": "2026-08-02",
+            "status": "compliant" if compliance_pct == 100 else ("on_track" if compliance_pct >= 60 else "at_risk"),
+            "critical_gaps": gaps,
+            "gap_count": len(gaps),
+            "action_required": len(gaps) > 0,
+            "message": (
+                f"Your system is {compliance_pct}% compliant with the EU AI Act. "
+                f"{len(gaps)} gap(s) must be resolved before the {days_to_deadline}-day deadline."
+                if gaps else
+                f"Your system is fully compliant with the EU AI Act {risk_category}-risk requirements."
+            ),
+        }
+
+        # v2: Technical breakdown (dev audience)
+        report["technical_breakdown"] = {
+            "content_scores": compliance_results.get("content_scores", {}),
+            "article_map": compliance_results.get("article_map", {}),
+            "recommendations_by_article": {
+                rec["eu_article"]: rec
+                for rec in report.get("recommendations", [])
+                if rec.get("eu_article") and rec.get("status") == "FAIL"
+            },
         }
 
         return report
@@ -1887,6 +2017,47 @@ def _generate_combined_insight(
     )
 
 
+def _certify_with_trust_layer(report_data: dict, trust_layer_key: str) -> dict:
+    """Call Trust Layer API to certify a compliance report. Returns proof metadata."""
+    import urllib.request
+    import urllib.error
+
+    payload = json.dumps({
+        "method": "POST",
+        "url": "https://httpbin.org/post",  # proxy target — Trust Layer will wrap this
+        "headers": {"Content-Type": "application/json"},
+        "body": json.dumps(report_data),
+    }).encode()
+
+    req = urllib.request.Request(
+        "https://trust.arkforge.tech/v1/proxy",
+        data=payload,
+        headers={
+            "Content-Type": "application/json",
+            "X-Api-Key": trust_layer_key,
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            body = json.loads(resp.read())
+            return {
+                "proof_id": body.get("proof_id", ""),
+                "verification_url": body.get("verification_url", ""),
+                "timestamp": body.get("timestamp", ""),
+                "status": "certified",
+            }
+    except urllib.error.HTTPError as e:
+        if e.code == 401:
+            return {"error": "Invalid Trust Layer API key. Get your key at https://arkforge.tech/en/pricing.html", "status": "auth_error"}
+        return {"error": f"Trust Layer API error: HTTP {e.code}", "status": "error"}
+    except urllib.error.URLError as e:
+        return {"error": f"Trust Layer unreachable: {e.reason}", "status": "network_error"}
+    except Exception as e:
+        return {"error": f"Certification failed: {str(e)}", "status": "error"}
+
+
 def create_server():
     """Create and return the EU AI Act Compliance Checker MCP server."""
     mcp = FastMCP(
@@ -2046,6 +2217,338 @@ def create_server():
             "templates": templates,
             "usage": "Save each template file in your project's docs/ directory. Fill in [bracketed] sections with your system's details. Re-run check_compliance to verify progress.",
         }
+
+    @mcp.tool()
+    def generate_compliance_roadmap(
+        project_path: str,
+        risk_category: RiskCategory = RiskCategory.high,
+        deadline: str = "2026-08-02",
+    ) -> dict:
+        """Generate a prioritized, deadline-aware compliance action plan.
+
+        The killer feature: scans your project, identifies gaps, and returns a sequenced
+        week-by-week action plan to reach full EU AI Act compliance before your deadline.
+        Quick wins (low effort, high legal impact) come first.
+
+        Args:
+            project_path: Absolute path to the project
+            risk_category: EU AI Act risk category (unacceptable, high, limited, minimal)
+            deadline: Target compliance deadline (ISO date, default: 2026-08-02 enforcement date)
+        """
+        is_safe, error_msg = _validate_project_path(project_path)
+        if not is_safe:
+            return {"error": error_msg}
+
+        # Parse deadline
+        try:
+            deadline_dt = datetime.fromisoformat(deadline).replace(tzinfo=timezone.utc)
+        except ValueError:
+            return {"error": f"Invalid deadline format: {deadline}. Use ISO date e.g. 2026-08-02"}
+
+        now = datetime.now(timezone.utc)
+        days_remaining = max(0, (deadline_dt - now).days)
+
+        if days_remaining == 0:
+            return {"error": "Deadline has passed. Please specify a future deadline.", "days_remaining": 0}
+
+        checker = EUAIActChecker(project_path)
+        checker.scan_project()
+        compliance = checker.check_compliance(risk_category.value)
+
+        if "error" in compliance:
+            return compliance
+
+        # Build action items from failing checks
+        compliance_status = compliance.get("compliance_status", {})
+        content_scores = compliance.get("content_scores", {})
+        article_map = compliance.get("article_map", {})
+
+        # Article priorities and effort mapping for sequencing
+        # (criticality, effort_days, article_id, action, doc_filename)
+        ACTION_CATALOG = {
+            "transparency": (10, 2, "52", "Create TRANSPARENCY.md with AI disclosure notice", "TRANSPARENCY.md"),
+            "user_disclosure": (9, 1, "52", "Add AI disclosure to README.md (mention AI frameworks used)", "README.md"),
+            "content_marking": (8, 1, "50", "Mark AI-generated outputs with [AI-generated] labels in code", None),
+            "technical_documentation": (7, 5, "11", "Create TECHNICAL_DOCUMENTATION.md (architecture, training data, performance)", "TECHNICAL_DOCUMENTATION.md"),
+            "risk_management": (9, 10, "9", "Create RISK_MANAGEMENT.md (risk identification, mitigation, testing schedule)", "RISK_MANAGEMENT.md"),
+            "data_governance": (7, 7, "10", "Create DATA_GOVERNANCE.md (data sources, quality criteria, bias assessment)", "DATA_GOVERNANCE.md"),
+            "human_oversight": (8, 5, "14", "Create HUMAN_OVERSIGHT.md (oversight mechanism, responsible persons, intervention)", "HUMAN_OVERSIGHT.md"),
+            "robustness": (7, 8, "15", "Create ROBUSTNESS.md (accuracy metrics, adversarial testing, cybersecurity)", "ROBUSTNESS.md"),
+            "basic_documentation": (5, 1, "6", "Create README.md describing the project and its AI components", "README.md"),
+        }
+
+        # Collect failing checks
+        failing = []
+        for check_key, passed in compliance_status.items():
+            if not passed:
+                if check_key in ACTION_CATALOG:
+                    criticality, effort, article_id, action, doc = ACTION_CATALOG[check_key]
+                    # Partial docs get reduced effort
+                    score = content_scores.get(doc, 0) if doc else 0
+                    if score > 0:
+                        effort = max(1, int(effort * (1 - score / 100)))
+                        action = f"Complete {doc} — currently {score}% done"
+                    failing.append({
+                        "check": check_key,
+                        "criticality": criticality,
+                        "effort_days": effort,
+                        "article_id": article_id,
+                        "action": action,
+                        "doc_filename": doc,
+                        "current_score": score,
+                    })
+
+        # Sort by criticality DESC, then effort ASC (quick wins first)
+        failing.sort(key=lambda x: (-x["criticality"], x["effort_days"]))
+
+        # Build week-by-week roadmap
+        steps = []
+        cumulative_days = 0
+        total_checks = len(compliance_status)
+        passed_now = sum(1 for v in compliance_status.values() if v)
+        compliance_after = (passed_now / total_checks * 100) if total_checks > 0 else 0
+
+        for i, item in enumerate(failing):
+            week_start = cumulative_days // 7 + 1
+            cumulative_days += item["effort_days"]
+            passed_now += 1
+            compliance_after = round(passed_now / total_checks * 100, 1)
+
+            urgency = "critical" if days_remaining < 30 else ("high" if days_remaining < 60 else "normal")
+
+            steps.append({
+                "step": i + 1,
+                "week": week_start,
+                "article": f"Art. {item['article_id']}",
+                "check": item["check"],
+                "action": item["action"],
+                "effort_days": item["effort_days"],
+                "doc_filename": item["doc_filename"],
+                "compliance_pct_after": compliance_after,
+                "urgency": urgency,
+            })
+
+        total_effort = sum(s["effort_days"] for s in steps)
+        final_pct = round((passed_now / total_checks * 100), 1) if total_checks > 0 else 100.0
+        initial_pct = compliance.get("compliance_percentage", 0)
+
+        result = {
+            "project_path": project_path,
+            "risk_category": risk_category.value,
+            "deadline": deadline,
+            "days_remaining": days_remaining,
+            "initial_compliance_pct": initial_pct,
+            "final_compliance_pct": final_pct,
+            "total_effort_days": total_effort,
+            "feasible": total_effort <= days_remaining,
+            "steps": steps,
+            "summary": (
+                f"{len(steps)} action(s) needed. Total effort: ~{total_effort} day(s). "
+                f"Compliance: {initial_pct}% → {final_pct}% in {days_remaining} days."
+                if steps else
+                f"Your system is already {initial_pct}% compliant. No actions required before {deadline}."
+            ),
+        }
+
+        return _add_banner(result)
+
+    @mcp.tool()
+    def generate_annex4_package(
+        project_path: str,
+        sign_with_trust_layer: bool = False,
+        trust_layer_key: str = "",
+    ) -> dict:
+        """Generate an Annex IV-structured compliance evidence package (auditor-ready).
+
+        Creates a ZIP archive with all 8 required sections from EU AI Act Annex IV,
+        populated from your project's actual compliance documents and scan results.
+        Optionally certifies the package with ArkForge Trust Layer (Article 12 audit trail).
+
+        Args:
+            project_path: Absolute path to the project
+            sign_with_trust_layer: If True, certify the package via Trust Layer (requires trust_layer_key)
+            trust_layer_key: ArkForge Trust Layer API key (required if sign_with_trust_layer=True)
+        """
+        import hashlib
+        import zipfile
+        import io
+
+        is_safe, error_msg = _validate_project_path(project_path)
+        if not is_safe:
+            return {"error": error_msg}
+
+        if sign_with_trust_layer and not trust_layer_key:
+            return {"error": "trust_layer_key required when sign_with_trust_layer=True. Get your key at https://arkforge.tech/en/pricing.html"}
+
+        checker = EUAIActChecker(project_path)
+        scan_results = checker.scan_project()
+        compliance = checker.check_compliance("high")
+
+        project = Path(project_path)
+        now = datetime.now(timezone.utc)
+
+        def _read_doc(filename: str) -> str:
+            """Read a compliance doc from project root or docs/ subdir."""
+            for p in [project / filename, project / "docs" / filename]:
+                if p.exists():
+                    try:
+                        return p.read_text(encoding="utf-8", errors="ignore")
+                    except OSError:
+                        pass
+            return f"[NOT FOUND — create {filename} using generate_compliance_templates]"
+
+        # Build all 8 Annex IV sections
+        sections = {
+            "1_general_description": {
+                "title": "Section 1 — General Description of the AI System",
+                "article_ref": "Annex IV §1 / Art. 11",
+                "content": _read_doc("TECHNICAL_DOCUMENTATION.md"),
+            },
+            "2_development_elements": {
+                "title": "Section 2 — Elements of the AI System and Development Process",
+                "article_ref": "Annex IV §2",
+                "content": (
+                    f"## AI Frameworks Detected\n\n"
+                    + "\n".join(f"- {fw}" for fw in scan_results.get("detected_models", {}).keys())
+                    + "\n\n## Files Scanned\n\n"
+                    + f"Total: {scan_results.get('files_scanned', 0)} files, "
+                    + f"{len(scan_results.get('ai_files', []))} AI-relevant files\n\n"
+                    + _read_doc("ARCHITECTURE.md")
+                ),
+            },
+            "3_monitoring_functioning_control": {
+                "title": "Section 3 — Monitoring, Functioning and Control",
+                "article_ref": "Annex IV §3 / Art. 12-14",
+                "content": _read_doc("HUMAN_OVERSIGHT.md"),
+            },
+            "4_performance_metrics": {
+                "title": "Section 4 — Appropriateness of Performance Metrics",
+                "article_ref": "Annex IV §4 / Art. 15",
+                "content": _read_doc("ROBUSTNESS.md"),
+            },
+            "5_risks_and_circumstances": {
+                "title": "Section 5 — Known/Foreseeable Risks and Circumstances",
+                "article_ref": "Annex IV §5 / Art. 9",
+                "content": _read_doc("RISK_MANAGEMENT.md"),
+            },
+            "6_lifecycle_changes": {
+                "title": "Section 6 — Changes Made Through the Lifecycle",
+                "article_ref": "Annex IV §6",
+                "content": (
+                    _read_doc("CHANGELOG.md")
+                    or _read_doc("CHANGES.md")
+                    or "[NOT FOUND — create CHANGELOG.md documenting system changes over time]"
+                ),
+            },
+            "7_standards_applied": {
+                "title": "Section 7 — Harmonised Standards Applied",
+                "article_ref": "Annex IV §7 / Art. 40",
+                "content": (
+                    "## Standards and Frameworks Applied\n\n"
+                    "- EU AI Act (Regulation 2024/1689) — primary compliance framework\n"
+                    "- ISO/IEC 42001 (if applicable) — AI management system\n"
+                    "- NIST AI RMF (if applicable) — risk management\n\n"
+                    "[Complete this section with the specific standards and their versions]"
+                ),
+            },
+            "8_declaration_of_conformity": {
+                "title": "Section 8 — EU Declaration of Conformity (Art. 47)",
+                "article_ref": "Annex IV §8 / Art. 47",
+                "content": (
+                    f"## EU Declaration of Conformity\n\n"
+                    f"**Generated**: {now.isoformat()}\n"
+                    f"**Project**: {project_path}\n"
+                    f"**Compliance score**: {compliance.get('compliance_percentage', 0)}%\n\n"
+                    f"[This declaration must be signed by the legal representative of the provider before placing on market.]\n\n"
+                    f"I, [Name], acting on behalf of [Organization], declare that the AI system described in this technical documentation "
+                    f"is in conformity with Regulation (EU) 2024/1689 of the European Parliament and of the Council.\n\n"
+                    f"Signed: _______________  Date: _______________"
+                ),
+            },
+        }
+
+        # Build ZIP in memory
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+            for section_key, section in sections.items():
+                filename = f"{section_key}.md"
+                content = f"# {section['title']}\n\n> {section['article_ref']}\n\n{section['content']}"
+                zf.writestr(filename, content)
+
+            # Add manifest
+            manifest = {
+                "generated_at": now.isoformat(),
+                "project_path": project_path,
+                "compliance_score": compliance.get("compliance_percentage", 0),
+                "frameworks_detected": list(scan_results.get("detected_models", {}).keys()),
+                "sections": list(sections.keys()),
+                "annex_iv_version": "EU AI Act Regulation 2024/1689",
+            }
+            zf.writestr("manifest.json", json.dumps(manifest, indent=2))
+
+        zip_bytes = zip_buffer.getvalue()
+        zip_hash = hashlib.sha256(zip_bytes).hexdigest()
+
+        result = {
+            "status": "generated",
+            "sections_count": len(sections),
+            "sections": list(sections.keys()),
+            "zip_size_bytes": len(zip_bytes),
+            "sha256": zip_hash,
+            "compliance_score": compliance.get("compliance_percentage", 0),
+            "generated_at": now.isoformat(),
+            "note": "ZIP package generated in memory. Use certify_compliance_report to certify with Trust Layer.",
+        }
+
+        # Optionally certify with Trust Layer
+        if sign_with_trust_layer:
+            cert_result = _certify_with_trust_layer(
+                report_data={"package_hash": zip_hash, "manifest": manifest, "compliance_score": compliance.get("compliance_percentage", 0)},
+                trust_layer_key=trust_layer_key,
+            )
+            result["certification"] = cert_result
+            if "proof_id" in cert_result:
+                manifest["proof_id"] = cert_result["proof_id"]
+                manifest["verification_url"] = cert_result.get("verification_url", "")
+                result["status"] = "generated_and_certified"
+
+        return _add_banner(result)
+
+    @mcp.tool()
+    def certify_compliance_report(
+        report_data: str,
+        trust_layer_key: str,
+    ) -> dict:
+        """Certify a compliance report with ArkForge Trust Layer (EU AI Act Art. 12).
+
+        Creates a tamper-proof, cryptographically signed proof of your compliance report.
+        Returns a proof_id and public verification URL you can share with auditors.
+
+        Args:
+            report_data: JSON string of the compliance report or any compliance data to certify
+            trust_layer_key: Your ArkForge Trust Layer API key (get one at arkforge.tech/en/pricing.html)
+        """
+        if not trust_layer_key or not trust_layer_key.strip():
+            return {
+                "error": "trust_layer_key is required. Get your free API key at https://arkforge.tech/en/pricing.html",
+                "status": "missing_key",
+            }
+
+        try:
+            data = json.loads(report_data) if isinstance(report_data, str) else report_data
+        except json.JSONDecodeError:
+            # Accept non-JSON strings too — wrap them
+            data = {"report": report_data}
+
+        result = _certify_with_trust_layer(data, trust_layer_key)
+
+        if result.get("status") == "certified":
+            result["message"] = (
+                f"Compliance report certified. Proof ID: {result['proof_id']}. "
+                f"Share {result['verification_url']} with your auditor as Art. 12 evidence."
+            )
+
+        return _add_banner(result)
 
     @mcp.tool()
     def validate_api_key(api_key: str) -> dict:

@@ -39,7 +39,7 @@ jobs:
             --cov-report=term-missing \
             --cov-report=xml \
             --cov-report=html \
-            --cov-fail-under=70
+            --cov-fail-under=80
 
       - name: Upload coverage to Codecov
         if: matrix.python-version == '3.11'
@@ -125,7 +125,7 @@ jobs:
       - name: Run coverage check
         run: |
           coverage run -m pytest tests/
-          coverage report --fail-under=70
+          coverage report --fail-under=80
           coverage json
           COVERAGE=$(python -c "import json; print(json.load(open('coverage.json'))['totals']['percent_covered'])")
           echo "📊 Coverage: ${COVERAGE}%"

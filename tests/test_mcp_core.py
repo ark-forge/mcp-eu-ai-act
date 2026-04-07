@@ -216,13 +216,43 @@ class TestCheckCompliance:
         assert 0 <= pct <= 100
 
     def test_full_compliance_high_risk(self, tmp_project):
-        """All docs present → 100% compliance score."""
-        (tmp_project / "README.md").write_text("# Project")
-        (tmp_project / "RISK_MANAGEMENT.md").write_text("# Risk")
-        (tmp_project / "TRANSPARENCY.md").write_text("# Transparency")
-        (tmp_project / "DATA_GOVERNANCE.md").write_text("# Data")
-        (tmp_project / "HUMAN_OVERSIGHT.md").write_text("# Human")
-        (tmp_project / "ROBUSTNESS.md").write_text("# Robust")
+        """All docs present with substantive content → 100% compliance score."""
+        (tmp_project / "README.md").write_text("# Project\n\nThis project uses AI models for General Description and Architecture.")
+        (tmp_project / "TECHNICAL_DOCUMENTATION.md").write_text(
+            "# Technical Documentation\n\n## General Description\nSystem overview.\n\n"
+            "## Architecture\nThe architecture and training data are documented here.\n\n"
+            "## Training Data\nTraining data sources and performance metrics.\n"
+            "This document describes the architecture and performance in detail.\n" * 5
+        )
+        (tmp_project / "RISK_MANAGEMENT.md").write_text(
+            "# Risk Management\n\n## System Description\nAI risk system.\n\n"
+            "## Risk Identification\nAll risks are identified here.\n\n"
+            "## Risk Mitigation\nMitigation strategies for each risk.\n\n"
+            "The residual risk after mitigation is documented. Risk and mitigation reviewed regularly.\n" * 5
+        )
+        (tmp_project / "TRANSPARENCY.md").write_text(
+            "# Transparency\n\n## System Description\nAI system overview.\n\n"
+            "## Capabilities and Limitations\nCapabilities and deployer instructions.\n\n"
+            "## Human Oversight Instructions\nTransparency requirements and instructions for deployer oversight.\n" * 5
+        )
+        (tmp_project / "DATA_GOVERNANCE.md").write_text(
+            "# Data Governance\n\n## Data Sources\nData source description.\n\n"
+            "## Data Quality Criteria\nQuality criteria and preprocessing steps.\n\n"
+            "## Data Preprocessing\nPreprocessing pipeline documentation.\n"
+            "Data source quality and preprocessing details.\n" * 5
+        )
+        (tmp_project / "HUMAN_OVERSIGHT.md").write_text(
+            "# Human Oversight\n\n## Oversight Mechanism\nHuman oversight process.\n\n"
+            "## Responsible Persons\nNamed persons responsible for oversight.\n\n"
+            "## Intervention Mechanisms\nOverride and intervention mechanisms.\n"
+            "Human oversight and override procedures are documented here.\n" * 5
+        )
+        (tmp_project / "ROBUSTNESS.md").write_text(
+            "# Robustness\n\n## Accuracy\nAccuracy metrics and benchmarks.\n\n"
+            "## Robustness Testing\nRobustness and adversarial testing results.\n\n"
+            "## Cybersecurity\nCybersecurity measures.\n"
+            "Accuracy and robustness adversarial testing documented here.\n" * 5
+        )
         checker = EUAIActChecker(str(tmp_project))
         result = checker.check_compliance("high")
         assert result["compliance_percentage"] == 100.0

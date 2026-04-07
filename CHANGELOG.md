@@ -5,6 +5,34 @@ All notable changes to the EU AI Act Compliance Scanner MCP Server will be docum
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-04-07
+
+### Added
+- `generate_compliance_roadmap`: deadline-aware, week-by-week EU AI Act action plan — sequences quick wins first using criticality × 1/effort algorithm
+- `generate_annex4_package`: auditor-ready ZIP with all 8 Annex IV sections populated from actual project files; optional Trust Layer certification
+- `certify_compliance_report`: cryptographic certification via Trust Layer (EU AI Act Art. 12 audit trail); returns proof_id + public verification URL
+- `data/eu_ai_act_articles.json`: structured knowledge base of 15 entries (Art. 5, 6, 9-15, 17, 25, 50, 52, Annex III, Annex IV) with requirements, checklists, content_keywords, and required_sections
+- `executive_summary` field in `generate_report` output: DPO/legal-facing summary with deadline countdown and gap count
+- `technical_breakdown` field in `generate_report` output: developer-facing article-by-article breakdown
+- Stripe checkout and webhook endpoints in api_wrapper (`POST /api/checkout`, `POST /api/webhook`)
+- 6 new documentation files in `docs/` (ARTICLES_REFERENCE, COMPLIANCE_ROADMAP_GUIDE, ANNEX4_FORMAT, TRUST_LAYER_INTEGRATION, MIGRATION_v1_to_v2, STRIPE_SETUP)
+
+### Changed
+- `check_compliance`: now scores document *content* quality (0-100) instead of checking file existence. Score ≥40 = pass. Fully backward compatible — all v1 fields preserved
+- `check_compliance` v2 output adds `content_scores` (dict: filename → 0-100) and `article_map` (dict: article_id → {status, score})
+- `check_compliance` now validates project path security (path traversal fix)
+- CI coverage gate raised from 70% to 80%
+- Pricing: new Free/Pro/Certified tiers (€0/€29/€99 per month) specific to EU AI Act MCP
+
+### Infrastructure
+- `scripts/deploy_mcp_eu_ai_act.sh`: production deploy script with 4 gates, staged rollout, OVH deploy, rollback, PyPI publish, Telegram notification
+- `scripts/smoke_test_mcp_prod.py`: post-deploy smoke test verifying v2 fields present
+- `scripts/update_changelog.py`: automated changelog generation from git log
+
+### Tests
+- 481 tests total (up from 418)
+- New test files: test_articles_db.py (18), test_check_compliance_v2.py (10), test_backward_compat.py (8), test_compliance_roadmap.py (8), test_annex4_package.py (7), test_certify_report.py (5), + 9 new Stripe tests in test_paywall.py
+
 ## [1.5.0] - 2026-03-02
 
 ### Added

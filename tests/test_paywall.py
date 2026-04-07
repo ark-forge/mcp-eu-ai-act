@@ -1,16 +1,20 @@
 """Tests for paywall components (ApiKeyManager, RateLimiter, middleware helpers).
 
 Covers: ApiKeyManager, RateLimiter, _get_header, _extract_api_key, MCPServer legacy.
+Also covers Stripe checkout and webhook endpoints in api_wrapper/main.py.
 """
 
 import json
 import time
+import hmac
+import hashlib
 import pytest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent / "api_wrapper"))
 
 from server import (
     ApiKeyManager,
@@ -358,3 +362,218 @@ class TestMCPServerLegacy:
             "risk_category": "minimal"
         })
         assert result["results"]["templates_count"] == 0
+
+
+# ============================================================
+# Tests: Stripe endpoints in api_wrapper/main.py
+# ============================================================
+
+def _make_stripe_sig(secret: str, payload: bytes, timestamp: str = "1234567890") -> str:
+    """Helper: generate a valid Stripe-Signature header value."""
+    signed = f"{timestamp}.{payload.decode('utf-8')}"
+    sig = hmac.new(secret.encode(), signed.encode(), hashlib.sha256).hexdigest()
+    return f"t={timestamp},v1={sig}"
+
+
+@pytest.fixture
+def stripe_client(tmp_path):
+    """FastAPI TestClient with the api_wrapper app, isolating data to tmp_path."""
+    from fastapi.testclient import TestClient
+    import api_wrapper.main as main_mod
+
+    # Patch data dirs so tests don't touch prod files
+    orig_data_dir = main_mod._DATA_DIR
+    main_mod._DATA_DIR = tmp_path
+    main_mod._RATE_LIMITS_FILE = tmp_path / "wrapper_rate_limits.json"
+    main_mod._API_KEYS_FILE = tmp_path / "api_keys.json"
+
+    client = TestClient(main_mod.app, raise_server_exceptions=False)
+    yield client
+
+    main_mod._DATA_DIR = orig_data_dir
+
+
+class TestStripeCheckout:
+
+    def test_checkout_no_stripe_key(self, stripe_client):
+        """503 when STRIPE_SECRET_KEY is not set."""
+        with patch.dict("os.environ", {}, clear=True):
+            # Remove key if present
+            import os
+            os.environ.pop("STRIPE_SECRET_KEY", None)
+            resp = stripe_client.post(
+                "/api/checkout",
+                json={"plan": "pro", "email": "user@example.com"},
+            )
+        assert resp.status_code == 503
+        assert "error" in resp.json().get("detail", resp.json())
+
+    def test_checkout_invalid_plan(self, stripe_client):
+        """400 for unrecognized plan."""
+        with patch.dict("os.environ", {"STRIPE_SECRET_KEY": "sk_test_fake"}):
+            resp = stripe_client.post(
+                "/api/checkout",
+                json={"plan": "invalid", "email": "user@example.com"},
+            )
+        assert resp.status_code == 400
+        detail = resp.json().get("detail", resp.json())
+        assert "invalid" in str(detail).lower() or "plan" in str(detail).lower()
+
+    def test_checkout_missing_price_env(self, stripe_client):
+        """503 when STRIPE_PRICE_PRO is not configured."""
+        env = {
+            "STRIPE_SECRET_KEY": "sk_test_fake",
+            # STRIPE_PRICE_PRO intentionally absent
+        }
+        import os
+        os.environ.pop("STRIPE_PRICE_PRO", None)
+        with patch.dict("os.environ", env, clear=False):
+            os.environ.pop("STRIPE_PRICE_PRO", None)
+            resp = stripe_client.post(
+                "/api/checkout",
+                json={"plan": "pro", "email": "user@example.com"},
+            )
+        assert resp.status_code == 503
+
+    def test_checkout_calls_stripe_api(self, stripe_client):
+        """Returns checkout_url and session_id from Stripe response."""
+        fake_session = {
+            "id": "cs_test_abc123",
+            "url": "https://checkout.stripe.com/pay/cs_test_abc123",
+        }
+
+        import urllib.request as urllib_req
+        from io import BytesIO
+
+        class FakeResponse:
+            def read(self):
+                return json.dumps(fake_session).encode()
+            def __enter__(self):
+                return self
+            def __exit__(self, *a):
+                pass
+
+        env = {
+            "STRIPE_SECRET_KEY": "sk_test_fake",
+            "STRIPE_PRICE_PRO": "price_pro_abc",
+        }
+        with patch.dict("os.environ", env), \
+             patch("urllib.request.urlopen", return_value=FakeResponse()):
+            resp = stripe_client.post(
+                "/api/checkout",
+                json={"plan": "pro", "email": "user@example.com"},
+            )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["checkout_url"] == fake_session["url"]
+        assert data["session_id"] == fake_session["id"]
+
+
+class TestStripeWebhook:
+
+    def test_webhook_no_secret(self, stripe_client):
+        """503 when STRIPE_WEBHOOK_SECRET is not set."""
+        import os
+        os.environ.pop("STRIPE_WEBHOOK_SECRET", None)
+        with patch.dict("os.environ", {}, clear=False):
+            os.environ.pop("STRIPE_WEBHOOK_SECRET", None)
+            resp = stripe_client.post(
+                "/api/webhook",
+                content=b'{"type":"checkout.session.completed"}',
+                headers={"stripe-signature": "t=123,v1=abc"},
+            )
+        assert resp.status_code == 503
+
+    def test_webhook_invalid_signature(self, stripe_client):
+        """400 for bad signature."""
+        payload = b'{"type":"checkout.session.completed"}'
+        with patch.dict("os.environ", {"STRIPE_WEBHOOK_SECRET": "whsec_real"}):
+            resp = stripe_client.post(
+                "/api/webhook",
+                content=payload,
+                headers={"stripe-signature": "t=123,v1=invalidsignature"},
+            )
+        assert resp.status_code == 400
+        detail = resp.json().get("detail", resp.json())
+        assert "signature" in str(detail).lower() or "invalid" in str(detail).lower()
+
+    def test_webhook_checkout_completed_registers_key(self, stripe_client, tmp_path):
+        """Valid webhook for checkout.session.completed registers an API key."""
+        import api_wrapper.main as main_mod
+
+        secret = "whsec_test_secret"
+        event = {
+            "type": "checkout.session.completed",
+            "data": {
+                "object": {
+                    "customer_email": "buyer@example.com",
+                    "metadata": {"plan": "pro", "email": "buyer@example.com"},
+                }
+            },
+        }
+        payload = json.dumps(event).encode()
+        sig_header = _make_stripe_sig(secret, payload)
+
+        # Use a fresh ApiKeyManager pointing to tmp_path
+        from server import ApiKeyManager
+        data_dir = tmp_path / "data"
+        data_dir.mkdir(exist_ok=True)
+        test_mgr = ApiKeyManager(
+            path=tmp_path / "keys.json",
+            data_path=data_dir / "api_keys.json",
+        )
+
+        with patch.dict("os.environ", {"STRIPE_WEBHOOK_SECRET": secret}), \
+             patch.object(main_mod, "_api_key_manager", test_mgr):
+            resp = stripe_client.post(
+                "/api/webhook",
+                content=payload,
+                headers={"stripe-signature": sig_header, "content-type": "application/json"},
+            )
+
+        assert resp.status_code == 200
+        assert resp.json().get("received") is True
+
+        # Verify the key was registered
+        result = test_mgr.verify(
+            next(iter(test_mgr._keys)) if test_mgr._keys else ""
+        )
+        # At minimum, a key must have been created in the manager's store
+        assert len(test_mgr._keys) > 0
+        first_key = next(iter(test_mgr._keys.values()))
+        assert first_key.get("email") == "buyer@example.com"
+        assert first_key.get("plan") == "pro"
+
+    def test_webhook_subscription_deleted_returns_ok(self, stripe_client):
+        """customer.subscription.deleted returns 200 without crashing."""
+        secret = "whsec_test_secret"
+        event = {
+            "type": "customer.subscription.deleted",
+            "data": {"object": {"customer": "cus_abc123"}},
+        }
+        payload = json.dumps(event).encode()
+        sig_header = _make_stripe_sig(secret, payload)
+
+        with patch.dict("os.environ", {"STRIPE_WEBHOOK_SECRET": secret}):
+            resp = stripe_client.post(
+                "/api/webhook",
+                content=payload,
+                headers={"stripe-signature": sig_header},
+            )
+        assert resp.status_code == 200
+        assert resp.json().get("received") is True
+
+    def test_webhook_unknown_event_returns_ok(self, stripe_client):
+        """Unknown event types return 200."""
+        secret = "whsec_test_secret"
+        event = {"type": "payment_intent.succeeded", "data": {"object": {}}}
+        payload = json.dumps(event).encode()
+        sig_header = _make_stripe_sig(secret, payload)
+
+        with patch.dict("os.environ", {"STRIPE_WEBHOOK_SECRET": secret}):
+            resp = stripe_client.post(
+                "/api/webhook",
+                content=payload,
+                headers={"stripe-signature": sig_header},
+            )
+        assert resp.status_code == 200
