@@ -215,6 +215,47 @@ _rate_limiter = RateLimiter()
 # Context variable: remaining scans for the current request (set by middleware, read by _add_banner)
 _scan_remaining: contextvars.ContextVar = contextvars.ContextVar('scan_remaining', default=None)
 
+# Context variable: current plan for the request ('free', 'pro', 'certified', 'marketplace')
+_current_plan: contextvars.ContextVar = contextvars.ContextVar('current_plan', default='free')
+
+
+def _require_plan(min_plan: str, tool_name: str) -> Optional[dict]:
+    """Return a friendly upgrade message if the current plan is insufficient, None if OK."""
+    order = {"free": 0, "pro": 1, "paid_scan": 1, "marketplace": 1, "certified": 2}
+    current = _current_plan.get()
+    if order.get(current, 0) >= order.get(min_plan, 0):
+        return None
+
+    _TOOL_INFO = {
+        "generate_compliance_roadmap": {
+            "plan": "pro", "price": "€29/month",
+            "teaser": "You'd get a week-by-week action plan prioritized by legal criticality × effort, deadline-aware for August 2, 2026.",
+        },
+        "generate_annex4_package": {
+            "plan": "pro", "price": "€29/month",
+            "teaser": "You'd get an auditor-ready ZIP with all 8 official Annex IV sections and a SHA-256 manifest.",
+        },
+        "certify_compliance_report": {
+            "plan": "certified", "price": "€99/month",
+            "teaser": "You'd get an Ed25519-signed report with an RFC 3161 timestamp and a public verification URL for auditors.",
+        },
+    }
+    info = _TOOL_INFO.get(tool_name, {"plan": min_plan, "price": "", "teaser": ""})
+    plan_label = info["plan"].capitalize()
+    return {
+        "upgrade_required": True,
+        "tool": tool_name,
+        "required_plan": info["plan"],
+        "current_plan": current,
+        "message": (
+            f"{tool_name} is a {plan_label} feature ({info['price']}). "
+            f"{info['teaser']}"
+        ),
+        "how_to_unlock": "Add your API key via the X-Api-Key header when connecting to the MCP server.",
+        "upgrade_url": "https://mcp.arkforge.tech/en/pricing.html",
+        "get_key": "https://mcp.arkforge.tech/en/pricing.html",
+    }
+
 # --- Scan history logging (shared with paywall_api.py) ---
 _SCAN_HISTORY_PATH = Path(__file__).parent / "data" / "scan_history.json"
 
@@ -426,11 +467,12 @@ class RateLimitMiddleware:
             api_key = _extract_api_key(scope)
             if api_key:
                 key_info = _api_key_manager.verify(api_key)
-                if key_info and key_info["plan"] == "pro":
-                    # Track scan for Pro user
+                if key_info and key_info["plan"] in ("pro", "paid_scan", "marketplace", "certified"):
+                    # Track scan for paid user
                     _api_key_manager.increment_scans(api_key)
                     _record_mcp_scan(api_key, ip, tool_name)
-                    # Pro user: skip rate limiting, pass through
+                    _current_plan.set(key_info["plan"])
+                    # Paid user: skip rate limiting, pass through
                     body_sent = False
 
                     async def receive_bypass():
@@ -459,6 +501,7 @@ class RateLimitMiddleware:
             # Free tier scan allowed — log it and expose remaining count to banner
             _record_mcp_scan(None, ip, tool_name)
             _scan_remaining.set(remaining)
+            _current_plan.set("free")
 
         # Replay buffered body to the app
         body_sent = False
@@ -2235,6 +2278,10 @@ def create_server():
             risk_category: EU AI Act risk category (unacceptable, high, limited, minimal)
             deadline: Target compliance deadline (ISO date, default: 2026-08-02 enforcement date)
         """
+        gate = _require_plan("pro", "generate_compliance_roadmap")
+        if gate:
+            return gate
+
         is_safe, error_msg = _validate_project_path(project_path)
         if not is_safe:
             return {"error": error_msg}
@@ -2369,6 +2416,10 @@ def create_server():
             sign_with_trust_layer: If True, certify the package via Trust Layer (requires trust_layer_key)
             trust_layer_key: ArkForge Trust Layer API key (required if sign_with_trust_layer=True)
         """
+        gate = _require_plan("pro", "generate_annex4_package")
+        if gate:
+            return gate
+
         import hashlib
         import zipfile
         import io
@@ -2528,6 +2579,10 @@ def create_server():
             report_data: JSON string of the compliance report or any compliance data to certify
             trust_layer_key: Your ArkForge Trust Layer API key (get one at arkforge.tech/en/pricing.html)
         """
+        gate = _require_plan("certified", "certify_compliance_report")
+        if gate:
+            return gate
+
         if not trust_layer_key or not trust_layer_key.strip():
             return {
                 "error": "trust_layer_key is required. Get your free API key at https://arkforge.tech/en/pricing.html",

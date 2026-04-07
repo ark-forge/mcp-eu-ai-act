@@ -6,7 +6,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from server import RateLimiter
+from server import RateLimiter, _current_plan
 
 
 @pytest.fixture(autouse=True)
@@ -20,3 +20,15 @@ def isolate_rate_limiter_persistence(tmp_path):
     RateLimiter._PERSIST_PATH = tmp_path / "mcp_rate_limits.json"
     yield
     RateLimiter._PERSIST_PATH = original_path
+
+
+@pytest.fixture(autouse=True)
+def set_certified_plan():
+    """Set plan to 'certified' for all tests so paywall gates don't block tool tests.
+
+    Tests that specifically test the paywall behavior should override this by
+    setting _current_plan.set('free') at the start of the test.
+    """
+    token = _current_plan.set("certified")
+    yield
+    _current_plan.reset(token)
