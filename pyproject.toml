@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "mcp-eu-ai-act"
+name = "eu-ai-act-scanner"
 version = "2.0.0"
 description = "MCP Server to verify EU AI Act compliance for AI projects"
 readme = "README.md"
