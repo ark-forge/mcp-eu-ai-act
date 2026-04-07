@@ -273,8 +273,22 @@ tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
 """)
 
         (self.project_path / "docs" / "TRANSPARENCY.md").write_text("""
-# Transparency Documentation
-This system uses AI models from HuggingFace.
+# Transparency Documentation — EU AI Act Art. 52
+
+## AI Disclosure
+This system uses artificial intelligence (HuggingFace BERT).
+AI models: bert-base-uncased. Disclosure provided before first user interaction.
+
+## User Notification
+Users are informed before interaction via UI notice and documentation.
+A visible notice is displayed at the start of every session.
+
+## AI-Generated Content Labeling
+All AI-generated outputs are labeled [AI-generated] in metadata and visible labels.
+Generated content is marked to distinguish it from human-authored content.
+
+## Contact
+Questions about this AI system: contact@example.com
 """)
 
         scan_result = self.server.handle_request("scan_project", {

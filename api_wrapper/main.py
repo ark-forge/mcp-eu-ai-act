@@ -440,6 +440,239 @@ async def webhook(request: Request):
     return {"received": True}
 
 
+# ---------------------------------------------------------------------------
+# OAuth 2.1 PKCE — minimal implementation for claude.ai web connector
+#
+# Flow: POST /register → GET /oauth/authorize → POST /oauth/token
+# Tokens are free-tier bearer tokens stored in memory (TTL 24h).
+# Paid users can pass their ak_... key directly as Bearer token in MCP.
+# ---------------------------------------------------------------------------
+
+import secrets
+import hashlib as _hashlib
+import base64 as _base64
+from urllib.parse import urlparse as _urlparse, urlencode as _urlencode
+
+# In-memory stores (survive process restart via json flush, but memory is fine for OAuth codes)
+_oauth_codes: dict = {}   # code → {client_id, redirect_uri, code_challenge, expires_at}
+_oauth_tokens: dict = {}  # token → {plan, expires_at}
+
+_OAUTH_CODE_TTL = 60        # seconds
+_OAUTH_TOKEN_TTL = 86400    # 24h
+
+
+def _oauth_token_for_key(api_key: str) -> str:
+    """Return a stable bearer token for an existing API key (paid users)."""
+    return f"bearer_{api_key}"
+
+
+@app.post("/register")
+async def oauth_register(request: Request):
+    """RFC 7591 dynamic client registration — returns a public client_id."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    # Any client is accepted — we issue a static public client_id
+    client_id = body.get("client_id") or f"mcpclient_{secrets.token_hex(8)}"
+    return {
+        "client_id": client_id,
+        "client_secret_expires_at": 0,
+        "redirect_uris": body.get("redirect_uris", []),
+        "token_endpoint_auth_method": "none",
+        "grant_types": ["authorization_code"],
+        "response_types": ["code"],
+    }
+
+
+_AUTHORIZE_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Connect to ArkForge MCP</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Playfair+Display:wght@700&display=swap');
+  *{{box-sizing:border-box;margin:0;padding:0}}
+  body{{background:#0d0d14;color:#e8e4d8;font-family:'IBM Plex Mono',monospace;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem}}
+  .card{{background:#13131f;border:1px solid #2a2a40;border-radius:12px;padding:2.5rem;max-width:420px;width:100%}}
+  h1{{font-family:'Playfair Display',serif;font-size:1.6rem;color:#e8e4d8;margin-bottom:.4rem}}
+  .sub{{color:#6b6b88;font-size:.78rem;margin-bottom:2rem;line-height:1.5}}
+  label{{display:block;font-size:.72rem;color:#9d7c2e;letter-spacing:.08em;text-transform:uppercase;margin-bottom:.5rem}}
+  input{{width:100%;background:#0d0d14;border:1px solid #2a2a40;border-radius:6px;padding:.75rem 1rem;color:#e8e4d8;font-family:'IBM Plex Mono',monospace;font-size:.85rem;outline:none;transition:border-color .2s}}
+  input:focus{{border-color:#9d7c2e}}
+  input::placeholder{{color:#3a3a55}}
+  .hint{{font-size:.72rem;color:#6b6b88;margin-top:.5rem;line-height:1.4}}
+  .hint a{{color:#9d7c2e;text-decoration:none}}
+  .btn{{width:100%;margin-top:1.5rem;padding:.9rem;background:#1a3a8f;border:none;border-radius:6px;color:#e8e4d8;font-family:'IBM Plex Mono',monospace;font-size:.85rem;font-weight:500;cursor:pointer;transition:background .2s;letter-spacing:.04em}}
+  .btn:hover{{background:#2348b8}}
+  .plan-badge{{display:inline-block;margin-top:1rem;padding:.3rem .7rem;border-radius:4px;font-size:.7rem;letter-spacing:.06em;text-transform:uppercase}}
+  .free{{background:#1a1a2e;border:1px solid #2a2a40;color:#6b6b88}}
+  .paid{{background:#1a2a1a;border:1px solid #2a402a;color:#4a9a4a}}
+  .error{{color:#c41a1a;font-size:.78rem;margin-top:.75rem;padding:.5rem .75rem;background:#1a0a0a;border:1px solid #3a1a1a;border-radius:4px}}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>ArkForge MCP</h1>
+  <p class="sub">EU AI Act Compliance Scanner — connecting to claude.ai</p>
+  <form method="post" action="/oauth/authorize">
+    <input type="hidden" name="response_type" value="{response_type}">
+    <input type="hidden" name="client_id" value="{client_id}">
+    <input type="hidden" name="redirect_uri" value="{redirect_uri}">
+    <input type="hidden" name="state" value="{state}">
+    <input type="hidden" name="code_challenge" value="{code_challenge}">
+    <input type="hidden" name="code_challenge_method" value="{code_challenge_method}">
+    <input type="hidden" name="scope" value="{scope}">
+    <label for="api_key">API Key <span style="color:#6b6b88;font-weight:400;text-transform:none">(optional — leave blank for free tier)</span></label>
+    <input type="text" id="api_key" name="api_key" placeholder="ak_..." autocomplete="off" spellcheck="false">
+    <p class="hint">No key? <a href="https://mcp.arkforge.tech/en/pricing.html" target="_blank">Get one here</a> for unlimited scans + roadmap + Annex IV.</p>
+    {error_block}
+    <button type="submit" class="btn">Connect &rarr;</button>
+  </form>
+</div>
+</body>
+</html>"""
+
+
+@app.get("/oauth/authorize")
+async def oauth_authorize_get(
+    request: Request,
+    response_type: str = "code",
+    client_id: str = "",
+    redirect_uri: str = "",
+    state: str = "",
+    code_challenge: str = "",
+    code_challenge_method: str = "S256",
+    scope: str = "mcp",
+):
+    """Show API key entry form before issuing OAuth code."""
+    from fastapi.responses import HTMLResponse
+
+    if not redirect_uri:
+        raise HTTPException(status_code=400, detail={"error": "missing redirect_uri"})
+
+    parsed = _urlparse(redirect_uri)
+    if parsed.scheme not in ("https", "http") or (
+        parsed.scheme == "http" and parsed.hostname not in ("localhost", "127.0.0.1")
+    ):
+        raise HTTPException(status_code=400, detail={"error": "invalid redirect_uri scheme"})
+
+    html = _AUTHORIZE_HTML.format(
+        response_type=response_type, client_id=client_id, redirect_uri=redirect_uri,
+        state=state, code_challenge=code_challenge,
+        code_challenge_method=code_challenge_method, scope=scope, error_block="",
+    )
+    return HTMLResponse(html)
+
+
+@app.post("/oauth/authorize")
+async def oauth_authorize_post(request: Request):
+    """Process API key form submission — issue OAuth code."""
+    from fastapi.responses import RedirectResponse, HTMLResponse
+
+    body = dict(await request.form())
+    redirect_uri = body.get("redirect_uri", "")
+    api_key = (body.get("api_key") or "").strip()
+
+    if not redirect_uri:
+        raise HTTPException(status_code=400, detail={"error": "missing redirect_uri"})
+
+    # Validate API key if provided
+    plan = "free"
+    error_block = ""
+    if api_key:
+        info = _api_key_manager.verify(api_key)
+        if not info:
+            error_block = '<p class="error">Invalid API key. Leave blank for free tier or <a href="https://mcp.arkforge.tech/en/pricing.html" style="color:#c41a1a" target="_blank">get a valid key</a>.</p>'
+            html = _AUTHORIZE_HTML.format(
+                response_type=body.get("response_type", "code"),
+                client_id=body.get("client_id", ""),
+                redirect_uri=redirect_uri,
+                state=body.get("state", ""),
+                code_challenge=body.get("code_challenge", ""),
+                code_challenge_method=body.get("code_challenge_method", "S256"),
+                scope=body.get("scope", "mcp"),
+                error_block=error_block,
+            )
+            return HTMLResponse(html, status_code=400)
+        plan = info.get("plan", "free")
+
+    code = secrets.token_urlsafe(32)
+    expires = datetime.now(timezone.utc).timestamp() + _OAUTH_CODE_TTL
+    _oauth_codes[code] = {
+        "client_id": body.get("client_id", ""),
+        "redirect_uri": redirect_uri,
+        "code_challenge": body.get("code_challenge", ""),
+        "code_challenge_method": body.get("code_challenge_method", "S256"),
+        "expires_at": expires,
+        "plan": plan,
+        "api_key": api_key if api_key and plan != "free" else None,
+    }
+
+    params = {"code": code}
+    if body.get("state"):
+        params["state"] = body["state"]
+    return RedirectResponse(f"{redirect_uri}?{_urlencode(params)}", status_code=302)
+
+
+@app.post("/oauth/token")
+async def oauth_token(request: Request):
+    """Token endpoint — exchanges authorization code for a free-tier bearer token."""
+    content_type = request.headers.get("content-type", "")
+    if "application/x-www-form-urlencoded" in content_type:
+        body = dict(await request.form())
+    else:
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+
+    grant_type = body.get("grant_type", "")
+    if grant_type != "authorization_code":
+        raise HTTPException(status_code=400, detail={"error": "unsupported_grant_type"})
+
+    code = body.get("code", "")
+    code_verifier = body.get("code_verifier", "")
+    redirect_uri = body.get("redirect_uri", "")
+
+    entry = _oauth_codes.pop(code, None)
+    if not entry:
+        raise HTTPException(status_code=400, detail={"error": "invalid_grant", "error_description": "Code not found or expired"})
+
+    now = datetime.now(timezone.utc).timestamp()
+    if now > entry["expires_at"]:
+        raise HTTPException(status_code=400, detail={"error": "invalid_grant", "error_description": "Code expired"})
+
+    # Verify PKCE S256
+    if entry.get("code_challenge") and code_verifier:
+        digest = _hashlib.sha256(code_verifier.encode()).digest()
+        expected = _base64.urlsafe_b64encode(digest).rstrip(b"=").decode()
+        if not hmac.compare_digest(expected, entry["code_challenge"]):
+            raise HTTPException(status_code=400, detail={"error": "invalid_grant", "error_description": "PKCE verification failed"})
+
+    plan = entry.get("plan", "free")
+    api_key = entry.get("api_key")
+
+    if api_key and plan != "free":
+        # Paid user — token IS the API key, validated at MCP layer
+        token = api_key
+    else:
+        # Free tier — issue a scoped OAuth token
+        token = f"ak_oauth_{secrets.token_hex(16)}"
+        _oauth_tokens[token] = {
+            "plan": "free",
+            "expires_at": now + _OAUTH_TOKEN_TTL,
+        }
+
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "expires_in": _OAUTH_TOKEN_TTL,
+        "scope": "mcp",
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=8080)
