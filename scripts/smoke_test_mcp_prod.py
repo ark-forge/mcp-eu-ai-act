@@ -2,17 +2,17 @@
 """
 smoke_test_mcp_prod.py — Smoke tests for the deployed MCP EU AI Act API.
 
-Runs against the local api_wrapper service (default: http://127.0.0.1:8103).
+Runs against the local api_wrapper service (default: http://127.0.0.1:8200).
 
 Tests:
-  1. GET /health  → 200, JSON with `status` field
-  2. POST /scan   → 200, has `detected_models` or `ai_files` key
-  3. POST /scan   → response contains `content_scores` key (v2 deployment check)
+  1. GET /health              → 200, JSON with `status` field
+  2. POST /scan               → 200, has `scan.detected_models` or `scan.ai_files` key
+  3. POST /scan (v2 check)    → response contains `compliance.compliance_percentage` field
 
 Exit 0 if all tests pass, exit 1 on any failure.
 
 Usage:
-    python3 scripts/smoke_test_mcp_prod.py [--base-url http://127.0.0.1:8103]
+    python3 scripts/smoke_test_mcp_prod.py [--base-url http://127.0.0.1:8200]
 """
 
 import argparse
@@ -25,8 +25,9 @@ PASS = "PASS"
 FAIL = "FAIL"
 
 SCAN_PAYLOAD = json.dumps({
-    "code": "import openai\nclient = openai.OpenAI()",
-    "system_description": "chatbot",
+    "text": "import openai\nclient = openai.OpenAI()",
+    "risk_category": "limited",
+    "context": "chatbot for customer support",
 }).encode("utf-8")
 
 
@@ -88,39 +89,35 @@ def run_tests(base_url: str) -> bool:
         all_passed = False
 
     # ------------------------------------------------------------------
-    # Test 2: POST /scan → 200, has `detected_models` or `ai_files` key
+    # Test 2: POST /scan → 200, has scan.detected_models or scan.ai_files
     # ------------------------------------------------------------------
-    print(f"\n[Test 2] POST {base_url}/scan (detected_models or ai_files)")
+    print(f"\n[Test 2] POST {base_url}/scan (scan.detected_models or scan.ai_files)")
     code, body = http_post(f"{base_url}/scan", SCAN_PAYLOAD)
+    scan_obj = body.get("scan", {}) if isinstance(body, dict) else {}
     if code == 200 and isinstance(body, dict) and \
-            ("detected_models" in body or "ai_files" in body):
-        found_key = "detected_models" if "detected_models" in body else "ai_files"
-        print(f"  {PASS} — HTTP {code}, key={found_key!r} present")
+            ("detected_models" in scan_obj or "ai_files" in scan_obj):
+        found_key = "detected_models" if "detected_models" in scan_obj else "ai_files"
+        print(f"  {PASS} — HTTP {code}, scan.{found_key!r} present")
         results.append(True)
     else:
         print(f"  {FAIL} — HTTP {code}, body keys={list(body.keys()) if isinstance(body, dict) else body!r}")
-        print("  Expected: HTTP 200 with 'detected_models' or 'ai_files' key")
+        print("  Expected: HTTP 200 with scan.detected_models or scan.ai_files key")
         results.append(False)
         all_passed = False
 
     # ------------------------------------------------------------------
-    # Test 3: POST /scan → `content_scores` key present (v2 check)
+    # Test 3: POST /scan → compliance.compliance_percentage present (v2)
     # ------------------------------------------------------------------
-    print(f"\n[Test 3] POST {base_url}/scan (content_scores — v2 deployment check)")
-    # Reuse the response from test 2 if we got one, otherwise re-request
-    if code == 200 and isinstance(body, dict):
-        scan_body = body
-        scan_code = code
-    else:
-        scan_code, scan_body = http_post(f"{base_url}/scan", SCAN_PAYLOAD)
-
-    if scan_code == 200 and isinstance(scan_body, dict) and "content_scores" in scan_body:
-        print(f"  {PASS} — HTTP {scan_code}, 'content_scores' key present (v2 confirmed)")
+    print(f"\n[Test 3] POST {base_url}/scan (compliance.compliance_percentage — v2 check)")
+    compliance_obj = body.get("compliance", {}) if isinstance(body, dict) else {}
+    if code == 200 and isinstance(body, dict) and "compliance_percentage" in compliance_obj:
+        pct = compliance_obj["compliance_percentage"]
+        print(f"  {PASS} — HTTP {code}, compliance_percentage={pct!r} (v2 confirmed)")
         results.append(True)
     else:
-        keys = list(scan_body.keys()) if isinstance(scan_body, dict) else scan_body
-        print(f"  {FAIL} — HTTP {scan_code}, 'content_scores' key NOT found. Keys: {keys!r}")
-        print("  Expected: v2 response with 'content_scores' field")
+        keys = list(body.keys()) if isinstance(body, dict) else body
+        print(f"  {FAIL} — HTTP {code}, compliance_percentage NOT found. Keys: {keys!r}")
+        print("  Expected: v2 response with compliance.compliance_percentage field")
         results.append(False)
         all_passed = False
 
@@ -144,7 +141,7 @@ def main():
     parser = argparse.ArgumentParser(description="Smoke tests for MCP EU AI Act API")
     parser.add_argument(
         "--base-url",
-        default="http://127.0.0.1:8103",
+        default="http://127.0.0.1:8200",
         help="Base URL of the api_wrapper service (default: http://127.0.0.1:8103)",
     )
     args = parser.parse_args()
