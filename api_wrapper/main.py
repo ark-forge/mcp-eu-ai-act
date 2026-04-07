@@ -30,7 +30,7 @@ from typing import Optional
 def _load_stripe_config() -> dict:
     """Load Stripe config from vault, falling back to environment variables."""
     try:
-        _vault_parent = str(Path(__file__).resolve().parent.parent.parent.parent)
+        _vault_parent = str(Path(__file__).resolve().parent.parent.parent.parent.parent)
         if _vault_parent not in sys.path:
             sys.path.insert(0, _vault_parent)
         from automation.vault import vault
@@ -38,7 +38,7 @@ def _load_stripe_config() -> dict:
         mode = s.get('mode', 'live')
         return {
             'secret_key': s.get('live_secret_key') if mode == 'live' else s.get('test_secret_key'),
-            'webhook_secret': s.get('webhook_secret') if mode == 'live' else s.get('webhook_secret_test'),
+            'webhook_secret': s.get('mcp_webhook_secret') if mode == 'live' else s.get('webhook_secret_test'),
             'price_pro': s.get('mcp_pro_price_id'),
             'price_certified': s.get('mcp_certified_price_id'),
         }
