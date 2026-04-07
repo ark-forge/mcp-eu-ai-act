@@ -41,7 +41,7 @@ UPSELL_BLOCK = f"""
   29 EUR/month — Start now:
   {PRICING_URL}
 
-  Questions? contact@arkforge.fr
+  Questions? contact@arkforge.tech
 ================================================================================
 """
 

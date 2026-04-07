@@ -64,5 +64,5 @@ These terms may be updated from time to time. The effective date at the top of t
 
 For questions about these terms or the software:
 - Website: https://mcp.arkforge.tech
-- Email: contact@arkforge.fr
+- Email: contact@arkforge.tech
 - GitHub: https://github.com/ark-forge/mcp-eu-ai-act

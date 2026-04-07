@@ -167,7 +167,7 @@ pip install -r requirements.txt
 ## Support
 
 - Issues: [github.com/ark-forge/mcp-eu-ai-act/issues](https://github.com/ark-forge/mcp-eu-ai-act/issues)
-- Email: contact@arkforge.fr
+- Email: contact@arkforge.tech
 
 ---
 
