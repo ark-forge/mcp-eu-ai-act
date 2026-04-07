@@ -29,6 +29,7 @@ SERVICE_API="arkforge-euaiact-api"
 LOCAL_HEALTH_URL="http://127.0.0.1:8200/health"
 OVH_HOST="ubuntu@51.91.99.178"
 OVH_REPO="/opt/claude-ceo/workspace/mcp-servers/eu-ai-act"
+OVH_ENABLED=false  # MCP EU AI Act runs on local server only (not OVH)
 LOG_FILE="/opt/claude-ceo/logs/deploy_mcp_eu_ai_act.log"
 SMOKE_TEST_SCRIPT="$REPO_DIR/scripts/smoke_test_mcp_prod.py"
 
@@ -323,14 +324,9 @@ fi
 # ============================================================
 log "--- Phase 4: Deploy OVH ($OVH_HOST) ---"
 
-# Sync vault secrets before deploy
-VAULT_FILE="/opt/claude-ceo/config/vault.json.enc"
-rsync -az --no-group -e "ssh -o ConnectTimeout=10" "$VAULT_FILE" "${OVH_HOST}:${VAULT_FILE}" \
-    >> "$LOG_FILE" 2>&1 \
-    && log "Phase 4: vault synced to OVH" \
-    || log "WARN: vault sync failed (non-blocking)"
-
-if ssh -o ConnectTimeout=10 "$OVH_HOST" \
+if [ "$OVH_ENABLED" = false ]; then
+    log "Phase 4: SKIPPED — MCP EU AI Act runs on local server only (OVH_ENABLED=false)"
+elif ssh -o ConnectTimeout=10 "$OVH_HOST" \
     "cd ${OVH_REPO} && git pull origin main && \
      sudo systemctl restart mcp-eu-ai-act arkforge-euaiact-api" \
     >> "$LOG_FILE" 2>&1; then
@@ -342,9 +338,14 @@ else
 fi
 
 # Health check OVH × 6 × 5s
+if [ "$OVH_ENABLED" = false ]; then log "Phase 4 health: SKIPPED (OVH_ENABLED=false)"; fi
 log "Health check OVH: $LOCAL_HEALTH_URL (6 attempts × 5s)..."
+OVH_HEALTHY=true  # Skip OVH health check if not enabled
+if [ "$OVH_ENABLED" = true ]; then
 OVH_HEALTHY=false
+fi
 for i in $(seq 1 6); do
+if [ "$OVH_ENABLED" = false ]; then break; fi
     sleep 5
     OVH_STATUS=$(curl -s --max-time 5 "$LOCAL_HEALTH_URL" | python3 -c "
 import sys, json
