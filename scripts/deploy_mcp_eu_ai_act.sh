@@ -26,7 +26,7 @@ set -euo pipefail
 REPO_DIR="/opt/claude-ceo/workspace/mcp-servers/eu-ai-act"
 SERVICE_MCP="mcp-eu-ai-act"
 SERVICE_API="arkforge-euaiact-api"
-LOCAL_HEALTH_URL="http://127.0.0.1:8103/health"
+LOCAL_HEALTH_URL="http://127.0.0.1:8200/health"
 OVH_HOST="ubuntu@51.91.99.178"
 OVH_REPO="/opt/claude-ceo/workspace/mcp-servers/eu-ai-act"
 LOG_FILE="/opt/claude-ceo/logs/deploy_mcp_eu_ai_act.log"
@@ -283,27 +283,20 @@ if [ "$LOCAL_HEALTHY" = false ]; then
 fi
 log "Phase 3b OK — local healthy"
 
-# Phase 3c — canary: verify content_scores key (v2 check)
-log "--- Phase 3c: Canary v2 check (content_scores) ---"
+# Phase 3c — canary: verify v2 fields in /scan response
+log "--- Phase 3c: Canary v2 check (compliance_percentage) ---"
 CANARY_OK=true
-CANARY_RESP=$(curl -s --max-time 10 -X POST "$LOCAL_HEALTH_URL/../scan" \
+CANARY_RESP=$(curl -s --max-time 10 -X POST "http://127.0.0.1:8200/scan" \
     -H "Content-Type: application/json" \
-    -d '{"code": "import openai\nclient = openai.OpenAI()", "system_description": "chatbot"}' \
+    -d '{"text": "import openai", "risk_category": "limited"}' \
     2>/dev/null || echo "")
-
-# Also try the api_wrapper endpoint
-if [ -z "$CANARY_RESP" ]; then
-    CANARY_RESP=$(curl -s --max-time 10 -X POST "http://127.0.0.1:8103/scan" \
-        -H "Content-Type: application/json" \
-        -d '{"code": "import openai\nclient = openai.OpenAI()", "system_description": "chatbot"}' \
-        2>/dev/null || echo "")
-fi
 
 CANARY_V2=$(echo "$CANARY_RESP" | python3 -c "
 import sys, json
 try:
     d = json.load(sys.stdin)
-    print('ok' if 'content_scores' in d else 'missing')
+    has_v2 = 'compliance' in d and 'compliance_percentage' in d.get('compliance', {})
+    print('ok' if has_v2 else 'missing')
 except:
     print('error')
 " 2>/dev/null || echo "error")
@@ -405,7 +398,7 @@ else
     else
         SMOKE_LOG="$LOG_FILE.smoke"
         if python3 "$SMOKE_TEST_SCRIPT" \
-               --base-url "http://127.0.0.1:8103" \
+               --base-url "http://127.0.0.1:8200" \
                2>&1 | tee -a "$SMOKE_LOG" | tail -6; then
             log "Phase 5: Smoke test PASSED"
             SMOKE_RESULT="PASSED"
