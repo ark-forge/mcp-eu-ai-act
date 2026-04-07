@@ -26,6 +26,33 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Optional
 
+# --- Vault loader (graceful fallback to env vars) ---
+def _load_stripe_config() -> dict:
+    """Load Stripe config from vault, falling back to environment variables."""
+    try:
+        _vault_parent = str(Path(__file__).resolve().parent.parent.parent.parent)
+        if _vault_parent not in sys.path:
+            sys.path.insert(0, _vault_parent)
+        from automation.vault import vault
+        s = vault.get_section('stripe') or {}
+        mode = s.get('mode', 'live')
+        return {
+            'secret_key': s.get('live_secret_key') if mode == 'live' else s.get('test_secret_key'),
+            'webhook_secret': s.get('webhook_secret') if mode == 'live' else s.get('webhook_secret_test'),
+            'price_pro': s.get('mcp_pro_price_id'),
+            'price_certified': s.get('mcp_certified_price_id'),
+        }
+    except Exception:
+        # Fallback to environment variables
+        return {
+            'secret_key': os.environ.get('STRIPE_SECRET_KEY'),
+            'webhook_secret': os.environ.get('STRIPE_WEBHOOK_SECRET'),
+            'price_pro': os.environ.get('STRIPE_PRICE_PRO'),
+            'price_certified': os.environ.get('STRIPE_PRICE_CERTIFIED'),
+        }
+
+_STRIPE = _load_stripe_config()
+
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
 
@@ -274,7 +301,7 @@ def scan(req: ScanRequest, request: Request):
 @app.post("/api/checkout")
 async def checkout(request: Request):
     """Create a Stripe Checkout Session for pro or certified plan."""
-    stripe_secret = os.environ.get("STRIPE_SECRET_KEY")
+    stripe_secret = _STRIPE.get('secret_key')
     if not stripe_secret:
         raise HTTPException(status_code=503, detail={"error": "Stripe not configured"})
 
@@ -293,9 +320,9 @@ async def checkout(request: Request):
         )
 
     if plan == "pro":
-        price_id = os.environ.get("STRIPE_PRICE_PRO", "")
+        price_id = _STRIPE.get('price_pro', '')
     else:
-        price_id = os.environ.get("STRIPE_PRICE_CERTIFIED", "")
+        price_id = _STRIPE.get('price_certified', '')
 
     if not price_id:
         raise HTTPException(
@@ -350,7 +377,7 @@ async def checkout(request: Request):
 @app.post("/api/webhook")
 async def webhook(request: Request):
     """Handle Stripe webhook events."""
-    webhook_secret = os.environ.get("STRIPE_WEBHOOK_SECRET")
+    webhook_secret = _STRIPE.get('webhook_secret')
     if not webhook_secret:
         raise HTTPException(status_code=503, detail={"error": "Stripe webhook not configured"})
 
