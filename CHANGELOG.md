@@ -100,3 +100,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CI/CD pipeline with GitHub Actions
 - Smithery deployment configuration
 - Docker support
+
+## [2.0.4] — 2026-04-07
+
+### Security
+- remove files leaking internal infra paths (issue #10)
+- fix X-Forwarded-For spoofing + bind 127.0.0.1 (pentest 2026-03-17)
+- hook pre-commit détection secrets
+- replace safety with pip-audit in security-scan job
+
+### Added
+- plan-gated access on paid MCP tools
+- migrate MCP endpoint to mcp.arkforge.tech
+- EU AI Act MCP v2.0.0 — compliance roadmap + Annex IV package + Trust Layer certification
+- add Trust Layer CTA near top of README for GitHub visitors
+- contextual Trust Layer CTA in Python server output
+- add Trust Layer CTA to all scan/compliance outputs
+- contextual upgrade CTA + SSE transport guidance
+
+### Fixed
+- correct payload fields + check compliance_percentage (v2)
+- OVH_ENABLED=false — MCP runs on local server only
+- correct port 8103→8200 + canary check field compliance_percentage
+- repair failing test + OAuth PKCE flow for claude.ai web
+- migrate all public emails arkforge.fr → arkforge.tech
+- vault path + mcp_webhook_secret key in api_wrapper
+- read config from vault instead of env vars + fix test mocks
+- replace dead arkforge.fr/fr/pricing with arkforge.tech/en/pricing
+- enable json_response mode to fix 406 for non-SSE clients
+- add marketplace_api.py entry point — stop systemd crash loop
+- allow mcp.arkforge.fr host header — fix 421 Misdirected Request
+- remove orphaned test_marketplace_api.py after marketplace_api.py removal
+- update Trust Layer CTA URL from arkforge.fr to arkforge.tech, README API URL to trust.arkforge.tech
+- supprimer référence résiduelle INTERNAL_SECRET dans __main__
+- /api/v1/scan-repo public + TOCTOU-safe scan cleanup
+
+### Documentation
+- add CONTRIBUTING.md + remove internal files from root
+
+### Internal
+- rename package eu-ai-act-scanner + bump to v2.0.0
+- add eu_ai_act_articles.json knowledge base (force-add, excluded from .gitignore)
+- add glama.json for Glama MCP directory listing
+- migrate GitHub Actions to Node.js 22 runtime
+- make PyPI publish failure visible — remove silent continue-on-error
+
+---
