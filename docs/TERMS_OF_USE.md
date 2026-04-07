@@ -1,7 +1,7 @@
 # Terms of Use - EU AI Act Compliance Checker
 
 **Effective Date:** February 2026
-**Provider:** ArkForge (https://mcp.arkforge.fr)
+**Provider:** ArkForge (https://mcp.arkforge.tech)
 
 ## 1. Service Description
 
@@ -63,6 +63,6 @@ These terms may be updated from time to time. The effective date at the top of t
 ## 10. Contact
 
 For questions about these terms or the software:
-- Website: https://mcp.arkforge.fr
+- Website: https://mcp.arkforge.tech
 - Email: contact@arkforge.fr
 - GitHub: https://github.com/ark-forge/mcp-eu-ai-act

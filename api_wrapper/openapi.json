@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "EU AI Act Compliance Scanner API",
-    "description": "Scan source code or project descriptions for AI framework usage and check EU AI Act regulatory compliance. Powered by ArkForge \u2014 https://mcp.arkforge.fr",
+    "description": "Scan source code or project descriptions for AI framework usage and check EU AI Act regulatory compliance. Powered by ArkForge \u2014 https://mcp.arkforge.tech",
     "version": "1.0.0"
   },
   "paths": {

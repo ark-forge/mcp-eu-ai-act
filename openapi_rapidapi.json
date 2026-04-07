@@ -347,7 +347,7 @@
   },
   "servers": [
     {
-      "url": "https://mcp.arkforge.fr/api",
+      "url": "https://mcp.arkforge.tech/api",
       "description": "Production"
     },
     {

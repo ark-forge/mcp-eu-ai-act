@@ -2067,7 +2067,7 @@ def create_server():
         port=8090,
         json_response=True,
         transport_security=TransportSecuritySettings(
-            allowed_hosts=["mcp.arkforge.fr", "arkforge.tech", "127.0.0.1:8090", "localhost:8090"],
+            allowed_hosts=["mcp.arkforge.tech", "arkforge.tech", "127.0.0.1:8090", "localhost:8090"],
         ),
     )
 

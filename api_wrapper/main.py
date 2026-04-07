@@ -143,7 +143,7 @@ app = FastAPI(
     description=(
         "Scan source code or project descriptions for AI framework usage "
         "and check EU AI Act regulatory compliance. "
-        "Powered by ArkForge — https://mcp.arkforge.fr"
+        "Powered by ArkForge — https://mcp.arkforge.tech"
     ),
     version="1.0.0",
     docs_url="/docs",
