@@ -1,0 +1,448 @@
+{
+  "version": "2.0.0",
+  "last_updated": "2026-04-07",
+  "regulation": "EU AI Act (Regulation 2024/1689)",
+  "enforcement_deadline": "2026-08-02",
+  "articles": [
+    {
+      "article": "5",
+      "title": "Prohibited AI practices",
+      "applies_to": ["unacceptable"],
+      "stakeholder": ["provider", "deployer"],
+      "summary": "Article 5 prohibits AI systems that pose unacceptable risks to fundamental rights and safety. These practices are banned outright and cannot be made compliant — systems falling under these categories must be redesigned or discontinued before the August 2026 enforcement date.",
+      "requirements": [
+        "Prohibit AI systems that deploy subliminal techniques beyond a person's consciousness to materially distort their behaviour causing harm",
+        "Prohibit AI systems that exploit vulnerabilities of specific groups (age, disability) to distort behaviour causing harm",
+        "Prohibit AI systems used by public authorities for social scoring leading to detrimental treatment",
+        "Prohibit real-time remote biometric identification systems in publicly accessible spaces for law enforcement (with narrow exceptions)"
+      ],
+      "checklist": [
+        {"item": "Audit all AI systems to verify none engage in subliminal or manipulative behavioral distortion", "doc_filename": "PROHIBITED_PRACTICES_AUDIT.md", "required": true},
+        {"item": "Confirm no AI system exploits vulnerabilities of protected groups to cause harm", "doc_filename": "PROHIBITED_PRACTICES_AUDIT.md", "required": true},
+        {"item": "Confirm no AI system used for public social scoring leading to detrimental or unfavorable treatment", "doc_filename": "PROHIBITED_PRACTICES_AUDIT.md", "required": true},
+        {"item": "Confirm no real-time remote biometric identification deployed in public spaces (or document applicable law enforcement exception with prior authorisation)", "doc_filename": "PROHIBITED_PRACTICES_AUDIT.md", "required": true},
+        {"item": "Document decision to discontinue or redesign any system that cannot comply", "doc_filename": "PROHIBITED_PRACTICES_AUDIT.md", "required": true}
+      ],
+      "effort_days": 0,
+      "deadline_critical": true,
+      "template_available": true,
+      "content_keywords": ["prohibited", "manipulation", "social scoring", "biometric", "subliminal", "exploitation"],
+      "required_sections": ["Prohibited Practice Identification", "System Audit Results", "Remediation Plan"],
+      "eur_lex_ref": "Article 5"
+    },
+    {
+      "article": "6",
+      "title": "Classification rules for high-risk AI systems",
+      "applies_to": ["high"],
+      "stakeholder": ["provider"],
+      "summary": "Article 6 establishes the classification criteria for high-risk AI systems. An AI system is high-risk if it falls within Annex III or if it constitutes a safety component of a product covered by EU harmonisation legislation listed in Annex I. Providers must perform this classification before placing the system on the market.",
+      "requirements": [
+        "Determine whether the AI system is a safety component of a product covered by Annex I Union harmonisation legislation",
+        "Determine whether the AI system falls within one of the eight categories listed in Annex III",
+        "Document the classification outcome and reasoning in the technical documentation",
+        "Apply all Chapter III Section 2 obligations if the system is classified as high-risk"
+      ],
+      "checklist": [
+        {"item": "Review Annex I Union harmonisation legislation list and assess whether system is a safety component", "doc_filename": "CLASSIFICATION_ASSESSMENT.md", "required": true},
+        {"item": "Review Annex III eight high-risk categories and assess applicability to the system", "doc_filename": "CLASSIFICATION_ASSESSMENT.md", "required": true},
+        {"item": "Document classification decision with legal and factual justification", "doc_filename": "CLASSIFICATION_ASSESSMENT.md", "required": true},
+        {"item": "If not high-risk, document the self-assessment reasoning for the classification", "doc_filename": "CLASSIFICATION_ASSESSMENT.md", "required": true},
+        {"item": "Re-assess classification upon any significant modification to the AI system", "doc_filename": "CLASSIFICATION_ASSESSMENT.md", "required": true}
+      ],
+      "effort_days": 3,
+      "deadline_critical": true,
+      "template_available": true,
+      "content_keywords": ["high-risk", "classification", "Annex I", "Annex III", "safety component", "harmonisation"],
+      "required_sections": ["System Description", "Annex I Assessment", "Annex III Assessment", "Classification Decision", "Review Trigger Conditions"],
+      "eur_lex_ref": "Article 6"
+    },
+    {
+      "article": "9",
+      "title": "Risk management system",
+      "applies_to": ["high"],
+      "stakeholder": ["provider"],
+      "summary": "Article 9 requires providers of high-risk AI systems to establish, implement, document and maintain a risk management system throughout the entire lifecycle. The system must follow a continuous iterative process to identify, analyse, evaluate and mitigate reasonably foreseeable risks, including those arising from misuse.",
+      "requirements": [
+        "Establish and document a continuous risk management process covering the full AI system lifecycle",
+        "Identify and analyse known and reasonably foreseeable risks to health, safety and fundamental rights",
+        "Estimate and evaluate risks that may emerge from intended use and reasonably foreseeable misuse",
+        "Adopt suitable risk mitigation and control measures giving precedence to design-and-development measures",
+        "Test the AI system to ensure it consistently performs as intended and risks are effectively controlled",
+        "Document residual risks and ensure deployers are informed of them via instructions for use",
+        "Review and update the risk management system post-market"
+      ],
+      "checklist": [
+        {"item": "Establish documented risk management process covering full lifecycle", "doc_filename": "RISK_MANAGEMENT.md", "required": true},
+        {"item": "Identify and document all known risks to health, safety and fundamental rights", "doc_filename": "RISK_MANAGEMENT.md", "required": true},
+        {"item": "Analyse risks from intended use and reasonably foreseeable misuse scenarios", "doc_filename": "RISK_MANAGEMENT.md", "required": true},
+        {"item": "Define and implement mitigation and control measures, prioritising design-stage measures", "doc_filename": "RISK_MANAGEMENT.md", "required": true},
+        {"item": "Document residual risks after mitigation and communicate them to deployers", "doc_filename": "RISK_MANAGEMENT.md", "required": true},
+        {"item": "Conduct and document pre-market validation testing", "doc_filename": "RISK_MANAGEMENT.md", "required": true},
+        {"item": "Establish review and update schedule for post-market risk monitoring", "doc_filename": "RISK_MANAGEMENT.md", "required": true}
+      ],
+      "effort_days": 10,
+      "deadline_critical": true,
+      "template_available": true,
+      "content_keywords": ["risk", "mitigation", "residual", "testing", "lifecycle", "foreseeable", "misuse"],
+      "required_sections": ["System Description", "Risk Identification", "Risk Mitigation", "Residual Risks", "Testing & Validation", "Review Schedule"],
+      "eur_lex_ref": "Article 9"
+    },
+    {
+      "article": "10",
+      "title": "Data and data governance",
+      "applies_to": ["high"],
+      "stakeholder": ["provider"],
+      "summary": "Article 10 sets requirements for training, validation and testing data used in high-risk AI systems. Data must be subject to governance practices ensuring relevance, representativeness and freedom from errors. Providers must document data sources, preprocessing steps, and bias assessment processes.",
+      "requirements": [
+        "Apply data governance and management practices to training, validation and testing datasets",
+        "Ensure training data is relevant, representative, accurate and complete for the intended purpose",
+        "Identify, document and address potential biases that could affect fundamental rights or lead to discrimination",
+        "Document data acquisition methods, preprocessing, labelling and data cleaning operations",
+        "Ensure data protection measures when personal data is processed, including data minimisation",
+        "Assess whether training data adequately covers the population and use-case distribution the system will encounter"
+      ],
+      "checklist": [
+        {"item": "Document all training, validation and testing data sources with provenance", "doc_filename": "DATA_GOVERNANCE.md", "required": true},
+        {"item": "Define and enforce data quality criteria (accuracy, completeness, representativeness)", "doc_filename": "DATA_GOVERNANCE.md", "required": true},
+        {"item": "Document data preprocessing steps including labelling, cleaning, and enrichment", "doc_filename": "DATA_GOVERNANCE.md", "required": true},
+        {"item": "Conduct and document bias assessment on training and validation datasets", "doc_filename": "DATA_GOVERNANCE.md", "required": true},
+        {"item": "Assess representativeness of data across affected population segments", "doc_filename": "DATA_GOVERNANCE.md", "required": true},
+        {"item": "Establish and document data retention and deletion policies", "doc_filename": "DATA_GOVERNANCE.md", "required": true},
+        {"item": "Document data protection measures where personal data is processed", "doc_filename": "DATA_GOVERNANCE.md", "required": true}
+      ],
+      "effort_days": 7,
+      "deadline_critical": true,
+      "template_available": true,
+      "content_keywords": ["data source", "quality", "preprocessing", "bias", "representativeness", "governance", "labelling"],
+      "required_sections": ["Data Sources", "Data Quality Criteria", "Data Preprocessing", "Data Retention", "Bias Assessment"],
+      "eur_lex_ref": "Article 10"
+    },
+    {
+      "article": "11",
+      "title": "Technical documentation",
+      "applies_to": ["high"],
+      "stakeholder": ["provider"],
+      "summary": "Article 11 requires providers of high-risk AI systems to draw up technical documentation before placing the system on the market. The documentation must be kept up to date and made available to national competent authorities and notified bodies on request. Its content is specified in Annex IV.",
+      "requirements": [
+        "Prepare technical documentation in accordance with Annex IV before placing the system on the market",
+        "Keep technical documentation up to date throughout the system lifecycle",
+        "Include a general description, system architecture, training data description, and performance metrics",
+        "Document intended purpose, limitations and foreseeable misuse",
+        "Document all changes made to the system throughout its lifecycle",
+        "Make technical documentation available to competent authorities and notified bodies upon request"
+      ],
+      "checklist": [
+        {"item": "Draft technical documentation covering all Annex IV sections before market placement", "doc_filename": "TECHNICAL_DOCUMENTATION.md", "required": true},
+        {"item": "Document general system description including intended purpose and foreseeable misuse", "doc_filename": "TECHNICAL_DOCUMENTATION.md", "required": true},
+        {"item": "Document system architecture including components, inputs, outputs and interfaces", "doc_filename": "TECHNICAL_DOCUMENTATION.md", "required": true},
+        {"item": "Document training data methodology and datasets used", "doc_filename": "TECHNICAL_DOCUMENTATION.md", "required": true},
+        {"item": "Document performance metrics and validation results", "doc_filename": "TECHNICAL_DOCUMENTATION.md", "required": true},
+        {"item": "Document known limitations and conditions under which system should not be used", "doc_filename": "TECHNICAL_DOCUMENTATION.md", "required": true},
+        {"item": "Maintain a changes log for all significant modifications post-deployment", "doc_filename": "TECHNICAL_DOCUMENTATION.md", "required": true}
+      ],
+      "effort_days": 5,
+      "deadline_critical": true,
+      "template_available": true,
+      "content_keywords": ["architecture", "training data", "performance", "limitations", "intended purpose", "Annex IV"],
+      "required_sections": ["General Description", "Architecture", "Training Data", "Performance Metrics", "Limitations", "Changes Log"],
+      "eur_lex_ref": "Article 11"
+    },
+    {
+      "article": "12",
+      "title": "Record-keeping",
+      "applies_to": ["high"],
+      "stakeholder": ["provider", "deployer"],
+      "summary": "Article 12 requires high-risk AI systems to automatically generate event logs enabling traceability of the system's operation throughout its lifecycle. Logging must be enabled by design and must allow auditing of decisions made with or by the system, particularly in cases affecting individuals.",
+      "requirements": [
+        "Enable automatic logging of events relevant to identifying risks and assessing conformity",
+        "Ensure logs capture system inputs, outputs, and decision points enabling full traceability",
+        "Retain logs for a period appropriate to the intended purpose and applicable law (minimum: operator duration or 6 months)",
+        "Ensure logs are protected against tampering and unauthorised access",
+        "Deployers must retain logs under their control for the applicable retention period",
+        "Logs must enable audit of decisions affecting individuals and post-incident review"
+      ],
+      "checklist": [
+        {"item": "Implement automatic event logging capturing inputs, outputs and decision points", "doc_filename": "LOGGING_POLICY.md", "required": true},
+        {"item": "Define log format ensuring structured, machine-readable output", "doc_filename": "LOGGING_POLICY.md", "required": true},
+        {"item": "Establish log retention schedule compliant with sector-specific requirements (minimum 6 months)", "doc_filename": "LOGGING_POLICY.md", "required": true},
+        {"item": "Implement access controls to protect logs against tampering and unauthorised access", "doc_filename": "LOGGING_POLICY.md", "required": true},
+        {"item": "Test logging system to confirm immutability and completeness of records", "doc_filename": "LOGGING_POLICY.md", "required": true},
+        {"item": "Document logging configuration in technical documentation and instructions for use", "doc_filename": "LOGGING_POLICY.md", "required": true}
+      ],
+      "effort_days": 4,
+      "deadline_critical": true,
+      "template_available": true,
+      "content_keywords": ["log", "audit", "trace", "retain", "immutable", "event", "traceability"],
+      "required_sections": ["Logging Configuration", "Log Format", "Log Retention", "Access Control"],
+      "eur_lex_ref": "Article 12"
+    },
+    {
+      "article": "13",
+      "title": "Transparency and provision of information to deployers",
+      "applies_to": ["high"],
+      "stakeholder": ["provider"],
+      "summary": "Article 13 requires high-risk AI systems to be sufficiently transparent that deployers can interpret the system's output and use it appropriately. Providers must supply instructions for use including the system's capabilities, limitations, performance metrics, and human oversight requirements.",
+      "requirements": [
+        "Ensure the AI system provides sufficient transparency for deployers to interpret outputs and use the system appropriately",
+        "Supply instructions for use covering system identity, capabilities, intended purpose and limitations",
+        "Include information on the level of accuracy, robustness and cybersecurity in the instructions",
+        "Describe human oversight measures including how to interpret and override system outputs",
+        "Provide information on foreseeable misuse, residual risks and maintenance requirements",
+        "Instructions must be in a language understood by deployers and presented in machine-readable format where applicable"
+      ],
+      "checklist": [
+        {"item": "Draft instructions for use covering all Article 13(3) required elements", "doc_filename": "TRANSPARENCY_NOTICE.md", "required": true},
+        {"item": "Describe system capabilities, intended purpose and validated use cases", "doc_filename": "TRANSPARENCY_NOTICE.md", "required": true},
+        {"item": "Document known limitations, contraindications and conditions for non-use", "doc_filename": "TRANSPARENCY_NOTICE.md", "required": true},
+        {"item": "Include human oversight instructions: how to interpret, validate and override outputs", "doc_filename": "TRANSPARENCY_NOTICE.md", "required": true},
+        {"item": "Include accuracy and performance metrics at system level and across relevant subgroups", "doc_filename": "TRANSPARENCY_NOTICE.md", "required": true},
+        {"item": "Provide maintenance and update instructions for deployers", "doc_filename": "TRANSPARENCY_NOTICE.md", "required": true}
+      ],
+      "effort_days": 3,
+      "deadline_critical": true,
+      "template_available": true,
+      "content_keywords": ["transparency", "instructions", "deployer", "limitations", "oversight", "capabilities"],
+      "required_sections": ["System Description", "Capabilities and Limitations", "Human Oversight Instructions", "Performance Metrics", "Maintenance Instructions"],
+      "eur_lex_ref": "Article 13"
+    },
+    {
+      "article": "14",
+      "title": "Human oversight",
+      "applies_to": ["high"],
+      "stakeholder": ["provider", "deployer"],
+      "summary": "Article 14 requires high-risk AI systems to be designed and developed in a way that enables effective human oversight during the period of use. Oversight measures must allow natural persons to monitor system operation, understand outputs, and intervene or override as needed.",
+      "requirements": [
+        "Design the AI system to allow effective oversight by natural persons during the period of use",
+        "Enable oversight persons to fully understand the capabilities and limitations of the AI system",
+        "Enable oversight persons to detect and address automation bias and over-reliance",
+        "Provide ability to disregard, override or reverse outputs of the AI system",
+        "Enable intervention or interruption of the system via a 'stop' mechanism if the system poses risks",
+        "Ensure oversight persons are identified, assigned and appropriately trained before deployment",
+        "Deployers must assign oversight responsibilities to competent natural persons"
+      ],
+      "checklist": [
+        {"item": "Identify and document designated human oversight roles with responsibilities", "doc_filename": "HUMAN_OVERSIGHT.md", "required": true},
+        {"item": "Implement mechanism to override or disregard AI system outputs at any time", "doc_filename": "HUMAN_OVERSIGHT.md", "required": true},
+        {"item": "Implement system interruption/stop mechanism for emergency situations", "doc_filename": "HUMAN_OVERSIGHT.md", "required": true},
+        {"item": "Document and test monitoring procedures including detection of automation bias", "doc_filename": "HUMAN_OVERSIGHT.md", "required": true},
+        {"item": "Develop and deliver training for oversight-responsible persons", "doc_filename": "HUMAN_OVERSIGHT.md", "required": true},
+        {"item": "Define escalation pathways when oversight persons detect anomalies or risks", "doc_filename": "HUMAN_OVERSIGHT.md", "required": true}
+      ],
+      "effort_days": 5,
+      "deadline_critical": true,
+      "template_available": true,
+      "content_keywords": ["oversight", "human", "override", "stop", "monitor", "escalation", "intervention", "automation bias"],
+      "required_sections": ["Oversight Mechanism", "Responsible Persons", "Intervention Mechanisms", "Monitoring", "Training"],
+      "eur_lex_ref": "Article 14"
+    },
+    {
+      "article": "15",
+      "title": "Accuracy, robustness and cybersecurity",
+      "applies_to": ["high"],
+      "stakeholder": ["provider"],
+      "summary": "Article 15 requires high-risk AI systems to achieve appropriate levels of accuracy, robustness and cybersecurity, and to perform consistently throughout their lifecycle. Providers must implement technical measures to protect against adversarial attacks, data poisoning, and model exploitation.",
+      "requirements": [
+        "Achieve and maintain declared accuracy levels throughout the system lifecycle",
+        "Implement measures to ensure resilience against attempts to alter system use or performance through adversarial techniques",
+        "Protect against model attacks including data poisoning, adversarial examples and model inversion",
+        "Define and implement fallback behaviour when system encounters inputs outside its intended scope",
+        "Ensure the system is resilient against errors, faults and inconsistencies in inputs",
+        "Implement cybersecurity measures proportionate to the risks and state of the art",
+        "Establish update and maintenance processes to preserve accuracy, robustness and security post-deployment"
+      ],
+      "checklist": [
+        {"item": "Define target accuracy metrics and acceptable thresholds per use case and subgroup", "doc_filename": "ACCURACY_ROBUSTNESS.md", "required": true},
+        {"item": "Conduct robustness testing including edge cases, out-of-distribution inputs and stress tests", "doc_filename": "ACCURACY_ROBUSTNESS.md", "required": true},
+        {"item": "Conduct adversarial testing and document protections against adversarial attacks", "doc_filename": "ACCURACY_ROBUSTNESS.md", "required": true},
+        {"item": "Define and test fallback behaviour for inputs outside intended operating scope", "doc_filename": "ACCURACY_ROBUSTNESS.md", "required": true},
+        {"item": "Implement and document cybersecurity measures (access controls, encryption, secure deployment)", "doc_filename": "ACCURACY_ROBUSTNESS.md", "required": true},
+        {"item": "Establish update and patching procedures to maintain security and accuracy post-market", "doc_filename": "ACCURACY_ROBUSTNESS.md", "required": true}
+      ],
+      "effort_days": 8,
+      "deadline_critical": true,
+      "template_available": true,
+      "content_keywords": ["accuracy", "robustness", "adversarial", "cybersecurity", "fallback", "validation", "resilience"],
+      "required_sections": ["Accuracy", "Robustness Testing", "Cybersecurity", "Fallback Behavior", "Update & Maintenance"],
+      "eur_lex_ref": "Article 15"
+    },
+    {
+      "article": "17",
+      "title": "Quality management system",
+      "applies_to": ["high"],
+      "stakeholder": ["provider"],
+      "summary": "Article 17 requires providers of high-risk AI systems to put in place a quality management system (QMS) ensuring compliance with the EU AI Act. The QMS must be documented, maintained and cover the full development and deployment lifecycle, including strategies, processes, procedures, roles and responsibilities.",
+      "requirements": [
+        "Establish and document a quality management system covering compliance with the EU AI Act",
+        "Define compliance strategy and procedures for design, development, testing, and post-market monitoring",
+        "Document roles, responsibilities and authority structures for compliance activities",
+        "Allocate adequate technical and human resources for quality management activities",
+        "Implement change management procedures for modifications to the AI system",
+        "Conduct internal audits at planned intervals to verify compliance",
+        "Implement corrective action procedures when non-conformities are identified"
+      ],
+      "checklist": [
+        {"item": "Establish and document the quality management system with defined scope", "doc_filename": "QUALITY_MANAGEMENT.md", "required": true},
+        {"item": "Document compliance strategy covering all applicable EU AI Act obligations", "doc_filename": "QUALITY_MANAGEMENT.md", "required": true},
+        {"item": "Define and assign roles and responsibilities for compliance activities", "doc_filename": "QUALITY_MANAGEMENT.md", "required": true},
+        {"item": "Document resource allocation for QMS activities (personnel, tools, budget)", "doc_filename": "QUALITY_MANAGEMENT.md", "required": true},
+        {"item": "Establish and follow internal audit schedule with documented outcomes", "doc_filename": "QUALITY_MANAGEMENT.md", "required": true},
+        {"item": "Implement and document corrective action procedure for non-conformities", "doc_filename": "QUALITY_MANAGEMENT.md", "required": true},
+        {"item": "Implement change management process for significant system modifications", "doc_filename": "QUALITY_MANAGEMENT.md", "required": true}
+      ],
+      "effort_days": 10,
+      "deadline_critical": true,
+      "template_available": true,
+      "content_keywords": ["quality", "procedure", "responsibility", "audit", "improvement", "QMS", "conformity", "corrective"],
+      "required_sections": ["Quality Policy", "Processes", "Responsibilities", "Resources", "Internal Audits", "Corrective Actions"],
+      "eur_lex_ref": "Article 17"
+    },
+    {
+      "article": "25",
+      "title": "Obligations of deployers of high-risk AI systems",
+      "applies_to": ["high"],
+      "stakeholder": ["deployer"],
+      "summary": "Article 25 sets out specific obligations for deployers of high-risk AI systems. Deployers must use systems in accordance with instructions, assign human oversight, implement input data governance, monitor operation, and report serious incidents to providers and national authorities.",
+      "requirements": [
+        "Use the AI system in accordance with the provider's instructions for use",
+        "Assign human oversight to natural persons with necessary competence, authority and resources",
+        "Ensure input data is relevant and sufficiently representative for the intended purpose",
+        "Monitor the operation of the AI system and report anomalies, malfunctions or serious incidents",
+        "Report serious incidents to the provider and national competent authorities",
+        "Conduct a fundamental rights impact assessment where required (public bodies and certain private entities)"
+      ],
+      "checklist": [
+        {"item": "Document the specific use case and verify it aligns with provider's intended purpose", "doc_filename": "DEPLOYER_OBLIGATIONS.md", "required": true},
+        {"item": "Assign and document natural person(s) responsible for human oversight with defined authority", "doc_filename": "DEPLOYER_OBLIGATIONS.md", "required": true},
+        {"item": "Implement and document input data governance including quality and representativeness checks", "doc_filename": "DEPLOYER_OBLIGATIONS.md", "required": true},
+        {"item": "Establish operational monitoring procedure and document monitoring outputs", "doc_filename": "DEPLOYER_OBLIGATIONS.md", "required": true},
+        {"item": "Establish incident reporting procedure for serious incidents to provider and authorities", "doc_filename": "DEPLOYER_OBLIGATIONS.md", "required": true},
+        {"item": "Assess and document whether a fundamental rights impact assessment is required", "doc_filename": "DEPLOYER_OBLIGATIONS.md", "required": true}
+      ],
+      "effort_days": 5,
+      "deadline_critical": true,
+      "template_available": true,
+      "content_keywords": ["deployer", "use case", "input data", "monitoring", "incident", "fundamental rights", "oversight"],
+      "required_sections": ["Use Case Description", "Data Input Documentation", "Human Oversight Assignment", "Incident Reporting"],
+      "eur_lex_ref": "Article 25"
+    },
+    {
+      "article": "50",
+      "title": "Transparency obligations for providers and deployers of certain AI systems",
+      "applies_to": ["limited", "high"],
+      "stakeholder": ["provider", "deployer"],
+      "summary": "Article 50 establishes transparency obligations for AI systems that interact with natural persons or generate synthetic content. It requires disclosure that users are interacting with an AI, and that AI-generated content (audio, video, images, text) is labelled as such. Applies to GPAI models and specific limited-risk systems.",
+      "requirements": [
+        "Disclose to users that they are interacting with an AI system, unless it is obvious from context",
+        "Label AI-generated audio, video, image and text content so it is detectable as AI-generated",
+        "Providers of GPAI models generating synthetic content must implement technical marking (watermarking) where technically feasible",
+        "Deployers using systems to generate or manipulate content must label that content as AI-generated",
+        "Disclosure must be made at the latest at the time of first interaction or before content is released"
+      ],
+      "checklist": [
+        {"item": "Implement user-facing disclosure that the system is an AI at point of first interaction", "doc_filename": "AI_DISCLOSURE.md", "required": true},
+        {"item": "Implement labelling or watermarking for AI-generated audio, image, video and text content", "doc_filename": "AI_DISCLOSURE.md", "required": true},
+        {"item": "For GPAI models: implement technical machine-readable content marking where feasible", "doc_filename": "AI_DISCLOSURE.md", "required": true},
+        {"item": "Document the disclosure and labelling mechanism and test its effectiveness", "doc_filename": "AI_DISCLOSURE.md", "required": true},
+        {"item": "Verify disclosure is presented in plain language understandable by target users", "doc_filename": "AI_DISCLOSURE.md", "required": true}
+      ],
+      "effort_days": 2,
+      "deadline_critical": false,
+      "template_available": true,
+      "content_keywords": ["disclosure", "label", "watermark", "synthetic", "AI-generated", "GPAI", "transparency"],
+      "required_sections": ["AI Disclosure", "Content Labeling", "Notification Method"],
+      "eur_lex_ref": "Article 50"
+    },
+    {
+      "article": "52",
+      "title": "Transparency obligations for certain AI systems (chatbots, deepfakes)",
+      "applies_to": ["limited"],
+      "stakeholder": ["provider", "deployer"],
+      "summary": "Article 52 addresses transparency obligations for limited-risk AI systems, specifically chatbots and systems generating deepfakes. Users must be informed they are interacting with an AI, and deepfake content must be clearly labelled. These obligations apply independently of any high-risk classification.",
+      "requirements": [
+        "Ensure AI chatbots and conversational agents inform users they are interacting with an AI unless obvious from context",
+        "Clearly label AI-generated or manipulated images, video and audio (deepfakes) as artificially generated",
+        "Disclosure must be given at the start of the first interaction or before content is presented",
+        "Exceptions apply where prior explicit consent is given or where the content serves authorised law enforcement purposes"
+      ],
+      "checklist": [
+        {"item": "Implement AI disclosure notice at the start of chatbot or conversational AI interactions", "doc_filename": "CHATBOT_TRANSPARENCY.md", "required": true},
+        {"item": "Implement visible and clear labelling on all deepfake or AI-manipulated audio/video/image content", "doc_filename": "CHATBOT_TRANSPARENCY.md", "required": true},
+        {"item": "Verify disclosure is prominent and cannot be easily missed or dismissed", "doc_filename": "CHATBOT_TRANSPARENCY.md", "required": true},
+        {"item": "Document any consent or exception conditions relied upon for reduced disclosure", "doc_filename": "CHATBOT_TRANSPARENCY.md", "required": true},
+        {"item": "Provide contact information enabling users to query AI-generated content status", "doc_filename": "CHATBOT_TRANSPARENCY.md", "required": true}
+      ],
+      "effort_days": 2,
+      "deadline_critical": false,
+      "template_available": true,
+      "content_keywords": ["AI", "artificial intelligence", "disclosure", "generated", "notice", "chatbot", "deepfake", "label"],
+      "required_sections": ["AI Disclosure", "User Notification", "AI-Generated Content Labeling", "Contact"],
+      "eur_lex_ref": "Article 52"
+    },
+    {
+      "article": "Annex III",
+      "title": "High-risk AI systems referred to in Article 6(2)",
+      "applies_to": ["high"],
+      "stakeholder": ["provider"],
+      "summary": "Annex III lists the eight categories of AI systems that are classified as high-risk under Article 6(2). Providers must assess whether their system falls into one of these categories as part of the Article 6 classification process. The list may be amended by the Commission via delegated acts.",
+      "requirements": [
+        "Category 1 — Biometrics: remote biometric identification systems and biometric categorisation systems",
+        "Category 2 — Critical infrastructure: safety components in management of critical digital, road, rail, water, energy infrastructure",
+        "Category 3 — Education and vocational training: systems for access, admission and assessment determining educational outcomes",
+        "Category 4 — Employment and workers management: recruitment, selection, performance evaluation, promotion and termination decisions",
+        "Category 5 — Essential private and public services: creditworthiness assessment, life/health insurance risk assessment, emergency service dispatch, social benefit eligibility",
+        "Category 6 — Law enforcement: risk assessment of individuals for criminal offences, polygraphs, crime analytics profiling, evidence evaluation",
+        "Category 7 — Migration, asylum and border control: risk assessment of migrants, examination of applications, border surveillance",
+        "Category 8 — Administration of justice and democratic processes: AI assisting courts in research and decisions affecting legal rights"
+      ],
+      "checklist": [
+        {"item": "Assess system against Category 1 (Biometrics) — document outcome", "doc_filename": "ANNEX_III_ASSESSMENT.md", "required": true},
+        {"item": "Assess system against Category 2 (Critical Infrastructure) — document outcome", "doc_filename": "ANNEX_III_ASSESSMENT.md", "required": true},
+        {"item": "Assess system against Category 3 (Education and Vocational Training) — document outcome", "doc_filename": "ANNEX_III_ASSESSMENT.md", "required": true},
+        {"item": "Assess system against Category 4 (Employment and Workers Management) — document outcome", "doc_filename": "ANNEX_III_ASSESSMENT.md", "required": true},
+        {"item": "Assess system against Category 5 (Essential Private and Public Services) — document outcome", "doc_filename": "ANNEX_III_ASSESSMENT.md", "required": true},
+        {"item": "Assess system against Category 6 (Law Enforcement) — document outcome", "doc_filename": "ANNEX_III_ASSESSMENT.md", "required": true},
+        {"item": "Assess system against Category 7 (Migration, Asylum, Border Control) — document outcome", "doc_filename": "ANNEX_III_ASSESSMENT.md", "required": true},
+        {"item": "Assess system against Category 8 (Administration of Justice) — document outcome", "doc_filename": "ANNEX_III_ASSESSMENT.md", "required": true}
+      ],
+      "effort_days": 1,
+      "deadline_critical": true,
+      "template_available": true,
+      "content_keywords": ["biometrics", "critical infrastructure", "education", "employment", "essential services", "law enforcement", "migration", "justice"],
+      "required_sections": ["Category Assessment Matrix", "High-Risk Determination", "Justification"],
+      "eur_lex_ref": "Annex III"
+    },
+    {
+      "article": "Annex IV",
+      "title": "Technical documentation referred to in Article 11(1)",
+      "applies_to": ["high"],
+      "stakeholder": ["provider"],
+      "summary": "Annex IV specifies the mandatory content for technical documentation required under Article 11. The documentation must be compiled before market placement and kept up to date. It is the primary evidence base for conformity assessment and must be made available to competent authorities and notified bodies on request.",
+      "requirements": [
+        "Section 1 — General description of the AI system: intended purpose, system version, hardware/software requirements, instructions for use",
+        "Section 2 — Description of elements and development process: design, development and training methods, architecture, data used, training and testing methodologies",
+        "Section 3 — Detailed information on monitoring, functioning and control: capabilities and limitations, accuracy levels, known biases, foreseeable unintended outcomes and circumstances in which the system may fail",
+        "Section 4 — Description of appropriateness of performance metrics: metrics used to measure accuracy, robustness, safety and non-discrimination, with justification for chosen metrics",
+        "Section 5 — Description of known and foreseeable circumstances leading to risks: including risks to health, safety and fundamental rights, with mitigating measures",
+        "Section 6 — Description of changes made throughout the lifecycle: post-deployment changes, modifications, updates and their impact on conformity",
+        "Section 7 — List of harmonised standards applied: reference to harmonised standards or common specifications applied in whole or in part, and solutions adopted to satisfy requirements",
+        "Section 8 — Copy of the EU declaration of conformity referred to in Article 47"
+      ],
+      "checklist": [
+        {"item": "Draft Section 1: General description including intended purpose and system versions", "doc_filename": "ANNEX_IV_DOCUMENTATION.md", "required": true},
+        {"item": "Draft Section 2: Development process description including architecture and training methodology", "doc_filename": "ANNEX_IV_DOCUMENTATION.md", "required": true},
+        {"item": "Draft Section 3: Monitoring, functioning and control with capabilities and known limitations", "doc_filename": "ANNEX_IV_DOCUMENTATION.md", "required": true},
+        {"item": "Draft Section 4: Performance metrics with justification for chosen measurement approach", "doc_filename": "ANNEX_IV_DOCUMENTATION.md", "required": true},
+        {"item": "Draft Section 5: Risk circumstances including foreseeable failure modes and mitigations", "doc_filename": "ANNEX_IV_DOCUMENTATION.md", "required": true},
+        {"item": "Draft Section 6: Lifecycle changes log covering all post-deployment modifications", "doc_filename": "ANNEX_IV_DOCUMENTATION.md", "required": true},
+        {"item": "Draft Section 7: List of harmonised standards and common specifications applied", "doc_filename": "ANNEX_IV_DOCUMENTATION.md", "required": true},
+        {"item": "Attach or reference Section 8: EU declaration of conformity (Article 47)", "doc_filename": "ANNEX_IV_DOCUMENTATION.md", "required": true}
+      ],
+      "effort_days": 5,
+      "deadline_critical": true,
+      "template_available": true,
+      "content_keywords": ["architecture", "development process", "performance metrics", "lifecycle", "conformity", "harmonised standards", "declaration"],
+      "required_sections": ["General Description", "Development Process", "Monitoring and Control", "Performance Metrics", "Risk Circumstances", "Lifecycle Changes", "Harmonised Standards", "EU Declaration of Conformity"],
+      "eur_lex_ref": "Annex IV"
+    }
+  ]
+}
