@@ -34,6 +34,7 @@ from server import (
     RateLimiter,
     RateLimitMiddleware,
     _add_banner,
+    _current_plan,
     _extract_api_key,
     _get_header,
     _validate_project_path,
@@ -872,11 +873,27 @@ class TestMiscellaneous:
     """Tests for _add_banner, constants, and create_server."""
 
     def test_add_banner(self):
-        """_add_banner adds the upgrade key."""
-        result = _add_banner({"data": 1})
-        assert "upgrade" in result
-        assert "Pro" in result["upgrade"]
-        assert result["data"] == 1
+        """_add_banner adds the upgrade key and upgrade_url for free tier."""
+        token = _current_plan.set("free")
+        try:
+            result = _add_banner({"data": 1})
+    
+            assert "Pro" in result["upgrade"]
+            assert result["data"] == 1
+            assert "upgrade_url" in result
+            assert "pricing.html" in result["upgrade_url"]
+        finally:
+            _current_plan.reset(token)
+
+    def test_add_banner_pro_no_upgrade(self):
+        """_add_banner skips upgrade fields for pro users."""
+        token = _current_plan.set("pro")
+        try:
+            result = _add_banner({"data": 1})
+            assert "upgrade" not in result
+            assert "upgrade_url" not in result
+        finally:
+            _current_plan.reset(token)
 
     def test_all_16_frameworks_in_patterns(self):
         """All 16 expected frameworks exist in both pattern dicts."""
@@ -1345,7 +1362,7 @@ class TestMCPToolWrappers:
         (tmp_project / "app.py").write_text("import openai")
         result = self._call_tool(mcp, "scan_project", {"project_path": str(tmp_project)})
         assert "openai" in result["detected_models"]
-        assert "upgrade" in result  # banner added
+        # banner fields tested in TestMiscellaneous
 
     def test_scan_project_blocked_path(self, mcp):
         """scan_project rejects blocked paths."""
@@ -1363,7 +1380,7 @@ class TestMCPToolWrappers:
         })
         assert result["risk_category"] == "limited"
         assert "compliance_score" in result
-        assert "upgrade" in result
+
 
     def test_check_compliance_blocked_path(self, mcp):
         """check_compliance rejects blocked paths."""
@@ -1385,7 +1402,7 @@ class TestMCPToolWrappers:
         })
         assert "report_date" in result
         assert "recommendations" in result
-        assert "upgrade" in result
+
 
     def test_suggest_risk_category_tool(self, mcp):
         """suggest_risk_category MCP tool returns suggestion with banner."""
@@ -1393,7 +1410,7 @@ class TestMCPToolWrappers:
             "system_description": "chatbot for customer support"
         })
         assert result["suggested_category"] == "limited"
-        assert "upgrade" in result
+
 
     def test_generate_compliance_templates_tool(self, mcp):
         """generate_compliance_templates MCP tool returns templates."""
@@ -1438,7 +1455,7 @@ class TestMCPToolWrappers:
         """gdpr_scan_project MCP tool works and adds banner."""
         (tmp_project / "app.py").write_text("email = user.email\nname = user.first_name")
         result = self._call_tool(mcp, "gdpr_scan_project", {"project_path": str(tmp_project)})
-        assert "upgrade" in result
+
 
     def test_gdpr_scan_blocked_path(self, mcp):
         """gdpr_scan_project rejects blocked paths."""
@@ -1451,7 +1468,7 @@ class TestMCPToolWrappers:
             "project_path": str(tmp_project),
             "processing_role": "controller",
         })
-        assert "upgrade" in result
+
 
     def test_gdpr_generate_report_tool(self, mcp, tmp_project):
         """gdpr_generate_report MCP tool returns report."""
@@ -1459,7 +1476,7 @@ class TestMCPToolWrappers:
             "project_path": str(tmp_project),
             "processing_role": "controller",
         })
-        assert "upgrade" in result
+
 
     def test_gdpr_generate_templates_tool(self, mcp):
         """gdpr_generate_templates MCP tool returns templates."""

@@ -1930,10 +1930,26 @@ FREE_TIER_BANNER = "Free tier: 10 scans/day — Pro: unlimited scans + CI/CD API
 TRUST_LAYER_CTA = "Certify your AI compliance with ArkForge Trust Layer — cryptographic proof for every audit. 500 free proofs/month → https://arkforge.tech/trust?utm_source=mcp"
 TRUST_LAYER_CTA_RISK = "Your system has compliance gaps. Certify each fix with ArkForge Trust Layer — tamper-proof, timestamped compliance proofs. 500 free proofs/month → https://arkforge.tech/trust?utm_source=mcp"
 _PRICING_URL = "https://arkforge.tech/en/pricing.html?utm_source=pypi"
+_SCAN_CTA_PRICING_URL = "https://arkforge.tech/en/pricing.html?utm_source=mcp_scan_cta"
+SCAN_RESULT_TRUST_LAYER_CTA = (
+    "AI models detected. Trust Layer adds a certification layer on top of this scan: "
+    "cryptographic proof that your compliance posture was audited at a specific point in time — "
+    "tamper-proof, timestamped, verifiable by any third party. "
+    f"Pro plan includes unlimited scans + Trust Layer API → {_SCAN_CTA_PRICING_URL}"
+)
 
 
 def _add_banner(result: dict) -> dict:
     """Add contextual free tier upgrade banner and Trust Layer CTA to MCP tool responses."""
+    plan = _current_plan.get()
+    if plan in ("pro", "paid_scan", "marketplace", "certified"):
+        # Pro users: no upgrade nag, only Trust Layer CTA if relevant
+        pct = result.get("compliance_percentage") or (result.get("compliance_summary") or {}).get("compliance_percentage")
+        has_gaps = isinstance(pct, (int, float)) and pct < 100
+        if has_gaps:
+            result["trust_layer"] = TRUST_LAYER_CTA_RISK
+        return result
+    # Free tier: add upgrade banner + dedicated URL + Trust Layer CTA
     remaining = _scan_remaining.get()
     if remaining is not None and remaining <= 1:
         result["upgrade"] = f"⚠️ Last scan today! Upgrade to Pro for unlimited scans + CI/CD API at 29€/mo → {_PRICING_URL}"
@@ -1941,6 +1957,7 @@ def _add_banner(result: dict) -> dict:
         result["upgrade"] = f"⚠️ Only {remaining} scan(s) left today. Pro: unlimited scans + CI/CD API at 29€/mo → {_PRICING_URL}"
     else:
         result["upgrade"] = FREE_TIER_BANNER
+    result["upgrade_url"] = _SCAN_CTA_PRICING_URL
     pct = result.get("compliance_percentage") or (result.get("compliance_summary") or {}).get("compliance_percentage")
     has_gaps = isinstance(pct, (int, float)) and pct < 100
     result["trust_layer"] = TRUST_LAYER_CTA_RISK if has_gaps else TRUST_LAYER_CTA
@@ -2128,7 +2145,10 @@ def create_server():
         if not is_safe:
             return {"error": error_msg, "detected_models": {}}
         checker = EUAIActChecker(project_path)
-        return _add_banner(checker.scan_project(follow_imports=follow_imports))
+        result = _add_banner(checker.scan_project(follow_imports=follow_imports))
+        if result.get("detected_models"):
+            result["try_trust_layer"] = SCAN_RESULT_TRUST_LAYER_CTA
+        return result
 
     @mcp.tool()
     def check_compliance(project_path: str, risk_category: RiskCategory = RiskCategory.limited) -> dict:
