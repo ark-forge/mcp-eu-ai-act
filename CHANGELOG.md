@@ -147,6 +147,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.7] — 2026-04-09
+
+### Added
+- add utm_source=mcp_cta&utm_medium=tool_output to all pricing URLs
+
+### Fixed
+- swap TextContent block order — text summary last for single-block MCP clients
+- replace invisible metadata CTAs with LLM-surfaceable next_steps + summary
+- add _add_banner() to 3 tools missing pricing CTA
+
+---
+
 ## [2.0.6] — 2026-04-08
 
 _(no user-facing changes)_
