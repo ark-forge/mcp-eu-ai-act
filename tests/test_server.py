@@ -873,15 +873,19 @@ class TestMiscellaneous:
     """Tests for _add_banner, constants, and create_server."""
 
     def test_add_banner(self):
-        """_add_banner adds the upgrade key and upgrade_url for free tier."""
+        """_add_banner adds next_steps, summary, and upgrade_url for free tier."""
         token = _current_plan.set("free")
         try:
-            result = _add_banner({"data": 1})
-    
-            assert "Pro" in result["upgrade"]
+            result = _add_banner({"data": 1, "files_scanned": 5})
+
             assert result["data"] == 1
             assert "upgrade_url" in result
             assert "pricing.html" in result["upgrade_url"]
+            # next_steps contains pricing CTA
+            assert "next_steps" in result
+            assert any("EUR" in s for s in result["next_steps"])
+            # summary field present
+            assert "summary" in result
         finally:
             _current_plan.reset(token)
 
@@ -890,7 +894,6 @@ class TestMiscellaneous:
         token = _current_plan.set("pro")
         try:
             result = _add_banner({"data": 1})
-            assert "upgrade" not in result
             assert "upgrade_url" not in result
         finally:
             _current_plan.reset(token)

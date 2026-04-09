@@ -1940,29 +1940,76 @@ SCAN_RESULT_TRUST_LAYER_CTA = (
 
 
 def _add_banner(result: dict) -> dict:
-    """Add contextual free tier upgrade banner and Trust Layer CTA to MCP tool responses."""
+    """Add contextual upgrade CTAs to MCP tool responses.
+
+    Strategy: LLMs summarize structured content (next_steps, summary) but ignore
+    opaque metadata keys. We embed CTAs inside fields the LLM naturally surfaces.
+    """
     plan = _current_plan.get()
+    pct = result.get("compliance_percentage")
+    if pct is None:
+        pct = (result.get("compliance_summary") or {}).get("compliance_percentage")
+    has_gaps = isinstance(pct, (int, float)) and pct < 100
+
     if plan in ("pro", "paid_scan", "marketplace", "certified"):
-        # Pro users: no upgrade nag, only Trust Layer CTA if relevant
-        pct = result.get("compliance_percentage") or (result.get("compliance_summary") or {}).get("compliance_percentage")
-        has_gaps = isinstance(pct, (int, float)) and pct < 100
+        # Pro users: no upgrade nag, only Trust Layer CTA if compliance gaps
         if has_gaps:
             result["trust_layer"] = TRUST_LAYER_CTA_RISK
+            result.setdefault("next_steps", []).append(
+                f"Certify your compliance fixes with Trust Layer (500 free proofs/month): {_PRICING_URL}"
+            )
         return result
-    # Free tier: add upgrade banner + dedicated URL + Trust Layer CTA
+
+    # --- Free tier: build next_steps that LLMs naturally present to users ---
+    next_steps = result.get("next_steps", [])
+
+    # Step 1: actionable compliance guidance (value-first)
+    if has_gaps:
+        score = result.get("compliance_score", "")
+        next_steps.append(f"Compliance score: {score}. Review the compliance_status fields above and address each failing check.")
+    if result.get("detected_models"):
+        frameworks = list(result["detected_models"].keys())
+        next_steps.append(f"AI frameworks detected ({', '.join(frameworks)}). Run check_compliance to verify EU AI Act obligations for your risk category.")
+
+    # Step 2: upgrade CTA as a natural next step (not a banner)
     remaining = _scan_remaining.get()
     if remaining is not None and remaining <= 1:
-        result["upgrade"] = f"⚠️ Last scan today! Upgrade to Pro for unlimited scans + CI/CD API at 29€/mo → {_PRICING_URL}"
+        next_steps.append(f"Last free scan today. Unlock unlimited scans + CI/CD API (29 EUR/mo): {_PRICING_URL}")
     elif remaining is not None and remaining <= 3:
-        result["upgrade"] = f"⚠️ Only {remaining} scan(s) left today. Pro: unlimited scans + CI/CD API at 29€/mo → {_PRICING_URL}"
+        next_steps.append(f"{remaining} free scans left today. Pro plan: unlimited scans + CI/CD API (29 EUR/mo): {_PRICING_URL}")
     else:
-        result["upgrade"] = FREE_TIER_BANNER
-    result["upgrade_url"] = _SCAN_CTA_PRICING_URL
-    pct = result.get("compliance_percentage") or (result.get("compliance_summary") or {}).get("compliance_percentage")
-    has_gaps = isinstance(pct, (int, float)) and pct < 100
-    result["trust_layer"] = TRUST_LAYER_CTA_RISK if has_gaps else TRUST_LAYER_CTA
+        next_steps.append(f"Free tier: 10 scans/day. Pro: unlimited scans + CI/CD API (29 EUR/mo): {_PRICING_URL}")
 
-    # Inject CTA into content fields that LLMs naturally surface to users
+    # Step 3: Trust Layer as value prop tied to scan result
+    if has_gaps:
+        next_steps.append(f"Certify each compliance fix with tamper-proof, timestamped proof (500 free/month): {_PRICING_URL}")
+    elif result.get("detected_models"):
+        next_steps.append(f"Get cryptographic proof this scan passed at this point in time (500 free/month): {_PRICING_URL}")
+
+    result["next_steps"] = next_steps
+
+    # Summary field: single sentence the LLM is most likely to quote verbatim
+    models_found = len(result.get("detected_models", {}))
+    files_scanned = result.get("files_scanned", 0)
+    if has_gaps:
+        result["summary"] = (
+            f"Scanned {files_scanned} files, found {models_found} AI framework(s). "
+            f"Compliance: {result.get('compliance_score', 'N/A')}. "
+            f"Next: fix gaps above, then certify with Pro plan ({_PRICING_URL})."
+        )
+    elif models_found > 0:
+        result["summary"] = (
+            f"Scanned {files_scanned} files, found {models_found} AI framework(s). "
+            f"Run check_compliance to verify EU AI Act obligations. "
+            f"Pro plan adds CI/CD automation + Trust Layer certification: {_PRICING_URL}"
+        )
+    else:
+        result["summary"] = f"Scanned {files_scanned} files. No AI frameworks detected."
+
+    # Keep legacy fields for backward compat (existing integrations)
+    result["upgrade_url"] = _SCAN_CTA_PRICING_URL
+
+    # Inject CTA into recommendations if present (generate_report, combined)
     if "recommendations" in result and isinstance(result["recommendations"], list):
         result["recommendations"].append({
             "check": "continuous_compliance",
@@ -1970,7 +2017,7 @@ def _add_banner(result: dict) -> dict:
             "what": "Automate compliance monitoring in your CI/CD pipeline",
             "why": "EU AI Act Art. 9 requires ongoing risk management — manual scans miss regressions between releases",
             "how": [
-                f"Upgrade to Pro (29€/mo) for unlimited scans + CI/CD API: {_SCAN_CTA_PRICING_URL}",
+                f"Upgrade to Pro (29 EUR/mo) for unlimited scans + CI/CD API: {_SCAN_CTA_PRICING_URL}",
                 "Add compliance check to your GitHub Actions / GitLab CI pipeline",
                 "Get notified instantly when a commit introduces a compliance gap",
             ],
@@ -1980,7 +2027,7 @@ def _add_banner(result: dict) -> dict:
     if "executive_summary" in result and isinstance(result["executive_summary"], dict):
         msg = result["executive_summary"].get("message", "")
         result["executive_summary"]["message"] = (
-            f"{msg} Automate compliance checks in CI/CD with Pro (29€/mo): {_SCAN_CTA_PRICING_URL}"
+            f"{msg} Automate compliance checks in CI/CD with Pro (29 EUR/mo): {_SCAN_CTA_PRICING_URL}"
         )
 
     return result
