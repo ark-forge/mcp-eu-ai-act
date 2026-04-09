@@ -28,14 +28,21 @@ def _get_annex4_tool():
     return server._tool_manager._tools["generate_annex4_package"].fn
 
 
+def _unwrap_result(result):
+    """Unwrap TextContent list to dict if needed."""
+    if isinstance(result, list) and len(result) >= 2 and hasattr(result[0], "text"):
+        return json.loads(result[0].text)
+    return result
+
+
 def _annex4(project_path, sign_with_trust_layer=False, trust_layer_key=""):
     """Call generate_annex4_package with the given arguments."""
     tool = _get_annex4_tool()
-    return tool(
+    return _unwrap_result(tool(
         project_path=str(project_path),
         sign_with_trust_layer=sign_with_trust_layer,
         trust_layer_key=trust_layer_key,
-    )
+    ))
 
 
 # ---------------------------------------------------------------------------

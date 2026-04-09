@@ -4,6 +4,7 @@ Tests the roadmap generation logic via EUAIActChecker + the create_server() tool
 as exposed through direct calls to the server module.
 """
 
+import json
 import sys
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
@@ -13,6 +14,13 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from server import EUAIActChecker, create_server, RiskCategory
+
+
+def _unwrap_result(result):
+    """Unwrap TextContent list to dict if needed."""
+    if isinstance(result, list) and len(result) >= 2 and hasattr(result[0], "text"):
+        return json.loads(result[0].text)
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -28,11 +36,11 @@ def _get_roadmap_tool():
 def _roadmap(project_path, risk_category="high", deadline="2026-08-02"):
     """Call generate_compliance_roadmap with positional args matching its signature."""
     tool = _get_roadmap_tool()
-    return tool(
+    return _unwrap_result(tool(
         project_path=str(project_path),
         risk_category=RiskCategory(risk_category),
         deadline=deadline,
-    )
+    ))
 
 
 # ---------------------------------------------------------------------------

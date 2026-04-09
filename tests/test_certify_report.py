@@ -3,6 +3,7 @@
 Tests the certification logic including key validation and network error handling.
 """
 
+import json
 import sys
 import urllib.error
 from pathlib import Path
@@ -13,6 +14,13 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from server import create_server
+
+
+def _unwrap_result(result):
+    """Unwrap TextContent list to dict if needed."""
+    if isinstance(result, list) and len(result) >= 2 and hasattr(result[0], "text"):
+        return json.loads(result[0].text)
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -27,7 +35,7 @@ def _get_certify_tool():
 
 def _certify(report_data, trust_layer_key):
     tool = _get_certify_tool()
-    return tool(report_data=report_data, trust_layer_key=trust_layer_key)
+    return _unwrap_result(tool(report_data=report_data, trust_layer_key=trust_layer_key))
 
 
 # ---------------------------------------------------------------------------

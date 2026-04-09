@@ -19,6 +19,7 @@ from enum import Enum
 
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
+from mcp.types import TextContent
 from gdpr_module import GDPRChecker, GDPR_TEMPLATES, GDPR_REQUIREMENTS
 
 logger = logging.getLogger(__name__)
@@ -1939,12 +1940,94 @@ SCAN_RESULT_TRUST_LAYER_CTA = (
 )
 
 
-def _add_banner(result: dict) -> dict:
-    """Add contextual upgrade CTAs to MCP tool responses.
+def _format_text_result(result: dict) -> str:
+    """Format scan result as human-readable text that LLMs relay faithfully.
 
-    Strategy: LLMs summarize structured content (next_steps, summary) but ignore
-    opaque metadata keys. We embed CTAs inside fields the LLM naturally surfaces.
+    Why: json_response=True produces JSON that LLMs summarize, dropping URLs.
+    Plain text in the primary content block gets relayed much more directly.
     """
+    lines = []
+
+    # --- Scan summary ---
+    files_scanned = result.get("files_scanned", 0)
+    models = result.get("detected_models", {})
+    if files_scanned:
+        frameworks = ", ".join(models.keys()) if models else "none"
+        lines.append(f"Scanned {files_scanned} files. AI frameworks detected: {frameworks}.")
+
+    # --- Compliance status ---
+    score = result.get("compliance_score") or (result.get("compliance_summary") or {}).get("compliance_score")
+    pct = result.get("compliance_percentage")
+    if pct is None:
+        pct = (result.get("compliance_summary") or {}).get("compliance_percentage")
+    if score:
+        lines.append(f"Compliance score: {score}.")
+
+    # --- Key findings ---
+    checks = result.get("compliance_status", {})
+    if checks:
+        failing = [k for k, v in checks.items() if not v]
+        passing = [k for k, v in checks.items() if v]
+        if failing:
+            lines.append(f"Failing checks: {', '.join(failing)}.")
+        if passing:
+            lines.append(f"Passing checks: {', '.join(passing)}.")
+
+    # --- Recommendations (non-CTA) ---
+    recs = result.get("recommendations", [])
+    real_recs = [r for r in recs if isinstance(r, dict) and r.get("status") != "UPGRADE_AVAILABLE"]
+    if real_recs:
+        lines.append("")
+        lines.append("Recommendations:")
+        for r in real_recs:
+            lines.append(f"- [{r.get('eu_article', '?')}] {r.get('what', '')} ({r.get('status', '')})")
+            how = r.get("how", [])
+            if how and isinstance(how, list):
+                lines.append(f"  Action: {how[0]}")
+
+    # --- Executive summary ---
+    exec_sum = result.get("executive_summary", {})
+    if exec_sum:
+        days = exec_sum.get("days_to_deadline")
+        if days:
+            lines.append(f"\nEU AI Act enforcement deadline: {days} days remaining ({exec_sum.get('deadline', '?')}).")
+
+    # --- Next step: CTA framed as compliance action ---
+    lines.append("")
+    plan = _current_plan.get()
+    if plan not in ("pro", "paid_scan", "marketplace", "certified"):
+        remaining = _scan_remaining.get()
+        if remaining is not None and remaining <= 1:
+            lines.append(f"This was your last free scan today. Unlimited scans + CI/CD integration: {_PRICING_URL}")
+        elif remaining is not None and remaining <= 3:
+            lines.append(f"{remaining} free scans remaining today. Unlock unlimited: {_PRICING_URL}")
+        else:
+            lines.append(f"Free plan: 10 scans/day. Automate compliance in CI/CD with Pro: {_PRICING_URL}")
+
+        if isinstance(pct, (int, float)) and pct < 100:
+            lines.append(f"Generate tamper-proof compliance certificates for each fix: {_PRICING_URL}")
+
+    return "\n".join(lines)
+
+
+def _add_banner(result: dict) -> list:
+    """Add contextual upgrade CTAs and return text+JSON dual-format for MCP.
+
+    Returns [TextContent(JSON), TextContent(human summary)] — JSON first for
+    programmatic consumers, human-readable text LAST so MCP clients that only
+    render the final content block still display the CTA and compliance summary.
+    LLM-based clients (Claude Desktop, Cursor, Continue) see both blocks.
+    """
+    result = _add_banner_fields(result)
+    text_summary = _format_text_result(result)
+    return [
+        TextContent(type="text", text=json.dumps(result, default=str)),
+        TextContent(type="text", text=text_summary),
+    ]
+
+
+def _add_banner_fields(result: dict) -> dict:
+    """Add CTA fields to the result dict (internal helper)."""
     plan = _current_plan.get()
     pct = result.get("compliance_percentage")
     if pct is None:
@@ -2201,7 +2284,7 @@ def create_server():
     )
 
     @mcp.tool()
-    def scan_project(project_path: str, follow_imports: bool = False) -> dict:
+    def scan_project(project_path: str, follow_imports: bool = False) -> list:
         """Scan a project to detect AI model usage (OpenAI, Anthropic, Google Gemini, Vertex AI, Mistral, Cohere, HuggingFace, TensorFlow, PyTorch, LangChain, AWS Bedrock, Azure OpenAI, Ollama, LlamaIndex, Replicate, Groq).
 
         Args:
@@ -2214,13 +2297,17 @@ def create_server():
         if not is_safe:
             return {"error": error_msg, "detected_models": {}}
         checker = EUAIActChecker(project_path)
-        result = _add_banner(checker.scan_project(follow_imports=follow_imports))
-        if result.get("detected_models"):
-            result["try_trust_layer"] = SCAN_RESULT_TRUST_LAYER_CTA
-        return result
+        result_dict = _add_banner_fields(checker.scan_project(follow_imports=follow_imports))
+        if result_dict.get("detected_models"):
+            result_dict["try_trust_layer"] = SCAN_RESULT_TRUST_LAYER_CTA
+        text_summary = _format_text_result(result_dict)
+        return [
+            TextContent(type="text", text=json.dumps(result_dict, default=str)),
+            TextContent(type="text", text=text_summary),
+        ]
 
     @mcp.tool()
-    def check_compliance(project_path: str, risk_category: RiskCategory = RiskCategory.limited) -> dict:
+    def check_compliance(project_path: str, risk_category: RiskCategory = RiskCategory.limited) -> list:
         """Check EU AI Act compliance for a given risk category.
 
         Args:
@@ -2235,7 +2322,7 @@ def create_server():
         return _add_banner(checker.check_compliance(risk_category.value))
 
     @mcp.tool()
-    def generate_report(project_path: str, risk_category: RiskCategory = RiskCategory.limited) -> dict:
+    def generate_report(project_path: str, risk_category: RiskCategory = RiskCategory.limited) -> list:
         """Generate a complete EU AI Act compliance report with scan results, compliance checks, and recommendations.
 
         Args:

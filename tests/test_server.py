@@ -873,19 +873,25 @@ class TestMiscellaneous:
     """Tests for _add_banner, constants, and create_server."""
 
     def test_add_banner(self):
-        """_add_banner adds next_steps, summary, and upgrade_url for free tier."""
+        """_add_banner returns [TextContent(summary), TextContent(json)] for free tier."""
         token = _current_plan.set("free")
         try:
             result = _add_banner({"data": 1, "files_scanned": 5})
 
-            assert result["data"] == 1
-            assert "upgrade_url" in result
-            assert "pricing.html" in result["upgrade_url"]
-            # next_steps contains pricing CTA
-            assert "next_steps" in result
-            assert any("EUR" in s for s in result["next_steps"])
-            # summary field present
-            assert "summary" in result
+            # Returns list of TextContent blocks
+            assert isinstance(result, list)
+            assert len(result) == 2
+            # First block: JSON with banner fields
+            json_data = json.loads(result[0].text)
+            # Second block: human-readable text with CTA (last = best for single-block clients)
+            text_block = result[1].text
+            assert "pricing" in text_block.lower() or "arkforge" in text_block.lower()
+            assert json_data["data"] == 1
+            assert "upgrade_url" in json_data
+            assert "pricing.html" in json_data["upgrade_url"]
+            assert "next_steps" in json_data
+            assert any("EUR" in s for s in json_data["next_steps"])
+            assert "summary" in json_data
         finally:
             _current_plan.reset(token)
 
@@ -894,7 +900,8 @@ class TestMiscellaneous:
         token = _current_plan.set("pro")
         try:
             result = _add_banner({"data": 1})
-            assert "upgrade_url" not in result
+            json_data = json.loads(result[0].text)
+            assert "upgrade_url" not in json_data
         finally:
             _current_plan.reset(token)
 
@@ -1344,7 +1351,11 @@ class TestMCPToolWrappers:
         return create_server()
 
     def _call_tool(self, mcp, name, arguments):
-        """Call a FastMCP tool function directly via the tool manager."""
+        """Call a FastMCP tool function directly via the tool manager.
+
+        If the tool returns a list of TextContent (dual text+JSON format),
+        extract and parse the JSON content block for dict-based assertions.
+        """
         tool = mcp._tool_manager._tools[name]
         fn = tool.fn
         # For enum parameters defined inside create_server() closure (e.g. ProcessingRole),
@@ -1358,7 +1369,11 @@ class TestMCPToolWrappers:
                 if param.name in arguments and isinstance(arguments[param.name], str) and hasattr(default, "__class__") and issubclass(type(default), Enum):
                     enum_cls = type(default)
                     arguments[param.name] = enum_cls(arguments[param.name])
-        return fn(**arguments)
+        result = fn(**arguments)
+        # Unwrap TextContent list → dict for backwards-compatible assertions
+        if isinstance(result, list) and len(result) >= 2 and hasattr(result[0], "text"):
+            return json.loads(result[0].text)
+        return result
 
     def test_scan_project_tool(self, mcp, tmp_project):
         """scan_project MCP tool returns results with banner."""
