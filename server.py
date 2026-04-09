@@ -493,7 +493,7 @@ class RateLimitMiddleware:
                     "jsonrpc": "2.0",
                     "error": {
                         "code": -32000,
-                        "message": "Free tier limit reached. Upgrade to Pro: https://arkforge.tech/en/pricing.html?utm_source=pypi",
+                        "message": "Free tier limit reached. Upgrade to Pro: https://arkforge.tech/en/pricing.html?utm_source=mcp_cta&utm_medium=tool_output",
                     },
                     "id": request_id,
                 }, extra_headers=rl_headers)
@@ -1926,11 +1926,11 @@ class RiskCategory(str, Enum):
     minimal = "minimal"
 
 
-FREE_TIER_BANNER = "Free tier: 10 scans/day — Pro: unlimited scans + CI/CD API at 29€/mo → https://arkforge.tech/en/pricing.html?utm_source=pypi"
+FREE_TIER_BANNER = "Free tier: 10 scans/day — Pro: unlimited scans + CI/CD API at 29€/mo → https://arkforge.tech/en/pricing.html?utm_source=mcp_cta&utm_medium=tool_output"
 TRUST_LAYER_CTA = "Certify your AI compliance with ArkForge Trust Layer — cryptographic proof for every audit. 500 free proofs/month → https://arkforge.tech/trust?utm_source=mcp"
 TRUST_LAYER_CTA_RISK = "Your system has compliance gaps. Certify each fix with ArkForge Trust Layer — tamper-proof, timestamped compliance proofs. 500 free proofs/month → https://arkforge.tech/trust?utm_source=mcp"
-_PRICING_URL = "https://arkforge.tech/en/pricing.html?utm_source=pypi"
-_SCAN_CTA_PRICING_URL = "https://arkforge.tech/en/pricing.html?utm_source=mcp_scan_cta"
+_PRICING_URL = "https://arkforge.tech/en/pricing.html?utm_source=mcp_cta&utm_medium=tool_output"
+_SCAN_CTA_PRICING_URL = "https://arkforge.tech/en/pricing.html?utm_source=mcp_cta&utm_medium=tool_output"
 SCAN_RESULT_TRUST_LAYER_CTA = (
     "AI models detected. Trust Layer adds a certification layer on top of this scan: "
     "cryptographic proof that your compliance posture was audited at a specific point in time — "
@@ -2144,7 +2144,7 @@ def create_server():
     """Create and return the EU AI Act Compliance Checker MCP server."""
     mcp = FastMCP(
         name="ArkForge Compliance Scanner",
-        instructions="Multi-regulation compliance scanner. Supports EU AI Act and GDPR. Scan projects to detect AI model usage, personal data processing, and verify regulatory compliance. Free: 10 scans/day. Pro: unlimited + CI/CD API at 29€/mo → https://arkforge.tech/en/pricing.html?utm_source=pypi | Certify scans with Trust Layer → https://arkforge.tech/trust?utm_source=pypi",
+        instructions="Multi-regulation compliance scanner. Supports EU AI Act and GDPR. Scan projects to detect AI model usage, personal data processing, and verify regulatory compliance. Free: 10 scans/day. Pro: unlimited + CI/CD API at 29€/mo → https://arkforge.tech/en/pricing.html?utm_source=mcp_cta&utm_medium=tool_output | Certify scans with Trust Layer → https://arkforge.tech/trust?utm_source=mcp_cta&utm_medium=tool_output",
         host="127.0.0.1",
         port=8090,
         json_response=True,
@@ -2851,10 +2851,10 @@ def create_server():
                         "Email alerts on risk changes",
                         "Priority support",
                     ],
-                    "subscribe_url": "https://arkforge.tech/en/pricing.html?utm_source=pypi",
+                    "subscribe_url": "https://arkforge.tech/en/pricing.html?utm_source=mcp_cta&utm_medium=tool_output",
                 },
             },
-            "pricing_page": "https://arkforge.tech/en/pricing.html?utm_source=pypi",
+            "pricing_page": "https://arkforge.tech/en/pricing.html?utm_source=mcp_cta&utm_medium=tool_output",
             "contact": "contact@arkforge.tech",
         }
 
