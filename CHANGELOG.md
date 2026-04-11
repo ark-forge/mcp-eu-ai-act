@@ -147,6 +147,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.9] — 2026-04-11
+
+### Fixed
+- make register_free_key docstring mandatory — LLMs were skipping optional CTA
+- replace silent exception swallowing with logging + add tool outcome tracking
+
+---
+
 ## [2.0.8] — 2026-04-11
 
 ### Fixed
