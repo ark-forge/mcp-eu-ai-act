@@ -147,6 +147,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.8] — 2026-04-11
+
+### Fixed
+- improve scan logging + LLM conversion funnel
+
+---
+
 ## [2.0.7] — 2026-04-09
 
 ### Added
