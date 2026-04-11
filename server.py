@@ -233,6 +233,62 @@ _scan_remaining: contextvars.ContextVar = contextvars.ContextVar('scan_remaining
 # Context variable: current plan for the request ('free', 'pro', 'certified', 'marketplace')
 _current_plan: contextvars.ContextVar = contextvars.ContextVar('current_plan', default='free')
 
+# Context variable: client IP for the current request (set by middleware, read by register_free_key)
+_client_ip: contextvars.ContextVar = contextvars.ContextVar('client_ip', default='unknown')
+
+# --- Tool call telemetry (funnel visibility: which tool, CTA included, plan) ---
+_TOOL_CALL_LOG_PATH = Path(__file__).parent / "data" / "tool_calls.jsonl"
+
+
+def _log_tool_call(tool_name: str, cta_included: bool = True, plan: str = None,
+                   ip: str = None, extra: dict = None):
+    """Append a tool call event for funnel diagnostics.
+
+    Solves: no telemetry to distinguish 'CTA shown in scan response' vs 'user never saw CTA'.
+    Each scan/check/report tool call is logged with whether register_free_key CTA was included.
+    """
+    entry = {
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "tool": tool_name,
+        "plan": plan or _current_plan.get(),
+        "cta_included": cta_included,
+        "ip": ip or _client_ip.get(),
+    }
+    if extra:
+        entry.update(extra)
+    try:
+        _TOOL_CALL_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(_TOOL_CALL_LOG_PATH, "a") as f:
+            f.write(json.dumps(entry, default=str) + "\n")
+    except Exception:
+        import logging
+        logging.getLogger("mcp.telemetry").exception("_log_tool_call failed for %s", tool_name)
+
+
+# --- Registration logging ---
+_REGISTRATION_LOG_PATH = Path(__file__).parent / "data" / "registration_log.jsonl"
+
+
+def _record_registration(email: str, source: str, ip: str, api_key: str,
+                         scan_id: Optional[str] = None):
+    """Append a registration event to registration_log.jsonl for funnel tracking."""
+    import hashlib
+    entry = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "email_hash": hashlib.sha256(email.lower().strip().encode()).hexdigest()[:16],
+        "source": source,  # "mcp_tool", "api_direct", "cli"
+        "ip": ip,
+        "api_key_prefix": api_key[:12] + "..." if api_key else None,
+        "scan_id": scan_id,
+    }
+    try:
+        _REGISTRATION_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(_REGISTRATION_LOG_PATH, "a") as f:
+            f.write(json.dumps(entry, default=str) + "\n")
+    except Exception as exc:
+        import logging
+        logging.getLogger("mcp.registration").error("_record_registration failed: %s", exc)
+
 
 def _require_plan(min_plan: str, tool_name: str) -> Optional[dict]:
     """Return a friendly upgrade message if the current plan is insufficient, None if OK."""
@@ -275,8 +331,13 @@ def _require_plan(min_plan: str, tool_name: str) -> Optional[dict]:
 _SCAN_HISTORY_PATH = Path(__file__).parent / "data" / "scan_history.json"
 
 
-def _record_mcp_scan(api_key: Optional[str], ip: str, tool_name: str):
-    """Record an MCP tool call to scan_history.json for visibility."""
+def _record_mcp_scan(api_key: Optional[str], ip: str, tool_name: str,
+                     result: str = "attempt"):
+    """Record an MCP tool call to scan_history.json for visibility.
+
+    Args:
+        result: "attempt" (middleware pre-exec), "ok", "error:<reason>"
+    """
     # Skip recording when tool_name is unknown (test probes, malformed requests)
     if tool_name == "unknown":
         return
@@ -297,6 +358,7 @@ def _record_mcp_scan(api_key: Optional[str], ip: str, tool_name: str):
         "session_id": session_hash,
         "frameworks_detected": [],
         "files_scanned": 0,
+        "result": result,
     })
     if len(history) > 1000:
         history = history[-1000:]
@@ -305,7 +367,8 @@ def _record_mcp_scan(api_key: Optional[str], ip: str, tool_name: str):
         tmp.write_text(json.dumps(history, indent=2, default=str))
         tmp.rename(_SCAN_HISTORY_PATH)
     except OSError:
-        pass
+        import logging
+        logging.getLogger("mcp.scan_history").exception("_record_mcp_scan write failed for %s", tool_name)
 
 
 def _get_header(scope, name: bytes) -> Optional[str]:
@@ -424,6 +487,18 @@ class RateLimitMiddleware:
                 await self._json_response(send, 400, {"error": "Plan must be 'free' or 'pro'"})
                 return
             result = _api_key_manager.register_key(email, plan)
+            # Log registration for funnel tracking
+            reg_ip = _get_header(scope, b"x-real-ip")
+            if not reg_ip:
+                xff = _get_header(scope, b"x-forwarded-for")
+                reg_ip = xff.split(",")[-1].strip() if xff else "unknown"
+            if not reg_ip or reg_ip == "unknown":
+                client = scope.get("client")
+                reg_ip = client[0] if client else "unknown"
+            _record_registration(
+                email=email, source="api_direct", ip=reg_ip,
+                api_key=result.get("key", ""),
+            )
             await self._json_response(send, 201, result)
             return
 
@@ -485,6 +560,9 @@ class RateLimitMiddleware:
             if not ip:
                 client = scope.get("client")
                 ip = client[0] if client else "unknown"
+
+            # Make IP available to MCP tool functions via ContextVar
+            _client_ip.set(ip)
 
             # Check API key — Pro keys bypass rate limiting
             api_key = _extract_api_key(scope)
@@ -2344,6 +2422,12 @@ def create_server():
         result_dict = _add_banner_fields(checker.scan_project(follow_imports=follow_imports))
         if result_dict.get("detected_models"):
             result_dict["try_trust_layer"] = SCAN_RESULT_TRUST_LAYER_CTA
+        plan = _current_plan.get()
+        cta_included = plan not in ("pro", "paid_scan", "marketplace", "certified")
+        _log_tool_call("scan_project", cta_included=cta_included, extra={
+            "models_found": len(result_dict.get("detected_models", {})),
+            "files_scanned": result_dict.get("files_scanned", 0),
+        })
         text_summary = _format_text_result(result_dict)
         return [
             TextContent(type="text", text=json.dumps(result_dict, default=str)),
@@ -2363,6 +2447,8 @@ def create_server():
             return {"error": error_msg}
         checker = EUAIActChecker(project_path)
         checker.scan_project()
+        plan = _current_plan.get()
+        _log_tool_call("check_compliance", cta_included=plan not in ("pro", "paid_scan", "marketplace", "certified"))
         return _add_banner(checker.check_compliance(risk_category.value))
 
     @mcp.tool()
@@ -2379,6 +2465,8 @@ def create_server():
         checker = EUAIActChecker(project_path)
         scan_results = checker.scan_project()
         compliance_results = checker.check_compliance(risk_category.value)
+        plan = _current_plan.get()
+        _log_tool_call("generate_report", cta_included=plan not in ("pro", "paid_scan", "marketplace", "certified"))
         return _add_banner(checker.generate_report(scan_results, compliance_results))
 
     @mcp.tool()
@@ -2859,8 +2947,32 @@ def create_server():
             email: User's email address for account registration
         """
         if not email or "@" not in email or "." not in email.split("@")[-1]:
+            _log_tool_call("register_free_key", cta_included=False,
+                           extra={"conversion": False, "error": "invalid_email"})
             return {"error": "Please provide a valid email address."}
-        result = _api_key_manager.register_key(email, plan="free")
+        try:
+            result = _api_key_manager.register_key(email, plan="free")
+        except Exception:
+            import logging
+            logging.getLogger("mcp.register").exception("register_key failed for email")
+            _log_tool_call("register_free_key", cta_included=False,
+                           extra={"conversion": False, "error": "register_key_exception"})
+            return {"error": "Registration failed. Please try again or contact contact@arkforge.tech"}
+        # Log registration for funnel tracking
+        ip = _client_ip.get()
+        # Correlate with last scan via session hash
+        import hashlib
+        day_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        scan_id = hashlib.sha256(f"{ip}:{day_str}".encode()).hexdigest()[:12]
+        _record_registration(
+            email=email,
+            source="mcp_tool",
+            ip=ip,
+            api_key=result["key"],
+            scan_id=scan_id,
+        )
+        _log_tool_call("register_free_key", cta_included=False, extra={"conversion": True})
+        _record_mcp_scan(None, ip, "register_free_key", result="ok")
         return {
             "registered": True,
             "api_key": result["key"],
@@ -2899,6 +3011,7 @@ def create_server():
         if not is_safe:
             return {"error": error_msg, "detected_patterns": {}}
         checker = GDPRChecker(project_path)
+        _log_tool_call("gdpr_scan_project")
         return _add_banner(checker.scan_project())
 
     @mcp.tool()
@@ -2914,6 +3027,7 @@ def create_server():
             return {"error": error_msg}
         checker = GDPRChecker(project_path)
         checker.scan_project()
+        _log_tool_call("gdpr_check_compliance")
         return _add_banner(checker.check_compliance(processing_role.value))
 
     @mcp.tool()
@@ -2930,6 +3044,7 @@ def create_server():
         checker = GDPRChecker(project_path)
         scan_results = checker.scan_project()
         compliance_results = checker.check_compliance(processing_role.value)
+        _log_tool_call("gdpr_generate_report")
         return _add_banner(checker.generate_report(scan_results, compliance_results))
 
     @mcp.tool()
@@ -3008,6 +3123,10 @@ def create_server():
         priority_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
         dual_compliance_flags.sort(key=lambda x: priority_order.get(x["priority"], 99))
 
+        plan = _current_plan.get()
+        _log_tool_call("combined_compliance_report", cta_included=plan not in ("pro", "paid_scan", "marketplace", "certified"), extra={
+            "hotspots": len(dual_flagged),
+        })
         return _add_banner({
             "project_path": project_path,
             "scan_summary": {
