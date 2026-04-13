@@ -147,6 +147,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.10] — 2026-04-13
+
+### Added
+- add to manifest/glama + strengthen follow_up_tool instructions
+- instrument 3 funnel steps in _log_tool_call
+
+### Fixed
+- inject follow_up_tool CTA in all 4 GDPR tools + fix instrumentation
+
+---
+
 ## [2.0.9] — 2026-04-11
 
 ### Fixed
