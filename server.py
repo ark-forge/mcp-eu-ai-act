@@ -240,7 +240,7 @@ _client_ip: contextvars.ContextVar = contextvars.ContextVar('client_ip', default
 _TOOL_CALL_LOG_PATH = Path(__file__).parent / "data" / "tool_calls.jsonl"
 
 
-def _log_tool_call(tool_name: str, cta_included: bool = True, plan: str = None,
+def _log_tool_call(tool_name: str, cta_included: bool = False, plan: str = None,
                    ip: str = None, extra: dict = None):
     """Append a tool call event for funnel diagnostics.
 
@@ -256,6 +256,10 @@ def _log_tool_call(tool_name: str, cta_included: bool = True, plan: str = None,
     }
     if extra:
         entry.update(extra)
+    # Auto-tag funnel_step if not already set by caller
+    if "funnel_step" not in entry:
+        if cta_included:
+            entry["funnel_step"] = "cta_shown"
     try:
         _TOOL_CALL_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
         with open(_TOOL_CALL_LOG_PATH, "a") as f:
@@ -2531,7 +2535,7 @@ def create_server():
             reasoning = f"Matched {match_info['match_count']} indicator(s): {', '.join(match_info['matched_keywords'])}. {match_info['description']}."
             enriched_matches, relevant_articles = _enrich_matches_with_articles(raw_matches)
 
-        result = {
+        raw_result = {
             "suggested_category": suggested,
             "confidence": confidence,
             "reasoning": reasoning,
@@ -2546,7 +2550,20 @@ def create_server():
             },
             "next_step": f"Run check_compliance with risk_category='{suggested}' to see what's needed",
         }
-        return _add_banner(result)
+        plan = _current_plan.get()
+        cta_included = plan not in ("pro", "paid_scan", "marketplace", "certified")
+        _log_tool_call("suggest_risk_category", cta_included=cta_included)
+        result_dict = {"follow_up_tool": {
+            "name": "register_free_key",
+            "reason": "Activate your personal API key for scan history tracking and CI/CD integration",
+            "arguments": {"email": "<user_email>"},
+        }}
+        result_dict.update(_add_banner_fields(raw_result))
+        text_summary = _format_text_result(result_dict)
+        return [
+            TextContent(type="text", text=json.dumps(result_dict, default=str)),
+            TextContent(type="text", text=text_summary),
+        ]
 
     @mcp.tool()
     def generate_compliance_templates(risk_category: RiskCategory = RiskCategory.high) -> dict:
@@ -2586,13 +2603,27 @@ def create_server():
                     "instructions": f"Save as docs/{tmpl['filename']} in your project, then fill in [bracketed] sections",
                 }
 
-        return _add_banner({
+        raw_result = {
             "risk_category": category,
             "description": category_info.get("description", ""),
             "templates_count": len(templates),
             "templates": templates,
             "usage": "Save each template file in your project's docs/ directory. Fill in [bracketed] sections with your system's details. Re-run check_compliance to verify progress.",
-        })
+        }
+        plan = _current_plan.get()
+        cta_included = plan not in ("pro", "paid_scan", "marketplace", "certified")
+        _log_tool_call("generate_compliance_templates", cta_included=cta_included)
+        result_dict = {"follow_up_tool": {
+            "name": "register_free_key",
+            "reason": "Activate your personal API key for scan history tracking and CI/CD integration",
+            "arguments": {"email": "<user_email>"},
+        }}
+        result_dict.update(_add_banner_fields(raw_result))
+        text_summary = _format_text_result(result_dict)
+        return [
+            TextContent(type="text", text=json.dumps(result_dict, default=str)),
+            TextContent(type="text", text=text_summary),
+        ]
 
     @mcp.tool()
     def generate_compliance_roadmap(
@@ -3015,6 +3046,7 @@ def create_server():
             pass
         _log_tool_call("register_free_key", cta_included=False, extra={
             "conversion": True, "session_scans_before": session_scans,
+            "funnel_step": "free_key_activation",
         })
         _record_mcp_scan(None, ip, "register_free_key", result="ok")
         return {
@@ -3259,6 +3291,7 @@ def create_server():
 
         Shows free tier limits, Pro plan features, and how to upgrade.
         """
+        _log_tool_call("get_pricing", cta_included=True, extra={"funnel_step": "pricing_view"})
         return {
             "plans": {
                 "free": {
