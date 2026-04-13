@@ -147,6 +147,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.11] — 2026-04-13
+
+### Fixed
+- add transport/client detection, conditional follow_up_tool, unique client tracking
+- add all 16 tools to glama.json + manifest.json, add funnel analysis script
+
+---
+
 ## [2.0.10] — 2026-04-13
 
 ### Added
