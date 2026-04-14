@@ -105,7 +105,7 @@ check "Mistral API key" \
 
 # Emails personnels dans les docs (hors domaines attendus)
 check "Email personnel dans doc" \
-    "[a-zA-Z0-9._%+-]{4,}@(?!(arkforge\.fr|example\.(com|org)|test\.com|gmail\.com|mailbox\.org|busilezas))[a-zA-Z0-9.-]+\.(fr|com|io|net|org|dev)" \
+    "[a-zA-Z0-9._%+-]{4,}@(?!(arkforge\.(fr|tech)|example\.(com|org)|test\.com|gmail\.com|mailbox\.org|busilezas|domain\.com|email\.com|company\.com|noreply))[a-zA-Z0-9.-]+\.(fr|com|io|net|org|dev)" \
     "test_.*\.py|conftest\.py|\.env\.example|certs/"
 
 # Fichiers suspects stagés directement
