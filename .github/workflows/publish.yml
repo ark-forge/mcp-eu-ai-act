@@ -31,12 +31,17 @@ jobs:
 
       - name: Publish to MCP Registry (skip if already published)
         run: |
-          output=$(mcp-publisher publish 2>&1) && echo "$output" || {
-            echo "$output"
-            if echo "$output" | grep -qi "already exists\|duplicate\|already published\|conflict"; then
-              echo "Version already published to MCP Registry (idempotent skip)"
-            else
-              echo "::error::MCP Registry publish failed"
-              exit 1
-            fi
-          }
+          set +e
+          output=$(mcp-publisher publish 2>&1)
+          rc=$?
+          echo "$output"
+          if [ $rc -eq 0 ]; then
+            echo "Published successfully"
+            exit 0
+          fi
+          if echo "$output" | grep -qi "already exists\|duplicate\|already published\|conflict"; then
+            echo "Version already published to MCP Registry (idempotent skip)"
+            exit 0
+          fi
+          echo "::error::MCP Registry publish failed with exit code $rc"
+          exit 1
