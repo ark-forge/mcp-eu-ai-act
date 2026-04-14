@@ -147,6 +147,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.15] — 2026-04-14
+
+### Fixed
+- add email sanitization for LLM-mangled inputs + diagnostic logging
+
+---
+
 ## [2.0.12] — 2026-04-14
 
 ### Fixed
