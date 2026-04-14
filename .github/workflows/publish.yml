@@ -29,5 +29,14 @@ jobs:
       - name: Login to MCP Registry (GitHub OIDC)
         run: mcp-publisher login github-oidc
 
-      - name: Publish to MCP Registry
-        run: mcp-publisher publish
+      - name: Publish to MCP Registry (skip if already published)
+        run: |
+          output=$(mcp-publisher publish 2>&1) || true
+          echo "$output"
+          if echo "$output" | grep -q "duplicate version"; then
+            echo "Version already published to MCP Registry — skipping (OK)"
+            exit 0
+          elif echo "$output" | grep -q "publish failed"; then
+            echo "::error::MCP Registry publish failed: $output"
+            exit 1
+          fi
