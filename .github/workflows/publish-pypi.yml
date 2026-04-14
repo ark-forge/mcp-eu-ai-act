@@ -52,6 +52,7 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_TOKEN }}
+          skip-existing: true
 
       - name: Publish to PyPI (Trusted Publishing / OIDC)
         if: steps.check_pypi.outputs.available == 'false'
@@ -59,6 +60,8 @@ jobs:
         #   Owner: ark-forge | Repo: mcp-eu-ai-act | Workflow: publish-pypi.yml | Env: pypi
         # Setup: https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
 
       - name: Verify publish succeeded
         run: |
