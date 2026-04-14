@@ -8,15 +8,15 @@
   "tools": [
     {
       "name": "scan_project",
-      "description": "Scan a project to detect AI model usage (OpenAI, Anthropic, Mistral, etc.) for EU AI Act compliance."
+      "description": "Find every AI framework in your codebase — each one creates EU AI Act obligations. Detects 16+ frameworks and maps each to specific compliance articles."
     },
     {
       "name": "check_compliance",
-      "description": "Check EU AI Act compliance for a given risk category (unacceptable, high, limited, minimal)."
+      "description": "Check which EU AI Act requirements your project meets and which gaps remain before the August 2026 deadline."
     },
     {
       "name": "generate_report",
-      "description": "Generate a complete EU AI Act compliance report with scan results, compliance checks, and recommendations."
+      "description": "Generate an auditor-ready EU AI Act compliance report — scan results, gap analysis, and prioritized remediation in one document."
     },
     {
       "name": "suggest_risk_category",
@@ -48,15 +48,15 @@
     },
     {
       "name": "gdpr_scan_project",
-      "description": "Scan a project for GDPR personal data processing hotspots (PII fields, consent flows, data transfers)."
+      "description": "Find every file that touches personal data — each one carries GDPR obligations. Detects PII fields, consent flows, tracking, and 7 more categories."
     },
     {
       "name": "gdpr_check_compliance",
-      "description": "Check GDPR compliance for a project based on detected data processing activities."
+      "description": "Check which GDPR requirements your project satisfies and where gaps expose you to enforcement risk."
     },
     {
       "name": "gdpr_generate_report",
-      "description": "Generate a GDPR compliance report with findings, risk levels, and remediation steps."
+      "description": "Generate a DPO-ready GDPR compliance report — data processing inventory, gap analysis, and prioritized remediation."
     },
     {
       "name": "gdpr_generate_templates",
@@ -64,7 +64,7 @@
     },
     {
       "name": "combined_compliance_report",
-      "description": "EU AI Act + GDPR dual-compliance hotspot scan for a project."
+      "description": "Find files where EU AI Act and GDPR overlap — these dual-compliance hotspots carry the highest enforcement risk."
     },
     {
       "name": "get_pricing",
