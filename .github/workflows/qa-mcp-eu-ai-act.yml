@@ -132,6 +132,26 @@ jobs:
           echo "coverage=${COVERAGE}" >> $GITHUB_OUTPUT
         id: coverage
 
+      - name: Coverage delta check (PR only)
+        if: github.event_name == 'pull_request'
+        run: |
+          CURRENT=${{ steps.coverage.outputs.coverage }}
+          git fetch origin main --depth=1
+          git checkout origin/main -- . 2>/dev/null || true
+          coverage run -m pytest tests/ -q 2>/dev/null || true
+          coverage json -o coverage_base.json 2>/dev/null || true
+          git checkout - -- . 2>/dev/null || true
+          if [ -f coverage_base.json ]; then
+            BASE=$(python -c "import json; print(json.load(open('coverage_base.json'))['totals']['percent_covered'])" 2>/dev/null || echo "0")
+            DELTA=$(python -c "print(round(float('${CURRENT}') - float('${BASE}'), 2))")
+            echo "📊 Coverage delta: ${DELTA}% (main: ${BASE}% → PR: ${CURRENT}%)"
+            if (( $(echo "$DELTA < 0" | bc -l) )); then
+              echo "::warning::Coverage decreased by ${DELTA}% — consider adding tests for new/changed code"
+            fi
+          else
+            echo "⚠️ Could not compute baseline coverage"
+          fi
+
       - name: Generate coverage badge
         if: github.ref == 'refs/heads/main'
         run: |
