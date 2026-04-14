@@ -64,7 +64,7 @@ jobs:
         run: |
           echo "Checking if mcp-eu-ai-act was published to PyPI..."
           sleep 10
-          if curl -sf "https://pypi.org/pypi/mcp-eu-ai-act/json" > /dev/null 2>&1; then
+          if curl -sf "https://pypi.org/pypi/eu-ai-act-scanner/json" > /dev/null 2>&1; then
             echo "Package found on PyPI"
           else
             echo "::error::Package NOT found on PyPI after publish attempt."
