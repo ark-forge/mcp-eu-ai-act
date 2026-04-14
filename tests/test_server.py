@@ -36,10 +36,14 @@ from server import (
     _add_banner,
     _current_plan,
     _extract_api_key,
+    _format_text_result,
     _get_header,
+    _make_result_dict,
+    _pick_cta_variant,
     _validate_project_path,
     create_server,
 )
+import server as server_module
 
 
 # ============================================================
@@ -904,6 +908,217 @@ class TestMiscellaneous:
             assert "upgrade_url" not in json_data
         finally:
             _current_plan.reset(token)
+
+    def test_pick_cta_variant_deterministic_per_ip(self):
+        """_pick_cta_variant returns consistent A/B based on IP hash."""
+        token = server_module._client_ip.set("1.2.3.4")
+        old_fb = server_module._fallback_ip
+        server_module._fallback_ip = "1.2.3.4"
+        try:
+            v1 = _pick_cta_variant()
+            v2 = _pick_cta_variant()
+            assert v1 == v2
+            assert v1 in ("A", "B")
+        finally:
+            server_module._client_ip.reset(token)
+            server_module._fallback_ip = old_fb
+
+    def test_pick_cta_variant_unknown_ip_fallback(self):
+        """_pick_cta_variant uses timestamp fallback when IP is unknown."""
+        token = server_module._client_ip.set("unknown")
+        old_fb = server_module._fallback_ip
+        server_module._fallback_ip = "unknown"
+        try:
+            v = _pick_cta_variant()
+            assert v in ("A", "B")
+        finally:
+            server_module._client_ip.reset(token)
+            server_module._fallback_ip = old_fb
+
+    def test_make_result_dict_free_tier_includes_follow_up(self):
+        """_make_result_dict includes follow_up_tool for free tier."""
+        plan_tok = server_module._current_plan.set("free")
+        old_plan = server_module._fallback_plan
+        server_module._fallback_plan = "free"
+        try:
+            result = _make_result_dict({"data": 1})
+            assert "follow_up_tool" in result
+            assert result["follow_up_tool"]["name"] == "register_free_key"
+        finally:
+            server_module._current_plan.reset(plan_tok)
+            server_module._fallback_plan = old_plan
+
+    def test_make_result_dict_remaining_scans_included(self):
+        """_make_result_dict includes remaining_free_scans_today when available."""
+        plan_tok = server_module._current_plan.set("free")
+        scan_tok = server_module._scan_remaining.set(7)
+        old_plan = server_module._fallback_plan
+        old_rem = server_module._fallback_scan_remaining
+        server_module._fallback_plan = "free"
+        server_module._fallback_scan_remaining = 7
+        try:
+            result = _make_result_dict({"data": 1})
+            assert result["remaining_free_scans_today"] == 7
+        finally:
+            server_module._current_plan.reset(plan_tok)
+            server_module._scan_remaining.reset(scan_tok)
+            server_module._fallback_plan = old_plan
+            server_module._fallback_scan_remaining = old_rem
+
+    def test_make_result_dict_no_remaining_when_none(self):
+        """_make_result_dict omits remaining_free_scans_today when scan remaining is None."""
+        plan_tok = server_module._current_plan.set("free")
+        old_plan = server_module._fallback_plan
+        old_rem = server_module._fallback_scan_remaining
+        server_module._fallback_plan = "free"
+        server_module._fallback_scan_remaining = None
+        try:
+            result = _make_result_dict({"data": 1})
+            assert "remaining_free_scans_today" not in result
+        finally:
+            server_module._current_plan.reset(plan_tok)
+            server_module._fallback_plan = old_plan
+            server_module._fallback_scan_remaining = old_rem
+
+    def test_make_result_dict_pro_no_follow_up(self):
+        """_make_result_dict skips follow_up_tool for pro users."""
+        plan_tok = server_module._current_plan.set("pro")
+        old_plan = server_module._fallback_plan
+        server_module._fallback_plan = "pro"
+        try:
+            result = _make_result_dict({"data": 1})
+            assert "follow_up_tool" not in result
+        finally:
+            server_module._current_plan.reset(plan_tok)
+            server_module._fallback_plan = old_plan
+
+    def test_format_text_result_free_cta_variant_a_high_remaining(self):
+        """_format_text_result shows variant A CTA when remaining > 3."""
+        plan_tok = server_module._current_plan.set("free")
+        old_plan = server_module._fallback_plan
+        old_rem = server_module._fallback_scan_remaining
+        old_var = server_module._fallback_cta_variant
+        server_module._fallback_plan = "free"
+        server_module._fallback_scan_remaining = 8
+        server_module._fallback_cta_variant = "A"
+        try:
+            text = _format_text_result({"files_scanned": 3, "detected_models": {}})
+            assert "━━━ Next step ━━━" in text
+            assert "Remaining free scans today: 8/10" in text
+            assert "Registering takes 5 seconds" in text
+        finally:
+            server_module._current_plan.reset(plan_tok)
+            server_module._fallback_plan = old_plan
+            server_module._fallback_scan_remaining = old_rem
+            server_module._fallback_cta_variant = old_var
+
+    def test_format_text_result_free_cta_variant_a_low_remaining(self):
+        """_format_text_result shows urgent CTA when remaining <= 1 (variant A)."""
+        plan_tok = server_module._current_plan.set("free")
+        old_plan = server_module._fallback_plan
+        old_rem = server_module._fallback_scan_remaining
+        old_var = server_module._fallback_cta_variant
+        server_module._fallback_plan = "free"
+        server_module._fallback_scan_remaining = 1
+        server_module._fallback_cta_variant = "A"
+        try:
+            text = _format_text_result({"files_scanned": 3, "detected_models": {}})
+            assert "last free scan today" in text.lower()
+            assert "Registration saves" in text
+        finally:
+            server_module._current_plan.reset(plan_tok)
+            server_module._fallback_plan = old_plan
+            server_module._fallback_scan_remaining = old_rem
+            server_module._fallback_cta_variant = old_var
+
+    def test_format_text_result_free_cta_variant_a_mid_remaining(self):
+        """_format_text_result shows mid-urgency CTA when 1 < remaining <= 3 (variant A)."""
+        plan_tok = server_module._current_plan.set("free")
+        old_plan = server_module._fallback_plan
+        old_rem = server_module._fallback_scan_remaining
+        old_var = server_module._fallback_cta_variant
+        server_module._fallback_plan = "free"
+        server_module._fallback_scan_remaining = 3
+        server_module._fallback_cta_variant = "A"
+        try:
+            text = _format_text_result({"files_scanned": 3, "detected_models": {}})
+            assert "3 free scans remaining today" in text
+            assert "compliance progress across commits" in text
+        finally:
+            server_module._current_plan.reset(plan_tok)
+            server_module._fallback_plan = old_plan
+            server_module._fallback_scan_remaining = old_rem
+            server_module._fallback_cta_variant = old_var
+
+    def test_format_text_result_free_cta_variant_b_high_remaining(self):
+        """_format_text_result shows variant B CTA when remaining > 3."""
+        plan_tok = server_module._current_plan.set("free")
+        old_plan = server_module._fallback_plan
+        old_rem = server_module._fallback_scan_remaining
+        old_var = server_module._fallback_cta_variant
+        server_module._fallback_plan = "free"
+        server_module._fallback_scan_remaining = 8
+        server_module._fallback_cta_variant = "B"
+        try:
+            text = _format_text_result({"files_scanned": 3, "detected_models": {}})
+            assert "One email field activates a free API key" in text
+            assert "Free forever" in text
+        finally:
+            server_module._current_plan.reset(plan_tok)
+            server_module._fallback_plan = old_plan
+            server_module._fallback_scan_remaining = old_rem
+            server_module._fallback_cta_variant = old_var
+
+    def test_format_text_result_free_cta_variant_b_low_remaining(self):
+        """_format_text_result shows urgent variant B CTA when remaining <= 1."""
+        plan_tok = server_module._current_plan.set("free")
+        old_plan = server_module._fallback_plan
+        old_rem = server_module._fallback_scan_remaining
+        old_var = server_module._fallback_cta_variant
+        server_module._fallback_plan = "free"
+        server_module._fallback_scan_remaining = 1
+        server_module._fallback_cta_variant = "B"
+        try:
+            text = _format_text_result({"files_scanned": 3, "detected_models": {}})
+            assert "Last free scan today" in text
+            assert "scan history dashboard" in text
+        finally:
+            server_module._current_plan.reset(plan_tok)
+            server_module._fallback_plan = old_plan
+            server_module._fallback_scan_remaining = old_rem
+            server_module._fallback_cta_variant = old_var
+
+    def test_format_text_result_free_cta_variant_b_mid_remaining(self):
+        """_format_text_result shows mid variant B CTA when 1 < remaining <= 3."""
+        plan_tok = server_module._current_plan.set("free")
+        old_plan = server_module._fallback_plan
+        old_rem = server_module._fallback_scan_remaining
+        old_var = server_module._fallback_cta_variant
+        server_module._fallback_plan = "free"
+        server_module._fallback_scan_remaining = 2
+        server_module._fallback_cta_variant = "B"
+        try:
+            text = _format_text_result({"files_scanned": 3, "detected_models": {}})
+            assert "2 free scans left today" in text
+            assert "CI/CD pipeline webhook" in text
+        finally:
+            server_module._current_plan.reset(plan_tok)
+            server_module._fallback_plan = old_plan
+            server_module._fallback_scan_remaining = old_rem
+            server_module._fallback_cta_variant = old_var
+
+    def test_format_text_result_pro_no_cta(self):
+        """_format_text_result omits CTA for pro users."""
+        plan_tok = server_module._current_plan.set("pro")
+        old_plan = server_module._fallback_plan
+        server_module._fallback_plan = "pro"
+        try:
+            text = _format_text_result({"files_scanned": 3, "detected_models": {}})
+            assert "Next step" not in text
+            assert "register_free_key" not in text
+        finally:
+            server_module._current_plan.reset(plan_tok)
+            server_module._fallback_plan = old_plan
 
     def test_all_16_frameworks_in_patterns(self):
         """All 16 expected frameworks exist in both pattern dicts."""
