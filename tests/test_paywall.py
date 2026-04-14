@@ -558,3 +558,140 @@ class TestStripeWebhook:
                 headers={"stripe-signature": sig_header},
             )
         assert resp.status_code == 200
+
+
+# ============================================================
+# Tests: register_free_key phone-home HTTP flow
+# ============================================================
+
+class TestRegisterFreeKeyPhoneHome:
+    """Tests for the register_free_key phone-home to Trust Layer and local fallback."""
+
+    @pytest.fixture
+    def mcp_server(self):
+        from server import create_server
+        return create_server()
+
+    def _call_register(self, mcp_server, email):
+        tool = mcp_server._tool_manager._tools["register_free_key"]
+        result = tool.fn(email=email)
+        if isinstance(result, list) and hasattr(result[0], "text"):
+            return json.loads(result[0].text)
+        return result
+
+    def test_phonehome_success(self, mcp_server, tmp_path):
+        """When Trust Layer responds, register_free_key returns the remote key."""
+        fake_key = "mcp_free_abc123def456"
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps({"api_key": fake_key}).encode()
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+
+        with patch("urllib.request.urlopen", return_value=mock_resp) as mock_urlopen, \
+             patch("server._get_client_ip", return_value="198.51.100.1"), \
+             patch("server._record_registration"), \
+             patch("server._record_mcp_scan"), \
+             patch("server._log_tool_call"), \
+             patch("server._SCAN_HISTORY_PATH", tmp_path / "scan_history.json"):
+            result = self._call_register(mcp_server, "user@example.com")
+
+        assert result["registered"] is True
+        assert result["api_key"] == fake_key
+        assert result["plan"] == "free"
+        mock_urlopen.assert_called_once()
+        req = mock_urlopen.call_args[0][0]
+        assert req.full_url == "https://trust.arkforge.tech/api/register"
+        body = json.loads(req.data)
+        assert body["email"] == "user@example.com"
+        assert body["source"] == "mcp_phonehome"
+
+    def test_phonehome_failure_falls_back_to_local(self, mcp_server, tmp_path):
+        """When Trust Layer is unreachable, fallback to local ApiKeyManager."""
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+
+        from server import ApiKeyManager
+        mgr = ApiKeyManager(
+            path=tmp_path / "keys.json",
+            data_path=data_dir / "api_keys.json",
+        )
+
+        with patch("urllib.request.urlopen", side_effect=OSError("Connection refused")), \
+             patch("server._get_client_ip", return_value="198.51.100.1"), \
+             patch("server._api_key_manager", mgr), \
+             patch("server._record_registration") as mock_record, \
+             patch("server._record_mcp_scan"), \
+             patch("server._log_tool_call"), \
+             patch("server._SCAN_HISTORY_PATH", tmp_path / "scan_history.json"):
+            result = self._call_register(mcp_server, "fallback@example.com")
+
+        assert result["registered"] is True
+        assert result["api_key"].startswith("ak_")
+        assert result["plan"] == "free"
+        mock_record.assert_called_once()
+        assert mock_record.call_args[1]["source"] == "mcp_tool_local_fallback"
+
+    def test_phonehome_invalid_email_rejected(self, mcp_server):
+        """Invalid email is rejected before any HTTP call."""
+        with patch("urllib.request.urlopen") as mock_urlopen:
+            result = self._call_register(mcp_server, "not-an-email")
+
+        assert "error" in result
+        mock_urlopen.assert_not_called()
+
+    def test_phonehome_fallback_writes_registration_log(self, mcp_server, tmp_path):
+        """Local fallback actually writes to registration_log.jsonl (not mocked)."""
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        reg_log = tmp_path / "registration_log.jsonl"
+
+        from server import ApiKeyManager
+        mgr = ApiKeyManager(
+            path=tmp_path / "keys.json",
+            data_path=data_dir / "api_keys.json",
+        )
+
+        with patch("urllib.request.urlopen", side_effect=OSError("Connection refused")), \
+             patch("server._get_client_ip", return_value="198.51.100.1"), \
+             patch("server._api_key_manager", mgr), \
+             patch("server._REGISTRATION_LOG_PATH", reg_log), \
+             patch("server._record_mcp_scan"), \
+             patch("server._log_tool_call"), \
+             patch("server._SCAN_HISTORY_PATH", tmp_path / "scan_history.json"):
+            result = self._call_register(mcp_server, "logtest@example.com")
+
+        assert result["registered"] is True
+        assert reg_log.exists()
+        lines = reg_log.read_text().strip().split("\n")
+        assert len(lines) == 1
+        entry = json.loads(lines[0])
+        assert entry["source"] == "mcp_tool_local_fallback"
+        assert entry["ip"] == "198.51.100.1"
+        assert entry["scan_id"] is not None
+
+    def test_phonehome_no_api_key_in_response_falls_back(self, mcp_server, tmp_path):
+        """If Trust Layer responds but without api_key, fall back to local."""
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps({"error": "something"}).encode()
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        from server import ApiKeyManager
+        mgr = ApiKeyManager(
+            path=tmp_path / "keys.json",
+            data_path=data_dir / "api_keys.json",
+        )
+
+        with patch("urllib.request.urlopen", return_value=mock_resp), \
+             patch("server._get_client_ip", return_value="198.51.100.1"), \
+             patch("server._api_key_manager", mgr), \
+             patch("server._record_registration"), \
+             patch("server._record_mcp_scan"), \
+             patch("server._log_tool_call"), \
+             patch("server._SCAN_HISTORY_PATH", tmp_path / "scan_history.json"):
+            result = self._call_register(mcp_server, "user2@example.com")
+
+        assert result["registered"] is True
+        assert result["api_key"].startswith("ak_")

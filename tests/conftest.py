@@ -6,6 +6,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+import server as server_module
 from server import RateLimiter, _current_plan
 
 
@@ -30,5 +31,8 @@ def set_certified_plan():
     setting _current_plan.set('free') at the start of the test.
     """
     token = _current_plan.set("certified")
+    old_transport = server_module._fallback_transport
+    server_module._fallback_transport = "mcp_jsonrpc"
     yield
     _current_plan.reset(token)
+    server_module._fallback_transport = old_transport

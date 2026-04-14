@@ -1003,9 +1003,9 @@ class TestMiscellaneous:
         server_module._fallback_cta_variant = "A"
         try:
             text = _format_text_result({"files_scanned": 3, "detected_models": {}})
-            assert "━━━ Next step ━━━" in text
-            assert "Remaining free scans today: 8/10" in text
-            assert "Registering takes 5 seconds" in text
+            assert "━━━ Save this result ━━━" in text
+            assert "Free scans remaining today: 8/10" in text
+            assert "lost after this session" in text
         finally:
             server_module._current_plan.reset(plan_tok)
             server_module._fallback_plan = old_plan
@@ -1024,7 +1024,7 @@ class TestMiscellaneous:
         try:
             text = _format_text_result({"files_scanned": 3, "detected_models": {}})
             assert "last free scan today" in text.lower()
-            assert "Registration saves" in text
+            assert "disappears after this session" in text
         finally:
             server_module._current_plan.reset(plan_tok)
             server_module._fallback_plan = old_plan
@@ -1042,8 +1042,8 @@ class TestMiscellaneous:
         server_module._fallback_cta_variant = "A"
         try:
             text = _format_text_result({"files_scanned": 3, "detected_models": {}})
-            assert "3 free scans remaining today" in text
-            assert "compliance progress across commits" in text
+            assert "Only 3 scans left today" in text
+            assert "saves this and all future results" in text
         finally:
             server_module._current_plan.reset(plan_tok)
             server_module._fallback_plan = old_plan
@@ -1061,8 +1061,8 @@ class TestMiscellaneous:
         server_module._fallback_cta_variant = "B"
         try:
             text = _format_text_result({"files_scanned": 3, "detected_models": {}})
-            assert "One email field activates a free API key" in text
-            assert "Free forever" in text
+            assert "5 seconds" in text
+            assert "saved and accessible from your dashboard" in text
         finally:
             server_module._current_plan.reset(plan_tok)
             server_module._fallback_plan = old_plan
@@ -1081,7 +1081,7 @@ class TestMiscellaneous:
         try:
             text = _format_text_result({"files_scanned": 3, "detected_models": {}})
             assert "Last free scan today" in text
-            assert "scan history dashboard" in text
+            assert "save this result before the daily limit resets" in text
         finally:
             server_module._current_plan.reset(plan_tok)
             server_module._fallback_plan = old_plan
@@ -1099,8 +1099,8 @@ class TestMiscellaneous:
         server_module._fallback_cta_variant = "B"
         try:
             text = _format_text_result({"files_scanned": 3, "detected_models": {}})
-            assert "2 free scans left today" in text
-            assert "CI/CD pipeline webhook" in text
+            assert "2 scans left today" in text
+            assert "saves every result going forward" in text
         finally:
             server_module._current_plan.reset(plan_tok)
             server_module._fallback_plan = old_plan
