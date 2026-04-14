@@ -147,6 +147,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.12] — 2026-04-14
+
+### Fixed
+- instrument register_free_key logging + rewrite scan tool descriptions
+- rewrite register_free_key CTA — imperative framing forces LLM tool calls
+- make A/B CTA variant persistent per client IP instead of timestamp-based
+
+---
+
 ## [2.0.11] — 2026-04-13
 
 ### Fixed
