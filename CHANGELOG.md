@@ -147,6 +147,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.16] — 2026-04-14
+
+### Fixed
+- register_free_key error response now includes `action_required` field to stop LLM retry loops
+- improved tool docstring and server instructions to enforce ask-user-first flow
+
+---
+
 ## [2.0.15] — 2026-04-14
 
 ### Fixed
