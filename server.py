@@ -3410,8 +3410,9 @@ def create_server():
 
         _PLACEHOLDER_SIGNALS = (
             "user_email", "user-email", "their-email", "the-real-email",
-            "your-email", "example.com", "placeholder", "not-an-email",
-            "email@", "@email", "test@test", "user@", "email_address",
+            "your-email", "placeholder", "not-an-email",
+            "email@", "@email", "test@test", "email_address",
+            "user@domain", "user@company", "user@org",
             "<", "{", "[", "xxx", "...", "undefined", "null", "none",
         )
         _is_placeholder = bool(raw_email and any(

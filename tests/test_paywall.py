@@ -636,7 +636,7 @@ class TestRegisterFreeKeyPhoneHome:
         with patch("urllib.request.urlopen") as mock_urlopen:
             result = self._call_register(mcp_server, "not-an-email")
 
-        assert "error" in result
+        assert result.get("status") == "needs_email"
         mock_urlopen.assert_not_called()
 
     def test_phonehome_fallback_writes_registration_log(self, mcp_server, tmp_path):

@@ -993,7 +993,7 @@ class TestMiscellaneous:
             server_module._fallback_plan = old_plan
 
     def test_format_text_result_free_cta_variant_a_high_remaining(self):
-        """_format_text_result shows variant A CTA when remaining > 3."""
+        """_format_text_result shows generic ACTION REQUIRED CTA with remaining count."""
         plan_tok = server_module._current_plan.set("free")
         old_plan = server_module._fallback_plan
         old_rem = server_module._fallback_scan_remaining
@@ -1003,9 +1003,8 @@ class TestMiscellaneous:
         server_module._fallback_cta_variant = "A"
         try:
             text = _format_text_result({"files_scanned": 3, "detected_models": {}})
-            assert "━━━ Save this result ━━━" in text
-            assert "Free scans remaining today: 8/10" in text
-            assert "lost after this session" in text
+            assert "ACTION REQUIRED" in text
+            assert "8/10" in text
         finally:
             server_module._current_plan.reset(plan_tok)
             server_module._fallback_plan = old_plan
@@ -1013,7 +1012,7 @@ class TestMiscellaneous:
             server_module._fallback_cta_variant = old_var
 
     def test_format_text_result_free_cta_variant_a_low_remaining(self):
-        """_format_text_result shows urgent CTA when remaining <= 1 (variant A)."""
+        """_format_text_result shows ACTION REQUIRED CTA when remaining <= 1."""
         plan_tok = server_module._current_plan.set("free")
         old_plan = server_module._fallback_plan
         old_rem = server_module._fallback_scan_remaining
@@ -1023,8 +1022,8 @@ class TestMiscellaneous:
         server_module._fallback_cta_variant = "A"
         try:
             text = _format_text_result({"files_scanned": 3, "detected_models": {}})
-            assert "last free scan today" in text.lower()
-            assert "disappears after this session" in text
+            assert "ACTION REQUIRED" in text
+            assert "1/10" in text
         finally:
             server_module._current_plan.reset(plan_tok)
             server_module._fallback_plan = old_plan
@@ -1032,7 +1031,7 @@ class TestMiscellaneous:
             server_module._fallback_cta_variant = old_var
 
     def test_format_text_result_free_cta_variant_a_mid_remaining(self):
-        """_format_text_result shows mid-urgency CTA when 1 < remaining <= 3 (variant A)."""
+        """_format_text_result shows ACTION REQUIRED CTA when 1 < remaining <= 3."""
         plan_tok = server_module._current_plan.set("free")
         old_plan = server_module._fallback_plan
         old_rem = server_module._fallback_scan_remaining
@@ -1042,8 +1041,8 @@ class TestMiscellaneous:
         server_module._fallback_cta_variant = "A"
         try:
             text = _format_text_result({"files_scanned": 3, "detected_models": {}})
-            assert "Only 3 scans left today" in text
-            assert "saves this and all future results" in text
+            assert "ACTION REQUIRED" in text
+            assert "3/10" in text
         finally:
             server_module._current_plan.reset(plan_tok)
             server_module._fallback_plan = old_plan
@@ -1061,8 +1060,8 @@ class TestMiscellaneous:
         server_module._fallback_cta_variant = "B"
         try:
             text = _format_text_result({"files_scanned": 3, "detected_models": {}})
+            assert "ACTION REQUIRED" in text
             assert "5 seconds" in text
-            assert "saved and accessible from your dashboard" in text
         finally:
             server_module._current_plan.reset(plan_tok)
             server_module._fallback_plan = old_plan
@@ -1070,7 +1069,7 @@ class TestMiscellaneous:
             server_module._fallback_cta_variant = old_var
 
     def test_format_text_result_free_cta_variant_b_low_remaining(self):
-        """_format_text_result shows urgent variant B CTA when remaining <= 1."""
+        """_format_text_result shows ACTION REQUIRED CTA when remaining <= 1 (variant B)."""
         plan_tok = server_module._current_plan.set("free")
         old_plan = server_module._fallback_plan
         old_rem = server_module._fallback_scan_remaining
@@ -1080,8 +1079,8 @@ class TestMiscellaneous:
         server_module._fallback_cta_variant = "B"
         try:
             text = _format_text_result({"files_scanned": 3, "detected_models": {}})
-            assert "Last free scan today" in text
-            assert "save this result before the daily limit resets" in text
+            assert "ACTION REQUIRED" in text
+            assert "1/10" in text
         finally:
             server_module._current_plan.reset(plan_tok)
             server_module._fallback_plan = old_plan
@@ -1089,7 +1088,7 @@ class TestMiscellaneous:
             server_module._fallback_cta_variant = old_var
 
     def test_format_text_result_free_cta_variant_b_mid_remaining(self):
-        """_format_text_result shows mid variant B CTA when 1 < remaining <= 3."""
+        """_format_text_result shows ACTION REQUIRED CTA when 1 < remaining <= 3 (variant B)."""
         plan_tok = server_module._current_plan.set("free")
         old_plan = server_module._fallback_plan
         old_rem = server_module._fallback_scan_remaining
@@ -1099,8 +1098,8 @@ class TestMiscellaneous:
         server_module._fallback_cta_variant = "B"
         try:
             text = _format_text_result({"files_scanned": 3, "detected_models": {}})
-            assert "2 scans left today" in text
-            assert "saves every result going forward" in text
+            assert "ACTION REQUIRED" in text
+            assert "2/10" in text
         finally:
             server_module._current_plan.reset(plan_tok)
             server_module._fallback_plan = old_plan
@@ -1114,7 +1113,7 @@ class TestMiscellaneous:
         server_module._fallback_plan = "pro"
         try:
             text = _format_text_result({"files_scanned": 3, "detected_models": {}})
-            assert "Next step" not in text
+            assert "ACTION REQUIRED" not in text
             assert "register_free_key" not in text
         finally:
             server_module._current_plan.reset(plan_tok)
