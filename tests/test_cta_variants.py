@@ -189,14 +189,14 @@ class TestFormatTextResult:
         ]
         with patches[0], patches[1], patches[2], patches[3], patches[4]:
             text = server._format_text_result({"files_scanned": 10, "detected_models": {"openai": {}}})
-            assert "Save this result" in text
-            assert "free API key" in text
+            assert "ACTION REQUIRED" in text
+            assert "register_free_key" in text
 
     def test_pro_plan_no_cta(self):
         patches = self._set_pro_plan()
         with patches[0], patches[1]:
             text = server._format_text_result({"files_scanned": 10, "detected_models": {}})
-            assert "Save this result" not in text
+            assert "ACTION REQUIRED" not in text
 
     def test_variant_a_last_scan(self):
         patches = self._set_free_plan() + [
@@ -206,7 +206,7 @@ class TestFormatTextResult:
         ]
         with patches[0], patches[1], patches[2], patches[3], patches[4]:
             text = server._format_text_result({})
-            assert "last free scan" in text.lower()
+            assert "Free scans remaining today: 1/10" in text
 
     def test_variant_a_low_scans(self):
         patches = self._set_free_plan() + [
@@ -216,7 +216,7 @@ class TestFormatTextResult:
         ]
         with patches[0], patches[1], patches[2], patches[3], patches[4]:
             text = server._format_text_result({})
-            assert "Only 3 scans left" in text
+            assert "Free scans remaining today: 3/10" in text
 
     def test_variant_a_many_scans(self):
         patches = self._set_free_plan() + [
@@ -236,7 +236,7 @@ class TestFormatTextResult:
         ]
         with patches[0], patches[1], patches[2], patches[3], patches[4]:
             text = server._format_text_result({})
-            assert "Last free scan" in text
+            assert "Free scans remaining today: 1/10" in text
 
     def test_variant_b_low_scans(self):
         patches = self._set_free_plan() + [
@@ -246,7 +246,7 @@ class TestFormatTextResult:
         ]
         with patches[0], patches[1], patches[2], patches[3], patches[4]:
             text = server._format_text_result({})
-            assert "2 scans left" in text
+            assert "Free scans remaining today: 2/10" in text
 
     def test_variant_b_many_scans(self):
         patches = self._set_free_plan() + [
