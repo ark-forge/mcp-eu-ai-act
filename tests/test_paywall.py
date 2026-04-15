@@ -593,7 +593,7 @@ class TestRegisterFreeKeyPhoneHome:
              patch("server._record_mcp_scan"), \
              patch("server._log_tool_call"), \
              patch("server._SCAN_HISTORY_PATH", tmp_path / "scan_history.json"):
-            result = self._call_register(mcp_server, "user@example.com")
+            result = self._call_register(mcp_server, "alice@acme.dev")
 
         assert result["registered"] is True
         assert result["api_key"] == fake_key
@@ -602,7 +602,7 @@ class TestRegisterFreeKeyPhoneHome:
         req = mock_urlopen.call_args[0][0]
         assert req.full_url == "https://trust.arkforge.tech/api/register"
         body = json.loads(req.data)
-        assert body["email"] == "user@example.com"
+        assert body["email"] == "alice@acme.dev"
         assert body["source"] == "mcp_phonehome"
 
     def test_phonehome_failure_falls_back_to_local(self, mcp_server, tmp_path):
@@ -623,7 +623,7 @@ class TestRegisterFreeKeyPhoneHome:
              patch("server._record_mcp_scan"), \
              patch("server._log_tool_call"), \
              patch("server._SCAN_HISTORY_PATH", tmp_path / "scan_history.json"):
-            result = self._call_register(mcp_server, "fallback@example.com")
+            result = self._call_register(mcp_server, "bob@corp.io")
 
         assert result["registered"] is True
         assert result["api_key"].startswith("ak_")
@@ -636,7 +636,8 @@ class TestRegisterFreeKeyPhoneHome:
         with patch("urllib.request.urlopen") as mock_urlopen:
             result = self._call_register(mcp_server, "not-an-email")
 
-        assert result.get("status") == "needs_email"
+        assert result["status"] == "needs_email"
+        assert "action_required" in result
         mock_urlopen.assert_not_called()
 
     def test_phonehome_fallback_writes_registration_log(self, mcp_server, tmp_path):
@@ -658,7 +659,7 @@ class TestRegisterFreeKeyPhoneHome:
              patch("server._record_mcp_scan"), \
              patch("server._log_tool_call"), \
              patch("server._SCAN_HISTORY_PATH", tmp_path / "scan_history.json"):
-            result = self._call_register(mcp_server, "logtest@example.com")
+            result = self._call_register(mcp_server, "jane@devops.co")
 
         assert result["registered"] is True
         assert reg_log.exists()
@@ -691,7 +692,7 @@ class TestRegisterFreeKeyPhoneHome:
              patch("server._record_mcp_scan"), \
              patch("server._log_tool_call"), \
              patch("server._SCAN_HISTORY_PATH", tmp_path / "scan_history.json"):
-            result = self._call_register(mcp_server, "user2@example.com")
+            result = self._call_register(mcp_server, "reg@company.net")
 
         assert result["registered"] is True
         assert result["api_key"].startswith("ak_")

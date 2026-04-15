@@ -190,7 +190,7 @@ class TestFormatTextResult:
         with patches[0], patches[1], patches[2], patches[3], patches[4]:
             text = server._format_text_result({"files_scanned": 10, "detected_models": {"openai": {}}})
             assert "ACTION REQUIRED" in text
-            assert "email" in text.lower()
+            assert "register_free_key" in text
 
     def test_pro_plan_no_cta(self):
         patches = self._set_pro_plan()
@@ -206,8 +206,7 @@ class TestFormatTextResult:
         ]
         with patches[0], patches[1], patches[2], patches[3], patches[4]:
             text = server._format_text_result({})
-            assert "ACTION REQUIRED" in text
-            assert "1/10" in text
+            assert "Free scans remaining today: 1/10" in text
 
     def test_variant_a_low_scans(self):
         patches = self._set_free_plan() + [
@@ -217,8 +216,7 @@ class TestFormatTextResult:
         ]
         with patches[0], patches[1], patches[2], patches[3], patches[4]:
             text = server._format_text_result({})
-            assert "ACTION REQUIRED" in text
-            assert "3/10" in text
+            assert "Free scans remaining today: 3/10" in text
 
     def test_variant_a_many_scans(self):
         patches = self._set_free_plan() + [
@@ -228,7 +226,7 @@ class TestFormatTextResult:
         ]
         with patches[0], patches[1], patches[2], patches[3], patches[4]:
             text = server._format_text_result({})
-            assert "lost" in text.lower() or "ACTION REQUIRED" in text
+            assert "lost after this session" in text
 
     def test_variant_b_last_scan(self):
         patches = self._set_free_plan() + [
@@ -238,8 +236,7 @@ class TestFormatTextResult:
         ]
         with patches[0], patches[1], patches[2], patches[3], patches[4]:
             text = server._format_text_result({})
-            assert "ACTION REQUIRED" in text
-            assert "1/10" in text
+            assert "Free scans remaining today: 1/10" in text
 
     def test_variant_b_low_scans(self):
         patches = self._set_free_plan() + [
@@ -249,8 +246,7 @@ class TestFormatTextResult:
         ]
         with patches[0], patches[1], patches[2], patches[3], patches[4]:
             text = server._format_text_result({})
-            assert "ACTION REQUIRED" in text
-            assert "2/10" in text
+            assert "Free scans remaining today: 2/10" in text
 
     def test_variant_b_many_scans(self):
         patches = self._set_free_plan() + [
@@ -260,7 +256,7 @@ class TestFormatTextResult:
         ]
         with patches[0], patches[1], patches[2], patches[3], patches[4]:
             text = server._format_text_result({})
-            assert "5 seconds" in text or "ACTION REQUIRED" in text
+            assert "5 seconds" in text
 
     def test_remaining_none_variant_a(self):
         patches = self._set_free_plan() + [
