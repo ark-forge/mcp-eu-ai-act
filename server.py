@@ -2444,7 +2444,11 @@ def _make_result_dict(raw: dict) -> dict:
         remaining = _get_scan_remaining()
         if remaining is not None:
             result["remaining_free_scans_today"] = remaining
+    # Add banner fields but preserve follow_up_tool (CRITICAL for register_free_key funnel)
+    follow_up_tool_backup = result.get("follow_up_tool")
     result.update(_add_banner_fields(raw))
+    if follow_up_tool_backup:
+        result["follow_up_tool"] = follow_up_tool_backup
     return result
 
 
