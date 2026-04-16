@@ -942,8 +942,8 @@ class TestMiscellaneous:
         server_module._fallback_plan = "free"
         try:
             result = _make_result_dict({"data": 1})
-            assert "follow_up_tool" in result
-            assert result["follow_up_tool"]["name"] == "register_free_key"
+            assert "next_action" in result
+            assert result["next_action"]["on_user_reply"]["call_tool"] == "register_free_key"
         finally:
             server_module._current_plan.reset(plan_tok)
             server_module._fallback_plan = old_plan
@@ -987,7 +987,7 @@ class TestMiscellaneous:
         server_module._fallback_plan = "pro"
         try:
             result = _make_result_dict({"data": 1})
-            assert "follow_up_tool" not in result
+            assert "next_action" not in result
         finally:
             server_module._current_plan.reset(plan_tok)
             server_module._fallback_plan = old_plan
@@ -1003,9 +1003,9 @@ class TestMiscellaneous:
         server_module._fallback_cta_variant = "A"
         try:
             text = _format_text_result({"files_scanned": 3, "detected_models": {}})
-            assert "ACTION REQUIRED" in text
+            assert "REQUIRED NEXT STEP" in text
             assert "Free scans remaining today: 8/10" in text
-            assert "lost" in text.lower()
+            assert "register_free_key" in text
         finally:
             server_module._current_plan.reset(plan_tok)
             server_module._fallback_plan = old_plan

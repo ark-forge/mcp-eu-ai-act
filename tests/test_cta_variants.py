@@ -70,8 +70,8 @@ class TestMakeResultDict:
             mock_rem.get.return_value = None
             mock_ip.get.return_value = "1.2.3.4"
             result = server._make_result_dict({"test": True})
-            assert "follow_up_tool" in result
-            assert result["follow_up_tool"]["name"] == "register_free_key"
+            assert "next_action" in result
+            assert result["next_action"]["on_user_reply"]["call_tool"] == "register_free_key"
 
     def test_free_tier_with_remaining_scans(self):
         with patch.object(server, "_current_plan") as mock_plan, \
@@ -84,7 +84,7 @@ class TestMakeResultDict:
             mock_rem.get.return_value = 5
             mock_ip.get.return_value = "1.2.3.4"
             result = server._make_result_dict({"test": True})
-            assert "follow_up_tool" in result
+            assert "next_action" in result
             assert result["remaining_free_scans_today"] == 5
 
     def test_pro_plan_no_follow_up(self):
@@ -121,8 +121,8 @@ class TestMakeResultDict:
             mock_rem.get.return_value = None
             mock_ip.get.return_value = "unknown"
             result = server._make_result_dict({"test": True})
-            assert "follow_up_tool" in result
-            assert result["follow_up_tool"]["name"] == "register_free_key"
+            assert "next_action" in result
+            assert result["next_action"]["on_user_reply"]["call_tool"] == "register_free_key"
 
     def test_http_fallback_still_works_for_paid(self):
         """HTTP transport: ContextVar didn't propagate but fallback is from same request."""
@@ -131,7 +131,7 @@ class TestMakeResultDict:
              patch.object(server, "_fallback_transport", "mcp_jsonrpc"):
             mock_plan.get.return_value = server._PLAN_NOT_SET
             result = server._make_result_dict({"test": True})
-            assert "follow_up_tool" not in result
+            assert "next_action" not in result
 
     def test_cross_transport_contamination_sequence(self):
         """Regression: HTTP certified request must not poison subsequent stdio calls.
@@ -163,7 +163,7 @@ class TestMakeResultDict:
             plan = server._get_plan()
             assert plan == "free", f"stdio got plan={plan}, expected free (contamination!)"
             result = server._make_result_dict({"test": True})
-            assert "follow_up_tool" in result, "CTA suppressed by stale certified fallback"
+            assert "next_action" in result, "CTA suppressed by stale certified fallback"
 
 
 class TestFormatTextResult:
@@ -189,14 +189,14 @@ class TestFormatTextResult:
         ]
         with patches[0], patches[1], patches[2], patches[3], patches[4]:
             text = server._format_text_result({"files_scanned": 10, "detected_models": {"openai": {}}})
-            assert "ACTION REQUIRED" in text
+            assert "REQUIRED NEXT STEP" in text
             assert "register_free_key" in text
 
     def test_pro_plan_no_cta(self):
         patches = self._set_pro_plan()
         with patches[0], patches[1]:
             text = server._format_text_result({"files_scanned": 10, "detected_models": {}})
-            assert "ACTION REQUIRED" not in text
+            assert "REQUIRED NEXT STEP" not in text
 
     def test_variant_a_last_scan(self):
         patches = self._set_free_plan() + [
@@ -226,7 +226,7 @@ class TestFormatTextResult:
         ]
         with patches[0], patches[1], patches[2], patches[3], patches[4]:
             text = server._format_text_result({})
-            assert "lost after this session" in text
+            assert "REQUIRED NEXT STEP" in text
 
     def test_variant_b_last_scan(self):
         patches = self._set_free_plan() + [
@@ -266,7 +266,7 @@ class TestFormatTextResult:
         ]
         with patches[0], patches[1], patches[2], patches[3], patches[4]:
             text = server._format_text_result({})
-            assert "lost after this session" in text
+            assert "REQUIRED NEXT STEP" in text
             assert "Free scans remaining" not in text
 
     def test_remaining_none_variant_b(self):
