@@ -473,15 +473,41 @@ def _classify_ip(ip: str, client_hint: str = "unknown") -> str:
 _TOOL_CALL_LOG_PATH = Path(__file__).parent / "data" / "tool_calls.jsonl"
 
 
+_SCAN_TOOLS = {
+    "scan_project", "check_compliance", "generate_report",
+    "gdpr_scan_project", "gdpr_check_compliance", "gdpr_generate_report",
+    "combined_compliance_report",
+}
+
+
+def _write_tool_call_entry(entry: dict):
+    try:
+        _TOOL_CALL_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(_TOOL_CALL_LOG_PATH, "a") as f:
+            f.write(json.dumps(entry, default=str) + "\n")
+    except Exception:
+        import logging
+        logging.getLogger("mcp.telemetry").exception(
+            "_write_tool_call_entry failed for %s", entry.get("tool"))
+
+
 def _log_tool_call(tool_name: str, cta_included: bool = False, plan: str = None,
                    ip: str = None, extra: dict = None):
-    """Append a tool call event for funnel diagnostics.
+    """Append tool call events for funnel diagnostics.
 
-    Solves: no telemetry to distinguish 'CTA shown in scan response' vs 'user never saw CTA'.
-    Each scan/check/report tool call is logged with whether register_free_key CTA was included.
+    Funnel step naming (standardized — matches web analytics event names):
+      mcp_scan_completed          — any successful scan/check/report tool
+      cta_register_free_key_viewed — CTA text included in response
+      cta_register_free_key_clicked — register_free_key tool invoked
+      free_key_activation         — register_free_key succeeded
+      pricing_view                — get_pricing tool called
+
+    Scan tools with a CTA emit BOTH mcp_scan_completed and
+    cta_register_free_key_viewed so drop-off between the two is measurable.
+    Callers passing funnel_step explicitly in `extra` suppress auto-tagging.
     """
     resolved_ip = ip or _get_client_ip()
-    entry = {
+    base = {
         "ts": datetime.now(timezone.utc).isoformat(),
         "tool": tool_name,
         "plan": plan or _get_plan(),
@@ -493,18 +519,29 @@ def _log_tool_call(tool_name: str, cta_included: bool = False, plan: str = None,
         "client_hint": _get_client_hint_val(),
     }
     if extra:
-        entry.update(extra)
-    # Auto-tag funnel_step if not already set by caller
-    if "funnel_step" not in entry:
+        base.update(extra)
+
+    explicit_step = base.get("funnel_step")
+    if explicit_step:
+        _write_tool_call_entry(base)
+        return
+
+    is_scan = tool_name in _SCAN_TOOLS
+    if is_scan:
+        scan_entry = dict(base)
+        scan_entry["funnel_step"] = "mcp_scan_completed"
+        _write_tool_call_entry(scan_entry)
         if cta_included:
-            entry["funnel_step"] = "cta_shown"
-    try:
-        _TOOL_CALL_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with open(_TOOL_CALL_LOG_PATH, "a") as f:
-            f.write(json.dumps(entry, default=str) + "\n")
-    except Exception:
-        import logging
-        logging.getLogger("mcp.telemetry").exception("_log_tool_call failed for %s", tool_name)
+            cta_entry = dict(base)
+            cta_entry["funnel_step"] = "cta_register_free_key_viewed"
+            cta_entry["funnel_step_legacy"] = "cta_shown"
+            _write_tool_call_entry(cta_entry)
+        return
+
+    if cta_included:
+        base["funnel_step"] = "cta_register_free_key_viewed"
+        base["funnel_step_legacy"] = "cta_shown"
+    _write_tool_call_entry(base)
 
 
 # --- Registration logging ---
@@ -3364,6 +3401,14 @@ def create_server():
         raw_email = email
         email = _sanitize_email(email)
 
+        # Funnel: CTA "click" — the LLM has invoked register_free_key.
+        # Logged before validation so invalid/placeholder emails still appear
+        # in the click→activation drop-off.
+        _log_tool_call("register_free_key", cta_included=False, extra={
+            "funnel_step": "cta_register_free_key_clicked",
+            "has_email_arg": bool(raw_email),
+        })
+
         _PLACEHOLDER_SIGNALS = (
             "user_email", "user-email", "their-email", "the-real-email",
             "your-email", "placeholder", "not-an-email",
@@ -3691,7 +3736,7 @@ def create_server():
 
         Shows free tier limits, Pro plan features, and how to upgrade.
         """
-        _log_tool_call("get_pricing", cta_included=True, extra={"funnel_step": "pricing_view"})
+        _log_tool_call("get_pricing", cta_included=True, extra={"funnel_step": "pricing_page_viewed"})
         return {
             "plans": {
                 "free": {
