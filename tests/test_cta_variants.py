@@ -196,7 +196,7 @@ class TestFormatTextResult:
         patches = self._set_pro_plan()
         with patches[0], patches[1]:
             text = server._format_text_result({"files_scanned": 10, "detected_models": {}})
-            assert "REQUIRED NEXT STEP" not in text
+            assert "REQUIRED" not in text
 
     def test_variant_a_last_scan(self):
         patches = self._set_free_plan() + [
