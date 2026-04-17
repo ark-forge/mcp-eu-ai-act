@@ -147,6 +147,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.18] — 2026-04-17
+
+### Added
+- standardize 5 funnel event names (task 1570)
+- add register_free_key conversion monitor for task 1483
+
+### Fixed
+- move registration CTA to top of text output for higher LLM relay rate
+- align 4 CTA assertions with refactored directive text
+- align scan_id derivation between scan_project and register_free_key
+- align 9 tests with task-1552 CTA refactor (next_action replaces follow_up_tool)
+- task 1552 — add llm_directive for multi-client resilience
+- narrow _PLACEHOLDER_SIGNALS to avoid false positives on real user emails
+- preserve follow_up_tool through _make_result_dict to ensure register_free_key CTA is visible to Claude models
+- align 16 tests with new CTA format and register_free_key response
+- surface user_prompt in plaintext to ensure Claude relays CTA (task 1483)
+- improve placeholder detection + conversational error response
+- add action_required to error response to stop LLM retry loops
+
+---
+
 ## [2.0.16] — 2026-04-14
 
 ### Fixed
