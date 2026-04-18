@@ -147,6 +147,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.19] — 2026-04-18
+
+### Added
+- track connection-level events (tools/list, initialize) from external IPs
+
+### Fixed
+- safe content gating for generate_report free tier
+- align test_server with instruction-first content block ordering
+- handle string and enum RiskCategory/ProcessingRole in direct Python calls
+
+---
+
 ## [2.0.18] — 2026-04-17
 
 ### Added
