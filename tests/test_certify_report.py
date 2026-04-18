@@ -17,9 +17,13 @@ from server import create_server
 
 
 def _unwrap_result(result):
-    """Unwrap TextContent list to dict if needed."""
-    if isinstance(result, list) and len(result) >= 2 and hasattr(result[0], "text"):
-        return json.loads(result[0].text)
+    """Unwrap TextContent list to dict — JSON block is always last."""
+    if isinstance(result, list) and len(result) >= 2 and hasattr(result[-1], "text"):
+        for block in reversed(result):
+            try:
+                return json.loads(block.text)
+            except (json.JSONDecodeError, ValueError):
+                continue
     return result
 
 
