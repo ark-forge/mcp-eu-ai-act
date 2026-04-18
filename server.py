@@ -863,14 +863,45 @@ class RateLimitMiddleware:
         is_tool_call = False
         request_id = None
         tool_name = None
+        jsonrpc_method = None
         try:
             data = json.loads(body)
-            if data.get("method") == "tools/call":
+            jsonrpc_method = data.get("method")
+            if jsonrpc_method == "tools/call":
                 is_tool_call = True
                 request_id = data.get("id")
                 tool_name = (data.get("params") or {}).get("name", "unknown")
         except (json.JSONDecodeError, ValueError, TypeError):
             pass
+
+        # Track connection-level events (tools/list, initialize) from external IPs
+        # to measure session_init → tool_call conversion drop-off.
+        if not is_tool_call and jsonrpc_method in ("tools/list", "initialize"):
+            conn_ip = _get_header(scope, b"x-real-ip")
+            if not conn_ip:
+                xff = _get_header(scope, b"x-forwarded-for")
+                conn_ip = xff.split(",")[-1].strip() if xff else None
+            if not conn_ip:
+                client = scope.get("client")
+                conn_ip = client[0] if client else "unknown"
+            conn_hint = _detect_client_hint(scope)
+            conn_source = _classify_ip(conn_ip, conn_hint)
+            if conn_source in ("external", "crawler"):
+                _write_tool_call_entry({
+                    "ts": datetime.now(timezone.utc).isoformat(),
+                    "tool": f"__connection_{jsonrpc_method.replace('/', '_')}",
+                    "plan": "free",
+                    "cta_included": False,
+                    "cta_variant": None,
+                    "ip": conn_ip,
+                    "source": conn_source,
+                    "transport": "mcp_jsonrpc",
+                    "client_hint": conn_hint,
+                    "is_genuine_external": conn_source in ("external", "crawler")
+                        and conn_ip not in ("testclient", "unknown", "127.0.0.1", "93.184.216.34"),
+                    "funnel_step": f"mcp_{jsonrpc_method.replace('/', '_')}",
+                })
+                _track_unique_client(conn_ip, conn_source, conn_hint)
 
         if is_tool_call:
             # Extract IP early (needed for both pro and free logging)
@@ -2995,6 +3026,7 @@ def _certify_with_trust_layer(report_data: dict, trust_layer_key: str) -> dict:
         headers={
             "Content-Type": "application/json",
             "X-Api-Key": trust_layer_key,
+            "User-Agent": "ArkForge-MCP-Scanner/1.26.0",
         },
         method="POST",
     )
@@ -3677,7 +3709,7 @@ def create_server():
             req = urllib.request.Request(
                 "https://trust.arkforge.tech/api/register",
                 data=req_data,
-                headers={"Content-Type": "application/json"},
+                headers={"Content-Type": "application/json", "User-Agent": "ArkForge-MCP-Scanner/1.26.0"},
                 method="POST",
             )
             with urllib.request.urlopen(req, timeout=10) as resp:
