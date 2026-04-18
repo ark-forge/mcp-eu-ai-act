@@ -877,24 +877,19 @@ class TestMiscellaneous:
     """Tests for _add_banner, constants, and create_server."""
 
     def test_add_banner(self):
-        """_add_banner returns [text, JSON] for free tier (_add_banner uses _add_banner_fields, not _make_result_dict)."""
+        """_add_banner returns content blocks with JSON as last block for free tier."""
         token = _current_plan.set("free")
         try:
             result = _add_banner({"data": 1, "files_scanned": 5})
 
-            # _add_banner does not inject next_action (that's _make_result_dict's job),
-            # so no instruction block — just [text_summary, json].
+            # Returns list of TextContent blocks (2 or 3 depending on instruction block)
             assert isinstance(result, list)
-            assert len(result) == 2
-            # Find the JSON block
-            json_data = None
-            for block in result:
-                try:
-                    json_data = json.loads(block.text)
-                    break
-                except (json.JSONDecodeError, TypeError):
-                    continue
-            assert json_data is not None
+            assert len(result) >= 2
+            # Last block: JSON with banner fields
+            json_data = json.loads(result[-1].text)
+            # Second-to-last block: human-readable text with CTA
+            text_block = result[-2].text
+            assert "pricing" in text_block.lower() or "arkforge" in text_block.lower()
             assert json_data["data"] == 1
             assert "upgrade_url" in json_data
             assert "pricing.html" in json_data["upgrade_url"]
@@ -912,16 +907,7 @@ class TestMiscellaneous:
         token = _current_plan.set("pro")
         try:
             result = _add_banner({"data": 1})
-            assert len(result) == 2  # No instruction block for pro
-            # Find the JSON block
-            json_data = None
-            for block in result:
-                try:
-                    json_data = json.loads(block.text)
-                    break
-                except (json.JSONDecodeError, TypeError):
-                    continue
-            assert json_data is not None
+            json_data = json.loads(result[-1].text)
             assert "upgrade_url" not in json_data
         finally:
             _current_plan.reset(token)
@@ -1602,16 +1588,10 @@ class TestMCPToolWrappers:
                     enum_cls = type(default)
                     arguments[param.name] = enum_cls(arguments[param.name])
         result = fn(**arguments)
-        # Unwrap TextContent list → dict for backwards-compatible assertions.
-        # JSON data block may not be at index 0 (instruction block comes first
-        # for free-tier responses).
-        if isinstance(result, list) and len(result) >= 2 and hasattr(result[0], "text"):
-            for block in result:
-                try:
-                    return json.loads(block.text)
-                except (json.JSONDecodeError, TypeError):
-                    continue
-            return json.loads(result[0].text)  # fallback
+        # Unwrap TextContent list → dict for backwards-compatible assertions
+        # JSON block is always last (text/instruction blocks precede it)
+        if isinstance(result, list) and len(result) >= 2 and hasattr(result[-1], "text"):
+            return json.loads(result[-1].text)
         return result
 
     def test_scan_project_tool(self, mcp, tmp_project):
