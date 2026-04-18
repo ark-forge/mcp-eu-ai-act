@@ -877,34 +877,51 @@ class TestMiscellaneous:
     """Tests for _add_banner, constants, and create_server."""
 
     def test_add_banner(self):
-        """_add_banner returns [TextContent(summary), TextContent(json)] for free tier."""
+        """_add_banner returns [text, JSON] for free tier (_add_banner uses _add_banner_fields, not _make_result_dict)."""
         token = _current_plan.set("free")
         try:
             result = _add_banner({"data": 1, "files_scanned": 5})
 
-            # Returns list of TextContent blocks
+            # _add_banner does not inject next_action (that's _make_result_dict's job),
+            # so no instruction block — just [text_summary, json].
             assert isinstance(result, list)
             assert len(result) == 2
-            # First block: JSON with banner fields
-            json_data = json.loads(result[0].text)
-            # Second block: human-readable text with CTA (last = best for single-block clients)
-            text_block = result[1].text
-            assert "pricing" in text_block.lower() or "arkforge" in text_block.lower()
+            # Find the JSON block
+            json_data = None
+            for block in result:
+                try:
+                    json_data = json.loads(block.text)
+                    break
+                except (json.JSONDecodeError, TypeError):
+                    continue
+            assert json_data is not None
             assert json_data["data"] == 1
             assert "upgrade_url" in json_data
             assert "pricing.html" in json_data["upgrade_url"]
             assert "next_steps" in json_data
             assert any("EUR" in s for s in json_data["next_steps"])
             assert "summary" in json_data
+            # Text block should have CTA
+            text_blocks = [b.text for b in result if not b.text.startswith("{")]
+            assert any("pricing" in t.lower() or "arkforge" in t.lower() for t in text_blocks)
         finally:
             _current_plan.reset(token)
 
     def test_add_banner_pro_no_upgrade(self):
-        """_add_banner skips upgrade fields for pro users."""
+        """_add_banner skips upgrade fields for pro users (2 blocks, no instruction)."""
         token = _current_plan.set("pro")
         try:
             result = _add_banner({"data": 1})
-            json_data = json.loads(result[0].text)
+            assert len(result) == 2  # No instruction block for pro
+            # Find the JSON block
+            json_data = None
+            for block in result:
+                try:
+                    json_data = json.loads(block.text)
+                    break
+                except (json.JSONDecodeError, TypeError):
+                    continue
+            assert json_data is not None
             assert "upgrade_url" not in json_data
         finally:
             _current_plan.reset(token)
@@ -1585,9 +1602,16 @@ class TestMCPToolWrappers:
                     enum_cls = type(default)
                     arguments[param.name] = enum_cls(arguments[param.name])
         result = fn(**arguments)
-        # Unwrap TextContent list → dict for backwards-compatible assertions
+        # Unwrap TextContent list → dict for backwards-compatible assertions.
+        # JSON data block may not be at index 0 (instruction block comes first
+        # for free-tier responses).
         if isinstance(result, list) and len(result) >= 2 and hasattr(result[0], "text"):
-            return json.loads(result[0].text)
+            for block in result:
+                try:
+                    return json.loads(block.text)
+                except (json.JSONDecodeError, TypeError):
+                    continue
+            return json.loads(result[0].text)  # fallback
         return result
 
     def test_scan_project_tool(self, mcp, tmp_project):
@@ -1717,6 +1741,93 @@ class TestMCPToolWrappers:
             "processing_role": "controller",
         })
         assert result is not None
+
+
+class TestNextActionInclusion:
+    """Regression: every scan/check/report tool MUST include next_action for free tier."""
+
+    @pytest.fixture
+    def mcp(self):
+        return create_server()
+
+    @pytest.fixture(autouse=True)
+    def force_free_plan(self):
+        """Override conftest certified plan → free for these tests."""
+        token = _current_plan.set("free")
+        old_plan = server_module._fallback_plan
+        server_module._fallback_plan = "free"
+        yield
+        _current_plan.reset(token)
+        server_module._fallback_plan = old_plan
+
+    def _call_tool(self, mcp, name, arguments):
+        """Call a FastMCP tool and return the parsed JSON block."""
+        tool = mcp._tool_manager._tools[name]
+        fn = tool.fn
+        if fn.__defaults__:
+            import inspect
+            params = list(inspect.signature(fn).parameters.values())
+            defaults_offset = len(params) - len(fn.__defaults__)
+            for i, default in enumerate(fn.__defaults__):
+                param = params[defaults_offset + i]
+                if param.name in arguments and isinstance(arguments[param.name], str) and hasattr(default, "__class__") and issubclass(type(default), Enum):
+                    enum_cls = type(default)
+                    arguments[param.name] = enum_cls(arguments[param.name])
+        result = fn(**arguments)
+        if isinstance(result, list) and len(result) >= 2 and hasattr(result[0], "text"):
+            for block in result:
+                try:
+                    return json.loads(block.text)
+                except (json.JSONDecodeError, TypeError):
+                    continue
+            return json.loads(result[0].text)
+        return result
+
+    def _assert_next_action(self, result):
+        """Verify next_action structure on free tier."""
+        assert "next_action" in result, "next_action missing from tool response"
+        na = result["next_action"]
+        assert na["priority"] == "required"
+        assert na["prompt_to_user"], "prompt_to_user must be non-empty"
+        assert "fallback_url" in na
+        assert na["on_user_reply"]["call_tool"] == "register_free_key"
+
+    def test_scan_project_next_action(self, mcp, tmp_project):
+        (tmp_project / "app.py").write_text("import openai")
+        result = self._call_tool(mcp, "scan_project", {"project_path": str(tmp_project)})
+        self._assert_next_action(result)
+
+    def test_check_compliance_next_action(self, mcp, tmp_project):
+        from server import RiskCategory
+        (tmp_project / "app.py").write_text("import openai")
+        result = self._call_tool(mcp, "check_compliance", {
+            "project_path": str(tmp_project),
+            "risk_category": RiskCategory.limited,
+        })
+        self._assert_next_action(result)
+
+    def test_generate_report_next_action(self, mcp, tmp_project):
+        from server import RiskCategory
+        (tmp_project / "app.py").write_text("import openai")
+        result = self._call_tool(mcp, "generate_report", {
+            "project_path": str(tmp_project),
+            "risk_category": RiskCategory.limited,
+        })
+        self._assert_next_action(result)
+
+    def test_gdpr_scan_project_next_action(self, mcp, tmp_project):
+        (tmp_project / "app.py").write_text("user_email = input('email')\nprint(user_email)")
+        result = self._call_tool(mcp, "gdpr_scan_project", {"project_path": str(tmp_project)})
+        self._assert_next_action(result)
+
+    def test_combined_compliance_report_next_action(self, mcp, tmp_project):
+        (tmp_project / "app.py").write_text("import openai\nuser_email = input('email')")
+        result = self._call_tool(mcp, "combined_compliance_report", {
+            "project_path": str(tmp_project),
+            "risk_category": "limited",
+            "processing_role": "controller",
+        })
+        self._assert_next_action(result)
 
 
 if __name__ == "__main__":

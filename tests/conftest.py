@@ -24,6 +24,20 @@ def isolate_rate_limiter_persistence(tmp_path):
 
 
 @pytest.fixture(autouse=True)
+def isolate_tool_call_log(tmp_path):
+    """Redirect tool call telemetry to tmp_path during tests.
+
+    Without this, every test that calls scan/check/report tools appends
+    'certified' plan entries to the production data/tool_calls.jsonl,
+    polluting funnel metrics (1031 false 'certified' entries observed).
+    """
+    original_path = server_module._TOOL_CALL_LOG_PATH
+    server_module._TOOL_CALL_LOG_PATH = tmp_path / "tool_calls.jsonl"
+    yield
+    server_module._TOOL_CALL_LOG_PATH = original_path
+
+
+@pytest.fixture(autouse=True)
 def set_certified_plan():
     """Set plan to 'certified' for all tests so paywall gates don't block tool tests.
 
