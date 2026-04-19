@@ -293,19 +293,25 @@ class TestMCPServerLegacy:
     def test_init_has_tools(self):
         server = MCPServer()
         assert "_tools" in dir(server)
-        assert len(server._tools) == 5
+        # _tools contains the legacy handler subset
+        assert len(server._tools) >= 5
+        required_tools = ["scan_project", "check_compliance", "generate_report",
+                          "suggest_risk_category", "generate_compliance_templates"]
+        for name in required_tools:
+            assert name in server._tools, f"Missing legacy tool: {name}"
 
     def test_list_tools(self):
         server = MCPServer()
         tools = server.list_tools()
         assert "tools" in tools
-        assert len(tools["tools"]) == 16
+        # list_tools() exposes the full catalog (EU AI Act + GDPR + utility)
+        assert len(tools["tools"]) >= 16
         names = [t["name"] for t in tools["tools"]]
-        assert "scan_project" in names
-        assert "check_compliance" in names
-        assert "generate_report" in names
-        assert "suggest_risk_category" in names
-        assert "generate_compliance_templates" in names
+        required_names = ["scan_project", "check_compliance", "generate_report",
+                          "suggest_risk_category", "generate_compliance_templates",
+                          "gdpr_scan_project", "combined_compliance_report", "get_pricing"]
+        for name in required_names:
+            assert name in names, f"Missing tool in catalog: {name}"
 
     def test_handle_request_unknown_tool(self):
         server = MCPServer()

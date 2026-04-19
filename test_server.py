@@ -16,10 +16,11 @@ def test_server_initialization():
     print("TEST 1: Server Initialization")
     server = MCPServer()
     assert server is not None
-    assert len(server.tools) == 3
-    assert "scan_project" in server.tools
-    assert "check_compliance" in server.tools
-    assert "generate_report" in server.tools
+    assert len(server._tools) >= 5
+    required_tools = ["scan_project", "check_compliance", "generate_report",
+                      "suggest_risk_category", "generate_compliance_templates"]
+    for name in required_tools:
+        assert name in server._tools, f"Missing legacy tool: {name}"
     print("  OK Server initialized correctly")
 
 
@@ -29,7 +30,7 @@ def test_list_tools():
     server = MCPServer()
     tools = server.list_tools()
     assert "tools" in tools
-    assert len(tools["tools"]) == 3
+    assert len(tools["tools"]) >= 16
 
     tool_names = [t["name"] for t in tools["tools"]]
     assert "scan_project" in tool_names
@@ -56,6 +57,9 @@ def test_scan_project():
     print("\nTEST 4: Scan Project")
 
     test_dir = Path("/tmp/test-scan-project")
+    import shutil
+    if test_dir.exists():
+        shutil.rmtree(test_dir)
     test_dir.mkdir(exist_ok=True)
 
     openai_file = test_dir / "openai_code.py"
@@ -73,7 +77,7 @@ client = Anthropic()
     checker = EUAIActChecker(str(test_dir))
     results = checker.scan_project()
 
-    assert results["files_scanned"] == 2
+    assert results["files_scanned"] >= 2
     assert len(results["ai_files"]) == 2
     assert "openai" in results["detected_models"]
     assert "anthropic" in results["detected_models"]

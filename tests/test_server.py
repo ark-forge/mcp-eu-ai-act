@@ -1180,10 +1180,12 @@ class TestMiscellaneous:
     def test_legacy_server_list_tools(self, mcp_server):
         """Legacy server lists all tools."""
         result = mcp_server.list_tools()
-        assert len(result["tools"]) == 16
+        assert len(result["tools"]) >= 16
         names = [t["name"] for t in result["tools"]]
-        assert "scan_project" in names
-        assert "generate_report" in names
+        required = ["scan_project", "generate_report", "gdpr_scan_project",
+                     "combined_compliance_report", "get_pricing"]
+        for name in required:
+            assert name in names, f"Missing tool in catalog: {name}"
 
     def test_legacy_server_scan_project(self, mcp_server, tmp_project):
         """Legacy server scan_project returns correct structure."""

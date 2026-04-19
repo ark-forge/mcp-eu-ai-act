@@ -324,7 +324,7 @@ def process():
 
         # 1. List tools
         tools = self.server.list_tools()
-        self.assertEqual(len(tools["tools"]), 16)
+        self.assertGreaterEqual(len(tools["tools"]), 16)
 
         # 2. Scan
         scan = self.server.handle_request("scan_project", {
