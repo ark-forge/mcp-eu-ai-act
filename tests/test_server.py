@@ -1178,9 +1178,9 @@ class TestMiscellaneous:
             assert name in tool_names, f"Missing MCP tool: {name}"
 
     def test_legacy_server_list_tools(self, mcp_server):
-        """Legacy server lists all 5 tools."""
+        """Legacy server lists all tools."""
         result = mcp_server.list_tools()
-        assert len(result["tools"]) == 5
+        assert len(result["tools"]) == 16
         names = [t["name"] for t in result["tools"]]
         assert "scan_project" in names
         assert "generate_report" in names

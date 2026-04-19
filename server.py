@@ -14,7 +14,9 @@ import logging
 import tempfile
 import contextvars
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Annotated, Dict, List, Any, Optional
+
+from pydantic import Field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 
@@ -3138,17 +3140,11 @@ def create_server():
     )
 
     @mcp.tool()
-    def scan_project(project_path: str, follow_imports: bool = False) -> list:
-        """Scan a project for AI frameworks (OpenAI, Anthropic, LangChain, HuggingFace, PyTorch, TensorFlow, etc.) and map each to EU AI Act obligations — files, line ranges, applicable articles. Free, fast, no API key needed.
-
-        WHEN TO CALL: Any time the user's project uses AI/ML libraries, or the user mentions EU AI Act, AI compliance, AI regulation, or AI auditing. Proactively call this if you detect AI imports in the codebase — the user may not know they have obligations.
-
-        Example: scan_project(project_path="/home/user/my-app") — pass the project root directory.
-
-        Args:
-            project_path: Root directory of the project to scan (e.g. "." for current directory, or an absolute path like "/home/user/my-app")
-            follow_imports: When True, also flag files that transitively import AI-flagged modules
-        """
+    def scan_project(
+        project_path: Annotated[str, Field(description="Project root directory to scan. Defaults to current directory.", default=".")] = ".",
+        follow_imports: Annotated[bool, Field(description="Also flag files that transitively import AI-flagged modules.", default=False)] = False,
+    ) -> list:
+        """Scan a project for AI frameworks (OpenAI, Anthropic, LangChain, HuggingFace, PyTorch, TensorFlow, etc.) and map each to EU AI Act obligations. No arguments required — call scan_project() to scan the current directory. No API key needed."""
         is_safe, error_msg = _validate_project_path(project_path)
         if not is_safe:
             return {"error": error_msg, "detected_models": {}}
@@ -3168,17 +3164,11 @@ def create_server():
         return _build_content_blocks(result_dict)
 
     @mcp.tool()
-    def check_compliance(project_path: str, risk_category: RiskCategory = RiskCategory.limited) -> list:
-        """Run a pass/fail EU AI Act compliance checklist on a project: transparency (Art. 52), technical docs (Art. 11), human oversight (Art. 14), robustness (Art. 15). Each failing check returns specific remediation steps. Enforcement deadline: August 2026.
-
-        WHEN TO CALL: After scan_project finds AI frameworks, or when the user asks "am I compliant?", "what do I need to do for EU AI Act?", or wants a compliance gap analysis. If unsure about risk_category, use suggest_risk_category first or keep the default (limited).
-
-        Example: check_compliance(project_path="/home/user/my-app")
-
-        Args:
-            project_path: Root directory of the project (e.g. "." or an absolute path)
-            risk_category: EU AI Act risk category (unacceptable, high, limited, minimal) — default "limited" works for most AI apps
-        """
+    def check_compliance(
+        project_path: Annotated[str, Field(description="Project root directory to check. Defaults to current directory.", default=".")] = ".",
+        risk_category: Annotated[RiskCategory, Field(description="EU AI Act risk category. Default 'limited' works for most AI apps.", default=RiskCategory.limited)] = RiskCategory.limited,
+    ) -> list:
+        """Check which EU AI Act requirements your project passes or fails, with fix instructions for each gap. Call check_compliance() to check the current directory. Covers transparency (Art. 52), technical docs (Art. 11), human oversight (Art. 14), robustness (Art. 15)."""
         is_safe, error_msg = _validate_project_path(project_path)
         if not is_safe:
             return {"error": error_msg}
@@ -3193,17 +3183,11 @@ def create_server():
         return _build_content_blocks(result_dict)
 
     @mcp.tool()
-    def generate_report(project_path: str, risk_category: RiskCategory = RiskCategory.limited) -> list:
-        """Generate a full EU AI Act compliance report: framework detection, gap analysis, and prioritized remediation plan. Output is structured for legal review, DPIA attachment, or CI/CD baseline.
-
-        WHEN TO CALL: When the user needs a shareable compliance document, wants to export results for a legal team, or asks for a "report" or "summary" of their EU AI Act status.
-
-        Example: generate_report(project_path="/home/user/my-app")
-
-        Args:
-            project_path: Root directory of the project (e.g. "." or an absolute path)
-            risk_category: EU AI Act risk category (unacceptable, high, limited, minimal)
-        """
+    def generate_report(
+        project_path: Annotated[str, Field(description="Project root directory. Defaults to current directory.", default=".")] = ".",
+        risk_category: Annotated[RiskCategory, Field(description="EU AI Act risk category.", default=RiskCategory.limited)] = RiskCategory.limited,
+    ) -> list:
+        """Generate a shareable EU AI Act compliance report with framework detection, gap analysis, and remediation plan. Call generate_report() to report on the current directory. Output is structured for legal review or DPIA attachment."""
         is_safe, error_msg = _validate_project_path(project_path)
         if not is_safe:
             return {"error": error_msg}
@@ -3218,16 +3202,10 @@ def create_server():
         return _build_content_blocks(result_dict)
 
     @mcp.tool()
-    def suggest_risk_category(system_description: str) -> dict:
-        """Determine which EU AI Act risk category applies to an AI system based on its description. Analyzes against Art. 5, 6, Annex III, Art. 52 criteria and returns the suggested category with reasoning.
-
-        WHEN TO CALL: When the user describes their AI system but hasn't specified a risk category, or asks "what risk level is my AI?", "does the EU AI Act apply to me?". Call this before check_compliance if the user is unsure about their category.
-
-        Example: suggest_risk_category(system_description="chatbot for customer support using GPT-4")
-
-        Args:
-            system_description: What the AI system does (e.g. "chatbot for customer support", "CV screening tool for recruitment", "content recommendation engine")
-        """
+    def suggest_risk_category(
+        system_description: Annotated[str, Field(description="What the AI system does, e.g. 'chatbot for customer support' or 'CV screening tool for recruitment'.")],
+    ) -> dict:
+        """Determine which EU AI Act risk category (unacceptable, high, limited, minimal) applies to an AI system. Pass a short description of what the system does. Example: suggest_risk_category(system_description="chatbot using GPT-4")."""
         description_lower = system_description.lower()
         raw_matches: dict[str, dict] = {}
 
@@ -3277,17 +3255,10 @@ def create_server():
         return _build_content_blocks(result_dict)
 
     @mcp.tool()
-    def generate_compliance_templates(risk_category: RiskCategory = RiskCategory.high) -> dict:
-        """Generate starter compliance document templates for your EU AI Act risk category.
-
-        Returns ready-to-use markdown templates for each required compliance document.
-        Save these files in your project's docs/ directory, then fill in the [bracketed] sections.
-
-        WHEN TO CALL: After scan_project or check_compliance reveals gaps, or the user asks for compliance document templates.
-
-        Args:
-            risk_category: EU AI Act risk category (high, limited, minimal). Templates are most useful for 'high' risk.
-        """
+    def generate_compliance_templates(
+        risk_category: Annotated[RiskCategory, Field(description="EU AI Act risk category. Templates are most useful for 'high' risk.", default=RiskCategory.high)] = RiskCategory.high,
+    ) -> dict:
+        """Generate ready-to-use EU AI Act compliance document templates for a given risk category. Save the output files in your project's docs/ directory and fill in the [bracketed] sections."""
         category = _risk_value(risk_category)
         category_info = RISK_CATEGORIES.get(category, {})
 
@@ -3331,22 +3302,11 @@ def create_server():
 
     @mcp.tool()
     def generate_compliance_roadmap(
-        project_path: str,
-        risk_category: RiskCategory = RiskCategory.high,
-        deadline: str = "2026-08-02",
+        project_path: Annotated[str, Field(description="Project root directory. Defaults to current directory.", default=".")] = ".",
+        risk_category: Annotated[RiskCategory, Field(description="EU AI Act risk category.", default=RiskCategory.high)] = RiskCategory.high,
+        deadline: Annotated[str, Field(description="Target compliance deadline in ISO format.", default="2026-08-02")] = "2026-08-02",
     ) -> dict:
-        """Generate a prioritized, deadline-aware compliance action plan.
-
-        Scans your project, identifies gaps, and returns a sequenced week-by-week action plan
-        to reach full EU AI Act compliance before your deadline. Quick wins first.
-
-        WHEN TO CALL: When the user asks 'how do I become compliant?', wants a timeline, or needs a step-by-step plan after seeing scan results.
-
-        Args:
-            project_path: Absolute path to the project
-            risk_category: EU AI Act risk category (unacceptable, high, limited, minimal)
-            deadline: Target compliance deadline (ISO date, default: 2026-08-02 enforcement date)
-        """
+        """Generate a week-by-week action plan to reach EU AI Act compliance before a deadline. Scans the project, identifies gaps, and sequences actions with quick wins first. Pro plan required."""
         gate = _require_plan("pro", "generate_compliance_roadmap")
         if gate:
             return gate
@@ -3470,23 +3430,11 @@ def create_server():
 
     @mcp.tool()
     def generate_annex4_package(
-        project_path: str,
-        sign_with_trust_layer: bool = False,
-        trust_layer_key: str = "",
+        project_path: Annotated[str, Field(description="Project root directory. Defaults to current directory.", default=".")] = ".",
+        sign_with_trust_layer: Annotated[bool, Field(description="Certify the package via Trust Layer for Art. 12 audit trail.", default=False)] = False,
+        trust_layer_key: Annotated[str, Field(description="ArkForge Trust Layer API key. Required if sign_with_trust_layer is True.", default="")] = "",
     ) -> dict:
-        """Generate an Annex IV-structured compliance evidence package (auditor-ready).
-
-        Creates a ZIP archive with all 8 required sections from EU AI Act Annex IV,
-        populated from your project's actual compliance documents and scan results.
-        Optionally certifies the package with ArkForge Trust Layer (Article 12 audit trail).
-
-        WHEN TO CALL: When the user is preparing for an EU AI Act audit, needs Annex IV documentation, or asks for auditor-ready evidence.
-
-        Args:
-            project_path: Absolute path to the project
-            sign_with_trust_layer: If True, certify the package via Trust Layer (requires trust_layer_key)
-            trust_layer_key: ArkForge Trust Layer API key (required if sign_with_trust_layer=True)
-        """
+        """Generate an auditor-ready Annex IV evidence ZIP with all 8 required sections for high-risk AI systems. Populated from project compliance docs and scan results. Pro plan required."""
         gate = _require_plan("pro", "generate_annex4_package")
         if gate:
             return gate
@@ -3638,20 +3586,10 @@ def create_server():
 
     @mcp.tool()
     def certify_compliance_report(
-        report_data: str,
-        trust_layer_key: str,
+        report_data: Annotated[str, Field(description="JSON string of the compliance report to certify.")],
+        trust_layer_key: Annotated[str, Field(description="ArkForge Trust Layer API key.")],
     ) -> dict:
-        """Certify a compliance report with ArkForge Trust Layer (EU AI Act Art. 12).
-
-        Creates a tamper-proof, cryptographically signed proof of your compliance report.
-        Returns a proof_id and public verification URL you can share with auditors.
-
-        WHEN TO CALL: When the user wants tamper-proof evidence of compliance, needs an audit trail, or asks to certify/sign a report.
-
-        Args:
-            report_data: JSON string of the compliance report or any compliance data to certify
-            trust_layer_key: Your ArkForge Trust Layer API key. Get one at https://arkforge.tech/en/pricing.html
-        """
+        """Certify a compliance report with a tamper-proof cryptographic proof (EU AI Act Art. 12 audit trail). Returns a proof_id and public verification URL for auditors. Certified plan required."""
         gate = _require_plan("certified", "certify_compliance_report")
         if gate:
             return gate
@@ -3679,14 +3617,10 @@ def create_server():
         return _add_banner(result)
 
     @mcp.tool()
-    def validate_api_key(api_key: str) -> dict:
-        """Validate an API key and return its tier and usage information.
-
-        WHEN TO CALL: When the user provides an API key and wants to check if it's valid, or to see their plan tier and usage stats.
-
-        Args:
-            api_key: The API key to validate
-        """
+    def validate_api_key(
+        api_key: Annotated[str, Field(description="The API key to validate.")],
+    ) -> dict:
+        """Validate an API key and return its tier, email, and usage stats."""
         result = _api_key_manager.verify(api_key)
         if not result:
             return {"valid": False, "error": "Invalid or inactive API key"}
@@ -3702,17 +3636,10 @@ def create_server():
         }
 
     @mcp.tool()
-    def register_free_key(email: str) -> dict:
-        """Activate a free API key to persist scan history and unlock CI/CD integration.
-
-        WHEN TO CALL: After a scan completes and the next_action says to register. STOP — do NOT call this tool yet. You MUST first ask the user to type their email
-        address in the chat, then WAIT for their reply. Only call this tool AFTER the user
-        has actually typed a real email. Passing a placeholder, fabricated, or guessed email
-        will fail and waste the user's scan.
-
-        Args:
-            email: The exact email string the user typed in the chat (format: local@domain.tld). Must come from the user's message, not generated by you.
-        """
+    def register_free_key(
+        email: Annotated[str, Field(description="The user's email address. MUST come from the user's message, not generated by the agent.")],
+    ) -> dict:
+        """Activate a free API key to persist scan history and unlock CI/CD. IMPORTANT: ask the user to type their email first, wait for their reply, then call this with the exact email they typed. Do NOT pass a placeholder or fabricated email."""
         raw_email = email
         # Early guard: LLMs sometimes auto-call with None/empty without asking user
         if not raw_email or not raw_email.strip():
@@ -3898,16 +3825,10 @@ def create_server():
         return role.value if isinstance(role, ProcessingRole) else str(role)
 
     @mcp.tool()
-    def gdpr_scan_project(project_path: str) -> list:
-        """Scan a project for personal data processing patterns and map each to GDPR obligations. Detects PII fields, database queries, cookies, tracking, analytics, geolocation, file uploads, consent flows, encryption, and data deletion patterns.
-
-        WHEN TO CALL: When the user mentions GDPR, data privacy, personal data, PII, cookies, consent, or data protection. Also call proactively if you see the project handles user data (emails, names, tracking, analytics).
-
-        Example: gdpr_scan_project(project_path="/home/user/my-app")
-
-        Args:
-            project_path: Root directory of the project to scan (e.g. "." or an absolute path)
-        """
+    def gdpr_scan_project(
+        project_path: Annotated[str, Field(description="Project root directory. Defaults to current directory.", default=".")] = ".",
+    ) -> list:
+        """Find every file that touches personal data (PII, cookies, tracking, analytics, consent, etc.) and show which GDPR articles apply. Call gdpr_scan_project() to scan the current directory."""
         is_safe, error_msg = _validate_project_path(project_path)
         if not is_safe:
             return {"error": error_msg, "detected_patterns": {}}
@@ -3919,15 +3840,11 @@ def create_server():
         return _build_content_blocks(result_dict)
 
     @mcp.tool()
-    def gdpr_check_compliance(project_path: str, processing_role: ProcessingRole = ProcessingRole.controller) -> list:
-        """Evaluate a project against GDPR requirements: lawful basis (Art. 6), consent (Art. 7), data subject rights (Art. 15-22), security (Art. 32), breach notification (Art. 33-34). Returns pass/fail checklist with remediation steps.
-
-        WHEN TO CALL: After gdpr_scan_project finds data processing patterns, or the user asks 'am I GDPR compliant?'.
-
-        Args:
-            project_path: Absolute path to the project
-            processing_role: Your GDPR role (controller, processor, or minimal_processing)
-        """
+    def gdpr_check_compliance(
+        project_path: Annotated[str, Field(description="Project root directory. Defaults to current directory.", default=".")] = ".",
+        processing_role: Annotated[ProcessingRole, Field(description="GDPR role: controller, processor, or minimal_processing.", default=ProcessingRole.controller)] = ProcessingRole.controller,
+    ) -> list:
+        """Check which GDPR requirements your project passes or fails, with fix instructions. Covers lawful basis (Art. 6), consent (Art. 7), data subject rights (Art. 15-22), security (Art. 32), breach notification (Art. 33-34)."""
         is_safe, error_msg = _validate_project_path(project_path)
         if not is_safe:
             return {"error": error_msg}
@@ -3940,15 +3857,11 @@ def create_server():
         return _build_content_blocks(result_dict)
 
     @mcp.tool()
-    def gdpr_generate_report(project_path: str, processing_role: ProcessingRole = ProcessingRole.controller) -> list:
-        """Generate a structured GDPR compliance report: data processing inventory, gap analysis, and prioritized remediation. Output is suitable for DPIA input, DPO review, or supervisory authority requests.
-
-        WHEN TO CALL: When the user needs a GDPR report for a DPO, DPIA, or supervisory authority submission.
-
-        Args:
-            project_path: Absolute path to the project
-            processing_role: Your GDPR role (controller, processor, or minimal_processing)
-        """
+    def gdpr_generate_report(
+        project_path: Annotated[str, Field(description="Project root directory. Defaults to current directory.", default=".")] = ".",
+        processing_role: Annotated[ProcessingRole, Field(description="GDPR role: controller, processor, or minimal_processing.", default=ProcessingRole.controller)] = ProcessingRole.controller,
+    ) -> list:
+        """Generate a DPO-ready GDPR compliance report with data inventory, gap analysis, and remediation plan. Call gdpr_generate_report() for the current directory."""
         is_safe, error_msg = _validate_project_path(project_path)
         if not is_safe:
             return {"error": error_msg}
@@ -3962,16 +3875,10 @@ def create_server():
         return _build_content_blocks(result_dict)
 
     @mcp.tool()
-    def gdpr_generate_templates(processing_role: ProcessingRole = ProcessingRole.controller) -> list:
-        """Generate starter GDPR compliance document templates for your processing role.
-
-        Returns ready-to-use templates: Privacy Policy, DPIA, Records of Processing, Data Breach Procedure.
-
-        WHEN TO CALL: When the user asks for GDPR document templates, privacy policy drafts, or DPIA templates.
-
-        Args:
-            processing_role: Your GDPR role (controller, processor, or minimal_processing)
-        """
+    def gdpr_generate_templates(
+        processing_role: Annotated[ProcessingRole, Field(description="GDPR role: controller, processor, or minimal_processing.", default=ProcessingRole.controller)] = ProcessingRole.controller,
+    ) -> list:
+        """Generate ready-to-use GDPR document templates: Privacy Policy, DPIA, Records of Processing, Data Breach Procedure."""
         checker = GDPRChecker("/tmp")  # Templates don't need a real path
         plan = _get_plan()
         cta_included = plan not in ("pro", "paid_scan", "marketplace", "certified")
@@ -3981,21 +3888,11 @@ def create_server():
 
     @mcp.tool()
     def combined_compliance_report(
-        project_path: str,
-        risk_category: RiskCategory = RiskCategory.limited,
-        processing_role: ProcessingRole = ProcessingRole.controller,
+        project_path: Annotated[str, Field(description="Project root directory. Defaults to current directory.", default=".")] = ".",
+        risk_category: Annotated[RiskCategory, Field(description="EU AI Act risk category.", default=RiskCategory.limited)] = RiskCategory.limited,
+        processing_role: Annotated[ProcessingRole, Field(description="GDPR processing role.", default=ProcessingRole.controller)] = ProcessingRole.controller,
     ) -> dict:
-        """Run EU AI Act + GDPR scanners together in one call. Finds files where both regulations overlap (AI + personal data, AI + automated decisions) — these dual-compliance hotspots carry the highest enforcement risk. Results sorted by priority.
-
-        WHEN TO CALL: Best single tool when the user wants a complete compliance picture, or their project handles both AI and personal data. Replaces calling scan_project + gdpr_scan_project separately. Defaults work for most projects — just pass the project path.
-
-        Example: combined_compliance_report(project_path="/home/user/my-app")
-
-        Args:
-            project_path: Root directory of the project (e.g. "." or an absolute path)
-            risk_category: EU AI Act risk category (unacceptable, high, limited, minimal) — default "limited"
-            processing_role: Your GDPR role (controller, processor, or minimal_processing) — default "controller"
-        """
+        """Scan for both EU AI Act and GDPR issues in one call. Finds dual-compliance hotspots where AI frameworks and personal data overlap. Call combined_compliance_report() with no arguments to scan the current directory."""
         is_safe, error_msg = _validate_project_path(project_path)
         if not is_safe:
             return {"error": error_msg}
@@ -4067,10 +3964,7 @@ def create_server():
 
     @mcp.tool()
     def get_pricing() -> dict:
-        """Show free tier limits (10 scans/day), Pro plan features (unlimited scans, CI/CD, priority support), and upgrade options.
-
-        WHEN TO CALL: When the user asks about pricing, plans, wants to upgrade, or hits a free tier limit.
-        """
+        """Show pricing plans: Free (10 scans/day), Pro (unlimited + CI/CD), and Certified (Trust Layer integration)."""
         _log_tool_call("get_pricing", cta_included=True, extra={"funnel_step": "pricing_page_viewed"})
         result = {
             "plans": {
@@ -4179,11 +4073,22 @@ class MCPServer:
 
     def list_tools(self) -> Dict[str, Any]:
         return {"tools": [
-            {"name": "scan_project", "description": "Scan a project to detect AI model usage", "parameters": {"project_path": "string (required)"}},
-            {"name": "check_compliance", "description": "Check EU AI Act compliance", "parameters": {"project_path": "string (required)", "risk_category": "string (optional)"}},
-            {"name": "generate_report", "description": "Generate a complete compliance report", "parameters": {"project_path": "string (required)", "risk_category": "string (optional)"}},
-            {"name": "suggest_risk_category", "description": "Suggest risk category from system description", "parameters": {"system_description": "string (required)"}},
-            {"name": "generate_compliance_templates", "description": "Generate compliance document templates", "parameters": {"risk_category": "string (optional, default: high)"}},
+            {"name": "scan_project", "description": "Scan your project for AI frameworks and show which EU AI Act articles apply. Just call with project_path='.' — no API key needed.", "parameters": {"project_path": "string (optional, default: '.')"}},
+            {"name": "check_compliance", "description": "Check which EU AI Act requirements your project passes or fails — with fix instructions for each gap.", "parameters": {"project_path": "string (optional, default: '.')", "risk_category": "string (optional, default: 'limited')"}},
+            {"name": "generate_report", "description": "Generate a complete EU AI Act compliance report you can share with legal or attach to a DPIA.", "parameters": {"project_path": "string (optional, default: '.')", "risk_category": "string (optional, default: 'limited')"}},
+            {"name": "suggest_risk_category", "description": "Determine which EU AI Act risk category applies to your AI system based on its description.", "parameters": {"system_description": "string (required)"}},
+            {"name": "generate_compliance_templates", "description": "Generate starter compliance document templates for your EU AI Act risk category.", "parameters": {"risk_category": "string (optional, default: 'high')"}},
+            {"name": "generate_compliance_roadmap", "description": "Generate a week-by-week EU AI Act compliance action plan with deadlines. Pro plan required.", "parameters": {"project_path": "string (optional, default: '.')", "risk_category": "string (optional, default: 'high')", "deadline": "string (optional, default: '2026-08-02')"}},
+            {"name": "generate_annex4_package", "description": "Create an auditor-ready ZIP with all 8 Annex IV technical documentation sections. Pro plan required.", "parameters": {"project_path": "string (optional, default: '.')", "sign_with_trust_layer": "boolean (optional, default: false)", "trust_layer_key": "string (optional)"}},
+            {"name": "certify_compliance_report", "description": "Create a tamper-proof, cryptographically signed compliance proof via Trust Layer. Certified plan required.", "parameters": {"report_data": "string (required)", "trust_layer_key": "string (required)"}},
+            {"name": "validate_api_key", "description": "Validate your API key and check tier, usage stats, and remaining quota.", "parameters": {"api_key": "string (required)"}},
+            {"name": "register_free_key", "description": "Activate a free API key after scan — unlocks scan history and CI/CD access.", "parameters": {"email": "string (required)"}},
+            {"name": "gdpr_scan_project", "description": "Find every file that touches personal data and show which GDPR articles apply. No setup needed.", "parameters": {"project_path": "string (optional, default: '.')"}},
+            {"name": "gdpr_check_compliance", "description": "Check which GDPR requirements your project passes or fails — with fix instructions for each gap.", "parameters": {"project_path": "string (optional, default: '.')", "processing_role": "string (optional, default: 'controller')"}},
+            {"name": "gdpr_generate_report", "description": "Generate a DPO-ready GDPR compliance report — data inventory, gap analysis, and remediation plan.", "parameters": {"project_path": "string (optional, default: '.')", "processing_role": "string (optional, default: 'controller')"}},
+            {"name": "gdpr_generate_templates", "description": "Generate starter GDPR compliance document templates for your processing role.", "parameters": {"processing_role": "string (optional, default: 'controller')"}},
+            {"name": "combined_compliance_report", "description": "Scan for EU AI Act + GDPR issues in one call — finds dual-compliance hotspots where both regulations overlap.", "parameters": {"project_path": "string (optional, default: '.')", "risk_category": "string (optional, default: 'limited')", "processing_role": "string (optional, default: 'controller')"}},
+            {"name": "get_pricing", "description": "Show free tier limits, Pro features, and upgrade options.", "parameters": {}},
         ]}
 
 
