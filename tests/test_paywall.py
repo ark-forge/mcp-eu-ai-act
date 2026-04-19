@@ -299,7 +299,7 @@ class TestMCPServerLegacy:
         server = MCPServer()
         tools = server.list_tools()
         assert "tools" in tools
-        assert len(tools["tools"]) == 5
+        assert len(tools["tools"]) == 16
         names = [t["name"] for t in tools["tools"]]
         assert "scan_project" in names
         assert "check_compliance" in names
