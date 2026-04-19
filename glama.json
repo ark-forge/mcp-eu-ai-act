@@ -8,31 +8,31 @@
   "tools": [
     {
       "name": "scan_project",
-      "description": "Scan your project for AI frameworks and show which EU AI Act articles apply — just call with project_path='.' No API key needed, results in seconds."
+      "description": "Call with no arguments — scans the current directory for AI frameworks (OpenAI, Anthropic, LangChain, HuggingFace, etc.) and maps each to EU AI Act articles. No API key needed."
     },
     {
       "name": "check_compliance",
-      "description": "Check which EU AI Act requirements your project passes or fails — with fix instructions for each gap. Enforcement deadline: August 2026."
+      "description": "Call with no arguments — runs a full scan internally and returns pass/fail for every EU AI Act requirement with fix instructions. No prior scan_project() needed. Deadline: August 2026."
     },
     {
       "name": "generate_report",
-      "description": "Generate a complete EU AI Act compliance report you can share with legal or attach to a DPIA. Scan + gap analysis + remediation in one document."
+      "description": "Call with no arguments — generates a shareable EU AI Act compliance report combining framework detection, gap analysis, and remediation plan. Structured for legal review or DPIA attachment."
     },
     {
       "name": "suggest_risk_category",
-      "description": "Determine which EU AI Act risk category applies to your AI system based on its description."
+      "description": "Pass a plain-language description of your AI system. Returns the EU AI Act risk category (unacceptable/high/limited/minimal) with matched indicators and relevant articles."
     },
     {
       "name": "generate_compliance_templates",
-      "description": "Generate starter compliance document templates for your EU AI Act risk category."
+      "description": "Call with no arguments — generates starter compliance document templates for your EU AI Act risk category."
     },
     {
       "name": "generate_compliance_roadmap",
-      "description": "Get a week-by-week action plan to reach EU AI Act compliance before the August 2026 deadline. Pro plan required."
+      "description": "Call with no arguments — generates a week-by-week action plan to reach EU AI Act compliance before August 2026. Pro plan required."
     },
     {
       "name": "generate_annex4_package",
-      "description": "Generate the auditor-ready Annex IV evidence package required for high-risk AI systems. Pro plan required."
+      "description": "Call with no arguments — generates the auditor-ready Annex IV evidence package for high-risk AI systems. Pro plan required."
     },
     {
       "name": "certify_compliance_report",
@@ -48,27 +48,27 @@
     },
     {
       "name": "gdpr_scan_project",
-      "description": "Find every file that touches personal data and show which GDPR articles apply. Call with project_path='.' to scan current project."
+      "description": "Call with no arguments — finds every file that touches personal data and shows which GDPR articles apply. No API key needed."
     },
     {
       "name": "gdpr_check_compliance",
-      "description": "Check which GDPR requirements your project passes or fails — with fix instructions for each gap."
+      "description": "Call with no arguments — checks which GDPR requirements your project passes or fails, with fix instructions for each gap."
     },
     {
       "name": "gdpr_generate_report",
-      "description": "Generate a DPO-ready GDPR compliance report — data inventory, gap analysis, and prioritized remediation."
+      "description": "Call with no arguments — generates a DPO-ready GDPR compliance report with data inventory, gap analysis, and prioritized remediation."
     },
     {
       "name": "gdpr_generate_templates",
-      "description": "Generate GDPR documentation templates (privacy notice, DPA, DPIA, consent forms)."
+      "description": "Call with no arguments — generates GDPR documentation templates (privacy notice, DPA, DPIA, consent forms)."
     },
     {
       "name": "combined_compliance_report",
-      "description": "Scan for EU AI Act + GDPR issues in one call — finds dual-compliance hotspots that carry the highest enforcement risk. Call with no arguments to scan current project."
+      "description": "Call with no arguments — scans for EU AI Act + GDPR in one call. Finds dual-compliance hotspots that carry the highest enforcement risk. Recommended first call for any AI project in the EU."
     },
     {
       "name": "get_pricing",
-      "description": "Get pricing information for API access tiers (Free, Pro, Certified)."
+      "description": "Show pricing for Free, Pro, and Certified plans."
     }
   ]
 }
