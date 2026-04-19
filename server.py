@@ -3283,6 +3283,8 @@ def create_server():
         Returns ready-to-use markdown templates for each required compliance document.
         Save these files in your project's docs/ directory, then fill in the [bracketed] sections.
 
+        WHEN TO CALL: After scan_project or check_compliance reveals gaps, or the user asks for compliance document templates.
+
         Args:
             risk_category: EU AI Act risk category (high, limited, minimal). Templates are most useful for 'high' risk.
         """
@@ -3335,9 +3337,10 @@ def create_server():
     ) -> dict:
         """Generate a prioritized, deadline-aware compliance action plan.
 
-        The killer feature: scans your project, identifies gaps, and returns a sequenced
-        week-by-week action plan to reach full EU AI Act compliance before your deadline.
-        Quick wins (low effort, high legal impact) come first.
+        Scans your project, identifies gaps, and returns a sequenced week-by-week action plan
+        to reach full EU AI Act compliance before your deadline. Quick wins first.
+
+        WHEN TO CALL: When the user asks 'how do I become compliant?', wants a timeline, or needs a step-by-step plan after seeing scan results.
 
         Args:
             project_path: Absolute path to the project
@@ -3476,6 +3479,8 @@ def create_server():
         Creates a ZIP archive with all 8 required sections from EU AI Act Annex IV,
         populated from your project's actual compliance documents and scan results.
         Optionally certifies the package with ArkForge Trust Layer (Article 12 audit trail).
+
+        WHEN TO CALL: When the user is preparing for an EU AI Act audit, needs Annex IV documentation, or asks for auditor-ready evidence.
 
         Args:
             project_path: Absolute path to the project
@@ -3641,6 +3646,8 @@ def create_server():
         Creates a tamper-proof, cryptographically signed proof of your compliance report.
         Returns a proof_id and public verification URL you can share with auditors.
 
+        WHEN TO CALL: When the user wants tamper-proof evidence of compliance, needs an audit trail, or asks to certify/sign a report.
+
         Args:
             report_data: JSON string of the compliance report or any compliance data to certify
             trust_layer_key: Your ArkForge Trust Layer API key. Get one at https://arkforge.tech/en/pricing.html
@@ -3675,6 +3682,8 @@ def create_server():
     def validate_api_key(api_key: str) -> dict:
         """Validate an API key and return its tier and usage information.
 
+        WHEN TO CALL: When the user provides an API key and wants to check if it's valid, or to see their plan tier and usage stats.
+
         Args:
             api_key: The API key to validate
         """
@@ -3696,7 +3705,7 @@ def create_server():
     def register_free_key(email: str) -> dict:
         """Activate a free API key to persist scan history and unlock CI/CD integration.
 
-        STOP — do NOT call this tool yet. You MUST first ask the user to type their email
+        WHEN TO CALL: After a scan completes and the next_action says to register. STOP — do NOT call this tool yet. You MUST first ask the user to type their email
         address in the chat, then WAIT for their reply. Only call this tool AFTER the user
         has actually typed a real email. Passing a placeholder, fabricated, or guessed email
         will fail and waste the user's scan.
@@ -3913,6 +3922,8 @@ def create_server():
     def gdpr_check_compliance(project_path: str, processing_role: ProcessingRole = ProcessingRole.controller) -> list:
         """Evaluate a project against GDPR requirements: lawful basis (Art. 6), consent (Art. 7), data subject rights (Art. 15-22), security (Art. 32), breach notification (Art. 33-34). Returns pass/fail checklist with remediation steps.
 
+        WHEN TO CALL: After gdpr_scan_project finds data processing patterns, or the user asks 'am I GDPR compliant?'.
+
         Args:
             project_path: Absolute path to the project
             processing_role: Your GDPR role (controller, processor, or minimal_processing)
@@ -3931,6 +3942,8 @@ def create_server():
     @mcp.tool()
     def gdpr_generate_report(project_path: str, processing_role: ProcessingRole = ProcessingRole.controller) -> list:
         """Generate a structured GDPR compliance report: data processing inventory, gap analysis, and prioritized remediation. Output is suitable for DPIA input, DPO review, or supervisory authority requests.
+
+        WHEN TO CALL: When the user needs a GDPR report for a DPO, DPIA, or supervisory authority submission.
 
         Args:
             project_path: Absolute path to the project
@@ -3953,6 +3966,8 @@ def create_server():
         """Generate starter GDPR compliance document templates for your processing role.
 
         Returns ready-to-use templates: Privacy Policy, DPIA, Records of Processing, Data Breach Procedure.
+
+        WHEN TO CALL: When the user asks for GDPR document templates, privacy policy drafts, or DPIA templates.
 
         Args:
             processing_role: Your GDPR role (controller, processor, or minimal_processing)
@@ -4053,6 +4068,8 @@ def create_server():
     @mcp.tool()
     def get_pricing() -> dict:
         """Show free tier limits (10 scans/day), Pro plan features (unlimited scans, CI/CD, priority support), and upgrade options.
+
+        WHEN TO CALL: When the user asks about pricing, plans, wants to upgrade, or hits a free tier limit.
         """
         _log_tool_call("get_pricing", cta_included=True, extra={"funnel_step": "pricing_page_viewed"})
         result = {
