@@ -147,6 +147,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.20] — 2026-04-19
+
+### Fixed
+- add WHEN TO CALL hints to all 16 tools — close description-to-action gap
+- rewrite tool descriptions with WHEN TO CALL triggers and inline examples
+
+---
+
 ## [2.0.19] — 2026-04-18
 
 ### Added
