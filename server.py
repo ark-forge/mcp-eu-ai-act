@@ -3434,7 +3434,7 @@ def create_server():
         project_path: Annotated[str, Field(description="Path to the project root. Omit entirely or pass '.' to scan the current working directory.", default=".")] = ".",
         risk_category: Annotated[RiskCategory, Field(description="EU AI Act risk category: 'minimal', 'limited' (default), 'high', or 'unacceptable'.", default=RiskCategory.limited)] = RiskCategory.limited,
     ) -> list:
-        """Call with no arguments — generates a shareable EU AI Act compliance report combining framework detection, gap analysis, and a remediation plan in a single document. Structured for legal review, DPIA attachment, or sharing with your compliance team. No API key required."""
+        """Generate a shareable EU AI Act compliance report. No arguments needed — combines framework detection + gap analysis + remediation plan in one document. Structured for legal review, DPIA attachment, or compliance team sharing. No API key required."""
         resolved_path, is_demo, error_msg = _resolve_project_path(project_path)
         if error_msg:
             return {"error": error_msg}
@@ -3455,7 +3455,7 @@ def create_server():
     def suggest_risk_category(
         system_description: Annotated[str, Field(description="Short description of what the AI system does, e.g. 'chatbot for customer support' or 'CV screening tool for recruitment'.")],
     ) -> dict:
-        """Determine which EU AI Act risk category (unacceptable, high, limited, minimal) applies to your AI system. Pass a plain-language description. Returns: suggested category, confidence level, matched risk indicators, relevant EU AI Act articles, and recommended next step."""
+        """Identify the EU AI Act risk category that applies to your AI system — one plain-language description is all you need. Returns matched category, confidence level, risk indicators, applicable articles, and the next compliance step. No API key, no setup."""
         description_lower = system_description.lower()
         raw_matches: dict[str, dict] = {}
 
@@ -3508,7 +3508,7 @@ def create_server():
     def generate_compliance_templates(
         risk_category: Annotated[RiskCategory, Field(description="EU AI Act risk category. Templates are most useful for 'high' risk.", default=RiskCategory.high)] = RiskCategory.high,
     ) -> dict:
-        """Generate ready-to-use EU AI Act compliance document templates for a given risk category. Save the output files in your project's docs/ directory and fill in the [bracketed] sections."""
+        """Generate ready-to-use EU AI Act compliance document templates. No arguments needed — produces starter docs for your risk category. Save output in docs/ and fill in [bracketed] sections."""
         category = _risk_value(risk_category)
         category_info = RISK_CATEGORIES.get(category, {})
 
@@ -3556,7 +3556,7 @@ def create_server():
         risk_category: Annotated[RiskCategory, Field(description="EU AI Act risk category.", default=RiskCategory.high)] = RiskCategory.high,
         deadline: Annotated[str, Field(description="Target compliance deadline in ISO format.", default="2026-08-02")] = "2026-08-02",
     ) -> dict:
-        """Generate a week-by-week action plan to reach EU AI Act compliance before a deadline. Scans the project, identifies gaps, and sequences actions with quick wins first. Pro plan required."""
+        """Generate a week-by-week EU AI Act compliance roadmap tailored to your project's gaps and deadline. No arguments needed — auto-scans, ranks actions by impact, and sequences quick wins first. Pro plan required."""
         gate = _require_plan("pro", "generate_compliance_roadmap")
         if gate:
             return gate
@@ -3684,7 +3684,7 @@ def create_server():
         sign_with_trust_layer: Annotated[bool, Field(description="Certify the package via Trust Layer for Art. 12 audit trail.", default=False)] = False,
         trust_layer_key: Annotated[str, Field(description="ArkForge Trust Layer API key. Required if sign_with_trust_layer is True.", default="")] = "",
     ) -> dict:
-        """Generate an auditor-ready Annex IV evidence ZIP with all 8 required sections for high-risk AI systems. Populated from project compliance docs and scan results. Pro plan required."""
+        """Generate an auditor-ready Annex IV evidence package for high-risk AI systems. No arguments needed — auto-populates all 8 required sections from your project docs and scan results. Pro plan required."""
         gate = _require_plan("pro", "generate_annex4_package")
         if gate:
             return gate
@@ -3839,7 +3839,7 @@ def create_server():
         report_data: Annotated[str, Field(description="JSON string of the compliance report to certify.")],
         trust_layer_key: Annotated[str, Field(description="ArkForge Trust Layer API key.")],
     ) -> dict:
-        """Certify a compliance report with a tamper-proof cryptographic proof (EU AI Act Art. 12 audit trail). Returns a proof_id and public verification URL for auditors. Certified plan required."""
+        """Certify your EU AI Act compliance report with a tamper-proof cryptographic proof (Art. 12 audit trail). Pass the report JSON — returns a proof_id and public verification URL to share with auditors. Certified plan required."""
         gate = _require_plan("certified", "certify_compliance_report")
         if gate:
             return gate
@@ -3889,7 +3889,7 @@ def create_server():
     def register_free_key(
         email: Annotated[str, Field(description="The user's email address. MUST come from the user's message, not generated by the agent.")],
     ) -> dict:
-        """Activate a free API key to persist scan history and unlock CI/CD. IMPORTANT: ask the user to type their email first, wait for their reply, then call this with the exact email they typed. Do NOT pass a placeholder or fabricated email."""
+        """Activate a free API key to save scan history and unlock CI/CD access. No setup required — pass the user's email address. IMPORTANT: ask the user to type their email first, wait for their reply, then call this with the exact email they typed. Do NOT pass a placeholder or fabricated email."""
         raw_email = email
         # Early guard: LLMs sometimes auto-call with None/empty without asking user
         if not raw_email or not raw_email.strip():
@@ -4094,7 +4094,7 @@ def create_server():
         project_path: Annotated[str, Field(description="Path to the project root. Leave empty or pass '.' to check the current directory.", default=".")] = ".",
         processing_role: Annotated[ProcessingRole, Field(description="GDPR role: controller, processor, or minimal_processing.", default=ProcessingRole.controller)] = ProcessingRole.controller,
     ) -> list:
-        """Check which GDPR requirements your project passes or fails, with fix instructions. Covers lawful basis (Art. 6), consent (Art. 7), data subject rights (Art. 15-22), security (Art. 32), breach notification (Art. 33-34)."""
+        """Check your project's GDPR compliance now. No arguments needed — returns pass/fail per requirement (Art. 6 lawful basis, Art. 7 consent, Art. 15-22 data rights, Art. 32 security, Art. 33-34 breach) + fix instructions for each gap."""
         resolved_path, is_demo, error_msg = _resolve_project_path(project_path)
         if error_msg:
             return {"error": error_msg}
@@ -4111,7 +4111,7 @@ def create_server():
         project_path: Annotated[str, Field(description="Path to the project root. Leave empty or pass '.' to scan the current directory.", default=".")] = ".",
         processing_role: Annotated[ProcessingRole, Field(description="GDPR role: controller, processor, or minimal_processing.", default=ProcessingRole.controller)] = ProcessingRole.controller,
     ) -> list:
-        """Generate a DPO-ready GDPR compliance report with data inventory, gap analysis, and remediation plan. Call gdpr_generate_report() for the current directory."""
+        """Generate a DPO-ready GDPR compliance report. No arguments needed — combines data inventory + gap analysis + remediation plan in one document. Structured for DPO review or audit preparation."""
         resolved_path, is_demo, error_msg = _resolve_project_path(project_path)
         if error_msg:
             return {"error": error_msg}
@@ -4128,7 +4128,7 @@ def create_server():
     def gdpr_generate_templates(
         processing_role: Annotated[ProcessingRole, Field(description="GDPR role: controller, processor, or minimal_processing.", default=ProcessingRole.controller)] = ProcessingRole.controller,
     ) -> list:
-        """Generate ready-to-use GDPR document templates: Privacy Policy, DPIA, Records of Processing, Data Breach Procedure."""
+        """Generate ready-to-use GDPR document templates. No arguments needed — produces Privacy Policy + DPIA + Records of Processing + Data Breach Procedure. Fill in [bracketed] sections with your organization's details."""
         checker = GDPRChecker("/tmp")  # Templates don't need a real path
         plan = _get_plan()
         cta_included = plan not in ("pro", "paid_scan", "marketplace", "certified")
@@ -4218,7 +4218,7 @@ def create_server():
 
     @mcp.tool()
     def get_pricing() -> dict:
-        """Show pricing plans: Free (10 scans/day), Pro (unlimited + CI/CD), and Certified (Trust Layer integration)."""
+        """Compare compliance scanning plans — Free (10 scans/day), Pro (unlimited + CI/CD), and Certified (Trust Layer audit trail). No arguments needed, call any time to see current pricing and features."""
         _log_tool_call("get_pricing", cta_included=True, extra={"funnel_step": "pricing_page_viewed"})
         result = {
             "plans": {

@@ -16,27 +16,27 @@
     },
     {
       "name": "generate_report",
-      "description": "Call with no arguments — generates a shareable EU AI Act compliance report combining framework detection, gap analysis, and remediation plan. Structured for legal review or DPIA attachment."
+      "description": "Generate a shareable EU AI Act compliance report. No arguments needed — combines framework detection + gap analysis + remediation plan. Structured for legal review or DPIA attachment."
     },
     {
       "name": "suggest_risk_category",
-      "description": "Pass a plain-language description of your AI system. Returns the EU AI Act risk category (unacceptable/high/limited/minimal) with matched indicators and relevant articles."
+      "description": "Identify the EU AI Act risk category for your AI system from a plain-language description. Returns matched category, confidence level, risk indicators, applicable articles, and recommended next step. No API key, no setup."
     },
     {
       "name": "generate_compliance_templates",
-      "description": "Call with no arguments — generates starter compliance document templates for your EU AI Act risk category."
+      "description": "Generate ready-to-use EU AI Act compliance document templates. No arguments needed — produces starter docs for your risk category."
     },
     {
       "name": "generate_compliance_roadmap",
-      "description": "Call with no arguments — generates a week-by-week action plan to reach EU AI Act compliance before August 2026. Pro plan required."
+      "description": "Generate a week-by-week action plan to reach EU AI Act compliance. No arguments needed — scans project, identifies gaps, sequences actions with quick wins first. Pro plan required."
     },
     {
       "name": "generate_annex4_package",
-      "description": "Call with no arguments — generates the auditor-ready Annex IV evidence package for high-risk AI systems. Pro plan required."
+      "description": "Generate the auditor-ready Annex IV evidence package for high-risk AI systems. No arguments needed — populates all 8 required sections from project scan results. Pro plan required."
     },
     {
       "name": "certify_compliance_report",
-      "description": "Certify a compliance report with a cryptographic attestation via ArkForge Trust Layer. Certified plan required."
+      "description": "Certify your EU AI Act compliance report with a tamper-proof cryptographic proof (Art. 12 audit trail). Pass the report JSON — returns a proof_id and public verification URL for auditors. Certified plan required."
     },
     {
       "name": "validate_api_key",
@@ -52,15 +52,15 @@
     },
     {
       "name": "gdpr_check_compliance",
-      "description": "Call with no arguments — checks which GDPR requirements your project passes or fails, with fix instructions for each gap."
+      "description": "Check your project's GDPR compliance now. No arguments needed — returns pass/fail per requirement (Art. 6, Art. 7, Art. 15-22, Art. 32, Art. 33-34) + fix instructions for each gap."
     },
     {
       "name": "gdpr_generate_report",
-      "description": "Call with no arguments — generates a DPO-ready GDPR compliance report with data inventory, gap analysis, and prioritized remediation."
+      "description": "Generate a DPO-ready GDPR compliance report. No arguments needed — combines data inventory + gap analysis + remediation plan in one document."
     },
     {
       "name": "gdpr_generate_templates",
-      "description": "Call with no arguments — generates GDPR documentation templates (privacy notice, DPA, DPIA, consent forms)."
+      "description": "Generate ready-to-use GDPR document templates. No arguments needed — produces Privacy Policy + DPIA + Records of Processing + Data Breach Procedure."
     },
     {
       "name": "combined_compliance_report",
@@ -68,7 +68,7 @@
     },
     {
       "name": "get_pricing",
-      "description": "Show pricing for Free, Pro, and Certified plans."
+      "description": "Compare compliance scanning plans — Free (10 scans/day), Pro (unlimited + CI/CD), and Certified (Trust Layer audit trail). No arguments needed, call any time to see current pricing and features."
     }
   ]
 }
