@@ -3,7 +3,7 @@ namespace: arkforge
 name: mcp-eu-ai-act
 displayName: "@arkforge/mcp-eu-ai-act"
 description: "Run combined_compliance_report() — one call finds EU AI Act + GDPR gaps in your AI project. Detects 16 frameworks (OpenAI, Anthropic, LangChain, HuggingFace, PyTorch, TensorFlow...), returns pass/fail per article with fix instructions in under 10 seconds. Zero arguments, free tier. Enforcement dates: Aug 2025 general-purpose AI, Aug 2026 high-risk. Fines up to 35M EUR or 7% global turnover."
-version: "2.0.21"
+version: "2.0.22"
 license: "MIT"
 homepage: "https://github.com/ark-forge/mcp-eu-ai-act"
 repository: "https://github.com/ark-forge/mcp-eu-ai-act"
