@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "eu-ai-act-scanner"
-version = "2.0.20"
+version = "2.0.21"
 description = "Scan any AI/ML project for EU AI Act + GDPR compliance gaps. Detects frameworks, maps legal obligations, returns fix instructions. MCP server — no arguments needed."
 readme = "README.md"
 license = "MIT"

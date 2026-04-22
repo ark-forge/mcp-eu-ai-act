@@ -5,6 +5,15 @@ All notable changes to the EU AI Act Compliance Scanner MCP Server will be docum
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.21] - 2026-04-22
+
+### Changed
+- All 15 user-facing tool descriptions rewritten in imperative+benefit+zero-config format for higher discovery-to-scan conversion
+- Smithery, Glama, MCP Registry, and server.json descriptions synced with server.py docstrings
+- Dockerfile updated to include gdpr_module.py and data/ directory for Smithery Docker builds
+- MCP session ID tracking for accurate client deduplication in funnel metrics
+- Improved deploy gates and funnel diagnostics scripts
+
 ## [2.0.0] - 2026-04-07
 
 ### Added
