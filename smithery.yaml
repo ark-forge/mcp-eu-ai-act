@@ -2,8 +2,8 @@
 namespace: arkforge
 name: mcp-eu-ai-act
 displayName: "@arkforge/mcp-eu-ai-act"
-description: "Automated EU AI Act compliance verification for AI projects"
-version: "1.5.0"
+description: "EU AI Act + GDPR compliance scanner for AI/ML projects. Detects OpenAI, Anthropic, LangChain, HuggingFace, PyTorch, TensorFlow imports and maps each to legal obligations. Use when: your project imports AI/ML libraries, you need compliance checks before deployment, or you are preparing for EU AI Act enforcement (Aug 2025 general-purpose, Aug 2026 high-risk). No arguments needed, no API key for free tier."
+version: "2.0.17"
 license: "MIT"
 homepage: "https://github.com/ark-forge/mcp-eu-ai-act"
 repository: "https://github.com/ark-forge/mcp-eu-ai-act"

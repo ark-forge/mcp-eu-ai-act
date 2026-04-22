@@ -484,6 +484,31 @@ else
 fi
 
 # ============================================================
+# PHASE 7b — SMITHERY PUBLISH (non-blocking)
+# ============================================================
+log "--- Phase 7b: Smithery publish ---"
+SMITHERY_RESULT="skipped"
+
+if command -v smithery &>/dev/null; then
+    cd "$REPO_DIR"
+    SMITHERY_OUT=$(smithery publish -n "@arkforge/mcp-eu-ai-act" 2>&1) || true
+    echo "$SMITHERY_OUT" >> "$LOG_FILE"
+    if echo "$SMITHERY_OUT" | grep -qi "success\|published\|complete"; then
+        SMITHERY_RESULT="published"
+        log "Smithery publish OK"
+    elif echo "$SMITHERY_OUT" | grep -qi "already\|up.to.date\|no changes"; then
+        SMITHERY_RESULT="up-to-date"
+        log "Smithery already up-to-date"
+    else
+        SMITHERY_RESULT="FAILED"
+        log "WARN: Smithery publish uncertain — $(echo "$SMITHERY_OUT" | tail -3)"
+    fi
+else
+    log "WARN: smithery CLI not found — skipping Smithery publish"
+    SMITHERY_RESULT="no CLI"
+fi
+
+# ============================================================
 # PHASE 8 — TELEGRAM NOTIFICATION
 # ============================================================
 log "--- Phase 8: Notification ---"
@@ -496,7 +521,7 @@ else
     SMOKE_MSG="smoke: FAILED"
 fi
 
-NOTIFY_MSG="v${CURRENT_VERSION} → v${NEW_VERSION} OK | ${SMOKE_MSG} | pypi: ${PYPI_RESULT}\n\n${CHANGELOG}"
+NOTIFY_MSG="v${CURRENT_VERSION} → v${NEW_VERSION} OK | ${SMOKE_MSG} | pypi: ${PYPI_RESULT} | smithery: ${SMITHERY_RESULT}\n\n${CHANGELOG}"
 telegram_notify "$NOTIFY_MSG"
 log "Telegram notification sent"
 

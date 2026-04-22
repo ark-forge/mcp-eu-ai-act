@@ -247,12 +247,16 @@ _transport_type: contextvars.ContextVar = contextvars.ContextVar('transport_type
 # Context variable: client hint from User-Agent (e.g. 'claude-desktop', 'cursor', 'unknown')
 _client_hint: contextvars.ContextVar = contextvars.ContextVar('client_hint', default='unknown')
 
+# Context variable: MCP session ID (Streamable HTTP spec — differentiates sessions behind proxy)
+_mcp_session_id: contextvars.ContextVar = contextvars.ContextVar('mcp_session_id', default='')
+
 # Module-level fallback for ContextVars that don't propagate across FastMCP's
 # anyio task groups (streamable-http transport dispatches tools in separate tasks).
 # Single-worker uvicorn: safe for low-concurrency MCP traffic.
 _fallback_ip: str = "unknown"
 _fallback_transport: str = "unknown"
 _fallback_client_hint: str = "unknown"
+_fallback_mcp_session_id: str = ""
 _fallback_plan: str = "free"
 _fallback_scan_remaining: int | None = None
 
@@ -286,6 +290,12 @@ def _get_client_hint_val() -> str:
     if h != "unknown":
         return h
     return _fallback_client_hint
+
+
+def _get_mcp_session_id() -> str:
+    """Get MCP session ID with fallback."""
+    s = _mcp_session_id.get()
+    return s if s else _fallback_mcp_session_id
 
 
 def _get_plan() -> str:
@@ -431,7 +441,7 @@ def _detect_client_hint(scope) -> str:
 _UNIQUE_CLIENTS_PATH = Path(__file__).parent / "data" / "unique_mcp_clients.json"
 
 
-def _track_unique_client(ip: str, source: str, client_hint: str):
+def _track_unique_client(ip: str, source: str, client_hint: str, mcp_session: str = ""):
     """Track unique external MCP clients per day. Counts 'external' and 'stdio' sources."""
     if source not in ("external", "stdio"):
         return
@@ -444,6 +454,8 @@ def _track_unique_client(ip: str, source: str, client_hint: str):
         data[today] = {"ips": [], "count": 0, "client_hints": {}}
     import hashlib
     ident = ip if ip != "unknown" else f"stdio-pid-{os.getpid()}"
+    if mcp_session:
+        ident = f"{ident}:{mcp_session}"
     ip_hash = hashlib.sha256(ident.encode()).hexdigest()[:12]
     if ip_hash not in data[today]["ips"]:
         data[today]["ips"].append(ip_hash)
@@ -536,7 +548,9 @@ def _log_tool_call(tool_name: str, cta_included: bool = False, plan: str = None,
         and resolved_ip not in ("testclient", "unknown", "127.0.0.1", "93.184.216.34")
     )
     hint = _get_client_hint_val()
-    client_id = hashlib.sha256(f"{resolved_ip}:{hint}".encode()).hexdigest()[:12]
+    mcp_session = _get_mcp_session_id()
+    id_seed = f"{resolved_ip}:{hint}:{mcp_session}" if mcp_session else f"{resolved_ip}:{hint}"
+    client_id = hashlib.sha256(id_seed.encode()).hexdigest()[:12]
     base = {
         "ts": datetime.now(timezone.utc).isoformat(),
         "tool": tool_name,
@@ -551,6 +565,8 @@ def _log_tool_call(tool_name: str, cta_included: bool = False, plan: str = None,
         "is_genuine_external": is_genuine_external,
         "schema_version": _SCHEMA_VERSION,
     }
+    if mcp_session:
+        base["mcp_session_id"] = mcp_session
     if extra:
         base.update(extra)
 
@@ -665,7 +681,7 @@ def _record_mcp_scan(api_key: Optional[str], ip: str, tool_name: str,
     client_hint = _get_client_hint_val()
     ip_source = _classify_ip(ip, client_hint)
     # Track unique external MCP clients
-    _track_unique_client(ip, ip_source, client_hint)
+    _track_unique_client(ip, ip_source, client_hint, _get_mcp_session_id())
     entry = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "api_key": api_key[:12] + "..." if api_key else None,
@@ -1001,6 +1017,12 @@ class RateLimitMiddleware:
         except (json.JSONDecodeError, ValueError, TypeError):
             pass
 
+        if jsonrpc_method:
+            _rpc_ip = _get_header(scope, b"x-real-ip") or _get_header(scope, b"x-forwarded-for") or "?"
+            _rpc_ua = _get_header(scope, b"user-agent") or "?"
+            logger.info("JSON-RPC %s | tool=%s | ip=%s | ua=%s",
+                        jsonrpc_method, tool_name or "-", _rpc_ip.split(",")[0].strip(), _rpc_ua[:40])
+
         # Track connection-level events (tools/list, initialize) from external IPs
         # to measure session_init → tool_call conversion drop-off.
         if not is_tool_call and jsonrpc_method in ("tools/list", "initialize"):
@@ -1014,8 +1036,10 @@ class RateLimitMiddleware:
             conn_hint = _detect_client_hint(scope)
             conn_source = _classify_ip(conn_ip, conn_hint)
             if conn_source in ("external", "crawler"):
-                conn_client_id = hashlib.sha256(f"{conn_ip}:{conn_hint}".encode()).hexdigest()[:12]
-                _write_tool_call_entry({
+                mcp_session = _get_header(scope, b"mcp-session-id") or _get_header(scope, b"mcp-session") or ""
+                id_seed = f"{conn_ip}:{conn_hint}:{mcp_session}" if mcp_session else f"{conn_ip}:{conn_hint}"
+                conn_client_id = hashlib.sha256(id_seed.encode()).hexdigest()[:12]
+                entry = {
                     "ts": datetime.now(timezone.utc).isoformat(),
                     "tool": f"__connection_{jsonrpc_method.replace('/', '_')}",
                     "plan": "free",
@@ -1029,8 +1053,11 @@ class RateLimitMiddleware:
                     "is_genuine_external": conn_source in ("external", "crawler")
                         and conn_ip not in ("testclient", "unknown", "127.0.0.1", "93.184.216.34"),
                     "funnel_step": f"mcp_{jsonrpc_method.replace('/', '_')}",
-                })
-                _track_unique_client(conn_ip, conn_source, conn_hint)
+                }
+                if mcp_session:
+                    entry["mcp_session_id"] = mcp_session
+                _write_tool_call_entry(entry)
+                _track_unique_client(conn_ip, conn_source, conn_hint, mcp_session)
 
         if is_tool_call:
             # Extract IP early (needed for both pro and free logging)
@@ -1054,6 +1081,9 @@ class RateLimitMiddleware:
             hint = _detect_client_hint(scope)
             _client_hint.set(hint)
             _fallback_client_hint = hint
+            session_id = _get_header(scope, b"mcp-session-id") or _get_header(scope, b"mcp-session") or ""
+            _mcp_session_id.set(session_id)
+            _fallback_mcp_session_id = session_id
 
             # Check API key — Pro keys bypass rate limiting
             api_key = _extract_api_key(scope)
