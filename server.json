@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.ark-forge/mcp-eu-ai-act",
-  "description": "Scan any AI/ML project for EU AI Act + GDPR compliance gaps. Detects OpenAI, Anthropic, LangChain, HuggingFace, PyTorch imports and maps legal obligations. No arguments, no API key. Enforcement live since Feb 2025, fines up to 35M EUR.",
+  "description": "Call combined_compliance_report() to scan your project for EU AI Act + GDPR gaps in under 10 seconds. Detects 16 AI frameworks, returns pass/fail per article with fix instructions. Zero arguments, zero API key, free tier. Enforcement live, fines up to 35M EUR.",
   "version": "2.0.21",
   "repository": {
     "url": "https://github.com/ark-forge/mcp-eu-ai-act",

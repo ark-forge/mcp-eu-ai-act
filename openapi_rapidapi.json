@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "EU AI Act Compliance Scanner API",
-    "description": "Scan GitHub repos or source code for EU AI Act compliance. Detects 16+ AI frameworks, checks compliance, provides actionable recommendations. Free: 5 scans/day. API key: unlimited.",
+    "description": "POST a GitHub repo URL or source code, get EU AI Act + GDPR compliance results in seconds. Detects 16 AI frameworks, returns pass/fail per article with fix instructions. Free: 5 scans/day, no sign-up. API key: unlimited scans.",
     "version": "1.0.0"
   },
   "paths": {

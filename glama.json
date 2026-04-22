@@ -8,7 +8,7 @@
   "tools": [
     {
       "name": "scan_project",
-      "description": "Scan your project for EU AI Act obligations now. No arguments needed — detects OpenAI, Anthropic, LangChain, HuggingFace, PyTorch, TensorFlow, scikit-learn and maps each to binding legal articles. Returns risk category + applicable obligations + required actions in under 5 seconds. No API key, no setup."
+      "description": "Find every AI framework in your project and see which EU AI Act articles apply. Detects OpenAI, Anthropic, LangChain, HuggingFace, PyTorch, TensorFlow, scikit-learn across Python/JS/Go/Java/Rust. Returns risk category + obligations + required actions in under 5 seconds. Zero arguments, free."
     },
     {
       "name": "check_compliance",
@@ -64,7 +64,7 @@
     },
     {
       "name": "combined_compliance_report",
-      "description": "Run full EU AI Act + GDPR compliance scan in one call. No arguments needed — best first call for any AI project. Detects AI frameworks + personal data processing, flags dual-compliance hotspots, returns prioritized requirements with fix instructions in under 10 seconds. No API key, no setup."
+      "description": "Best first call for any AI project. Runs EU AI Act + GDPR scan simultaneously — detects 16 AI frameworks + personal data processing, flags dual-compliance hotspots, returns pass/fail per article with fix instructions. Under 10 seconds, zero arguments, free. Start here."
     },
     {
       "name": "get_pricing",

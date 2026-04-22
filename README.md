@@ -7,9 +7,11 @@
 
 If this tool helps your compliance work, a ⭐ on GitHub helps others discover it.
 
-EU AI Act compliance toolkit for developers. Scan your codebase, get a deadline-aware action plan, and generate an auditor-ready evidence package — certifiable with ArkForge Trust Layer.
+One call. Zero config. Full EU AI Act + GDPR compliance report in under 10 seconds.
 
-**August 2, 2026 enforcement deadline — 117 days remaining.**
+Detects 16 AI frameworks in your codebase, maps each to binding legal articles, returns pass/fail with fix instructions. Free tier, no API key needed.
+
+**August 2, 2026 enforcement deadline. Fines up to 35M EUR or 7% global turnover.**
 
 > **Need audit-grade proof?** Certify every scan with [ArkForge Trust Layer](https://arkforge.tech/trust?utm_source=github_readme) — tamper-proof, timestamped compliance evidence. 500 free proofs/month.
 

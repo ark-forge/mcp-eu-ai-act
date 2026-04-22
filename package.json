@@ -1,7 +1,7 @@
 {
   "name": "@arkforge/mcp-eu-ai-act",
   "version": "1.5.0",
-  "description": "MCP Server for EU AI Act Compliance Checking",
+  "description": "One-call EU AI Act + GDPR compliance scan for AI projects. Detects 16 frameworks, returns fix instructions with article citations. Zero config, free tier.",
   "mcpName": "io.github.ark-forge/mcp-eu-ai-act",
   "module": "./src/index.ts",
   "type": "module",

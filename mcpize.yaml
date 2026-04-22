@@ -1,5 +1,5 @@
 # MCPize manifest - https://mcpize.com
-# MCP EU AI Act Compliance Checker
+# MCP EU AI Act + GDPR Compliance Scanner — one call, zero config, free tier
 # Deploy: mcpize login && mcpize deploy
 version: 1
 name: mcp-eu-ai-act
