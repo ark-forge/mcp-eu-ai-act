@@ -257,6 +257,26 @@ _fallback_ip: str = "unknown"
 _fallback_transport: str = "unknown"
 _fallback_client_hint: str = "unknown"
 _fallback_mcp_session_id: str = ""
+
+# Keepalive detection: track tools_list frequency per IP to distinguish
+# automated gateway polling from genuine user discovery sessions.
+_tools_list_timestamps: dict[str, list[float]] = {}
+_KEEPALIVE_WINDOW_S = 3600  # 1 hour window
+_KEEPALIVE_THRESHOLD = 8  # >8 tools_list/hour = automated polling
+
+
+def _is_automated_polling(ip: str) -> bool:
+    """Detect if tools_list calls from this IP are automated keepalives."""
+    import time
+    now = time.time()
+    if ip not in _tools_list_timestamps:
+        _tools_list_timestamps[ip] = []
+    ts_list = _tools_list_timestamps[ip]
+    ts_list.append(now)
+    # Prune old entries
+    cutoff = now - _KEEPALIVE_WINDOW_S
+    _tools_list_timestamps[ip] = [t for t in ts_list if t > cutoff]
+    return len(_tools_list_timestamps[ip]) > _KEEPALIVE_THRESHOLD
 _fallback_plan: str = "free"
 _fallback_scan_remaining: int | None = None
 
@@ -412,7 +432,9 @@ _DATACENTER_PREFIXES = (
     "160.79.", "172.104.", "172.105.", "139.162.",  # Linode
     "104.248.", "134.209.", "157.245.", "161.35.",  # DigitalOcean
     "35.", "52.", "54.", "18.",     # AWS (broad)
+    "93.184.216.",                  # IANA example.com (test probes)
 )
+_ANTHROPIC_GATEWAY_PREFIXES = ("160.79.106.",)
 
 
 def _detect_client_hint(scope) -> str:
@@ -477,12 +499,17 @@ def _track_unique_client(ip: str, source: str, client_hint: str, mcp_session: st
 _KNOWN_MCP_CLIENTS = frozenset({"claude-desktop", "cursor", "continue", "cline"})
 
 
+def _is_anthropic_gateway(ip: str) -> bool:
+    """Check if IP belongs to the Anthropic MCP gateway subnet (Linode 160.79.106.x)."""
+    return any(ip.startswith(p) for p in _ANTHROPIC_GATEWAY_PREFIXES)
+
+
 def _classify_ip(ip: str, client_hint: str = "unknown") -> str:
-    """Classify IP as 'internal', 'crawler', or 'external'.
+    """Classify IP as 'internal', 'crawler', 'gateway', or 'external'.
 
     - internal: private ranges, RFC 5737 test nets, known infra IPs
+    - gateway: Anthropic MCP gateway IPs (protocol keepalives, may proxy real users)
     - crawler: known datacenter IP prefixes (Hetzner, Linode, etc.)
-      UNLESS client_hint is a known MCP client (claude-desktop, cursor, etc.)
     - external: everything else (potential real users)
     """
     if not ip:
@@ -494,10 +521,10 @@ def _classify_ip(ip: str, client_hint: str = "unknown") -> str:
     for prefix in _INTERNAL_CIDRS:
         if ip.startswith(prefix):
             return "internal"
+    if _is_anthropic_gateway(ip):
+        return "gateway"
     for prefix in _DATACENTER_PREFIXES:
         if ip.startswith(prefix):
-            if client_hint in _KNOWN_MCP_CLIENTS:
-                return "external"
             return "crawler"
     return "external"
 
@@ -539,15 +566,16 @@ def _log_tool_call(tool_name: str, cta_included: bool = False, plan: str = None,
     Callers passing funnel_step explicitly in `extra` suppress auto-tagging.
     """
     resolved_ip = ip or _get_client_ip()
-    source = _classify_ip(resolved_ip, _get_client_hint_val())
+    hint = _get_client_hint_val()
+    source = _classify_ip(resolved_ip, hint)
     resolved_plan = plan or _get_plan()
-    # Genuine external = not internal/stdio, not certified plan, not testclient IP
+    is_protocol_keepalive = tool_name.startswith("__connection_")
     is_genuine_external = (
-        source in ("external", "crawler")
+        source in ("external", "crawler", "gateway")
         and resolved_plan not in ("certified",)
         and resolved_ip not in ("testclient", "unknown", "127.0.0.1", "93.184.216.34")
+        and not is_protocol_keepalive
     )
-    hint = _get_client_hint_val()
     mcp_session = _get_mcp_session_id()
     id_seed = f"{resolved_ip}:{hint}:{mcp_session}" if mcp_session else f"{resolved_ip}:{hint}"
     client_id = hashlib.sha256(id_seed.encode()).hexdigest()[:12]
@@ -563,6 +591,7 @@ def _log_tool_call(tool_name: str, cta_included: bool = False, plan: str = None,
         "client_hint": hint,
         "client_id": client_id,
         "is_genuine_external": is_genuine_external,
+        "is_protocol_keepalive": is_protocol_keepalive,
         "schema_version": _SCHEMA_VERSION,
     }
     if mcp_session:
@@ -739,6 +768,8 @@ def _compute_funnel_metrics() -> dict:
     ext_tool_callers_today = set()
     ext_tool_callers_7d = set()
     discovery_today = 0
+    genuine_discovery_today = 0
+    genuine_discovery_7d = 0
     cutoff_7d = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
     today_prefix = today + "T"
     try:
@@ -756,8 +787,14 @@ def _compute_funnel_metrics() -> dict:
                     continue
                 is_connection = tool.startswith("__connection_")
                 if is_connection:
-                    if "tools_list" in tool and ts >= today_prefix:
-                        discovery_today += 1
+                    if "tools_list" in tool:
+                        is_polling = e.get("is_automated_polling", False)
+                        if ts >= today_prefix:
+                            discovery_today += 1
+                            if not is_polling:
+                                genuine_discovery_today += 1
+                        if ts >= cutoff_7d and not is_polling:
+                            genuine_discovery_7d += 1
                     continue
                 if ts >= today_prefix:
                     ext_tool_calls_today += 1
@@ -800,6 +837,8 @@ def _compute_funnel_metrics() -> dict:
         "unique_users_today": unique_users_today,
         "unique_users_7d": unique_users_7d,
         "discovery_requests_today": discovery_today,
+        "genuine_discovery_today": genuine_discovery_today,
+        "genuine_discovery_7d": genuine_discovery_7d,
         "reconnection_ratio": reconnection_ratio,
         "ext_tool_calls_today": ext_tool_calls_today,
         "ext_tool_calls_7d": ext_tool_calls_7d,
@@ -1035,10 +1074,11 @@ class RateLimitMiddleware:
                 conn_ip = client[0] if client else "unknown"
             conn_hint = _detect_client_hint(scope)
             conn_source = _classify_ip(conn_ip, conn_hint)
-            if conn_source in ("external", "crawler"):
+            if conn_source in ("external", "crawler", "gateway"):
                 mcp_session = _get_header(scope, b"mcp-session-id") or _get_header(scope, b"mcp-session") or ""
                 id_seed = f"{conn_ip}:{conn_hint}:{mcp_session}" if mcp_session else f"{conn_ip}:{conn_hint}"
                 conn_client_id = hashlib.sha256(id_seed.encode()).hexdigest()[:12]
+                is_polling = _is_automated_polling(conn_ip) if "tools_list" in jsonrpc_method else False
                 entry = {
                     "ts": datetime.now(timezone.utc).isoformat(),
                     "tool": f"__connection_{jsonrpc_method.replace('/', '_')}",
@@ -1050,8 +1090,9 @@ class RateLimitMiddleware:
                     "transport": "mcp_jsonrpc",
                     "client_hint": conn_hint,
                     "client_id": conn_client_id,
-                    "is_genuine_external": conn_source in ("external", "crawler")
-                        and conn_ip not in ("testclient", "unknown", "127.0.0.1", "93.184.216.34"),
+                    "is_genuine_external": False,
+                    "is_protocol_keepalive": True,
+                    "is_automated_polling": is_polling,
                     "funnel_step": f"mcp_{jsonrpc_method.replace('/', '_')}",
                 }
                 if mcp_session:
@@ -3414,7 +3455,7 @@ def create_server():
         project_path: Annotated[str, Field(description="Path to the project root. Omit entirely or pass '.' to scan the current working directory — no path discovery needed.", default=".")] = ".",
         follow_imports: Annotated[bool, Field(description="When true, also flag files that transitively import AI-flagged modules. Default false is fine for most projects.", default=False)] = False,
     ) -> list:
-        """Scan your project for EU AI Act obligations now. No arguments needed — just call it. Detects OpenAI, Anthropic, LangChain, HuggingFace, PyTorch, TensorFlow, scikit-learn imports and maps each to binding legal articles. Returns: risk category, detected AI frameworks, applicable obligations, and required actions — in under 5 seconds. No API key, no setup. Enforcement live since Feb 2025; fines up to 35M EUR. For combined EU AI Act + GDPR, use combined_compliance_report() instead."""
+        """Call this when the project imports any AI/ML library. Detects 22 frameworks (OpenAI, Anthropic, LangChain, HuggingFace, PyTorch, TensorFlow, scikit-learn…) and maps each to binding EU AI Act articles. No arguments, no API key, under 5 seconds. Returns: risk category, detected frameworks, applicable obligations, and required actions. EU AI Act enforcement live Feb 2025 — fines to 35M EUR or 7% global turnover. For combined EU AI Act + GDPR in one call, use combined_compliance_report() instead."""
         resolved_path, is_demo, error_msg = _resolve_project_path(project_path)
         if error_msg:
             return {"error": error_msg, "detected_models": {}}
@@ -3442,7 +3483,7 @@ def create_server():
         project_path: Annotated[str, Field(description="Path to the project root. Omit entirely or pass '.' to check the current working directory.", default=".")] = ".",
         risk_category: Annotated[RiskCategory, Field(description="EU AI Act risk category: 'minimal', 'limited' (default, fits most AI apps), 'high', or 'unacceptable'.", default=RiskCategory.limited)] = RiskCategory.limited,
     ) -> list:
-        """Check your project's EU AI Act compliance now. No arguments needed — auto-detects AI frameworks and runs every applicable check. Returns: pass/fail per requirement (Art. 52 transparency, Art. 11 documentation, Art. 14 oversight, Art. 15 robustness), compliance percentage, and fix instructions for each gap — in under 5 seconds."""
+        """Run every EU AI Act compliance check — no arguments. Auto-detects AI frameworks then returns pass/fail for Art. 52 (transparency), Art. 11 (technical documentation), Art. 14 (human oversight), Art. 15 (robustness), plus overall compliance percentage and step-by-step fix instructions for each gap. Under 5 seconds. Call combined_compliance_report() to run this together with the GDPR check."""
         resolved_path, is_demo, error_msg = _resolve_project_path(project_path)
         if error_msg:
             return {"error": error_msg}
@@ -3464,7 +3505,7 @@ def create_server():
         project_path: Annotated[str, Field(description="Path to the project root. Omit entirely or pass '.' to scan the current working directory.", default=".")] = ".",
         risk_category: Annotated[RiskCategory, Field(description="EU AI Act risk category: 'minimal', 'limited' (default), 'high', or 'unacceptable'.", default=RiskCategory.limited)] = RiskCategory.limited,
     ) -> list:
-        """Generate a shareable EU AI Act compliance report. No arguments needed — combines framework detection + gap analysis + remediation plan in one document. Structured for legal review, DPIA attachment, or compliance team sharing. No API key required."""
+        """Generate a shareable EU AI Act compliance report — no arguments. Combines framework detection + gap analysis + remediation plan in one structured document, ready for legal review, DPIA attachment, or compliance team. No API key required. Run scan_project or check_compliance first for individual outputs, or call this for the full one-shot report."""
         resolved_path, is_demo, error_msg = _resolve_project_path(project_path)
         if error_msg:
             return {"error": error_msg}
@@ -3485,7 +3526,7 @@ def create_server():
     def suggest_risk_category(
         system_description: Annotated[str, Field(description="Short description of what the AI system does, e.g. 'chatbot for customer support' or 'CV screening tool for recruitment'.")],
     ) -> dict:
-        """Identify the EU AI Act risk category that applies to your AI system — one plain-language description is all you need. Returns matched category, confidence level, risk indicators, applicable articles, and the next compliance step. No API key, no setup."""
+        """Identify which EU AI Act risk tier applies to an AI system — pass one plain-language description of what it does. Returns: matched category (minimal/limited/high/unacceptable), confidence, triggering risk indicators, applicable articles, and the immediate next compliance step. Call this before running compliance checks when the risk category is unknown."""
         description_lower = system_description.lower()
         raw_matches: dict[str, dict] = {}
 
@@ -3538,7 +3579,7 @@ def create_server():
     def generate_compliance_templates(
         risk_category: Annotated[RiskCategory, Field(description="EU AI Act risk category. Templates are most useful for 'high' risk.", default=RiskCategory.high)] = RiskCategory.high,
     ) -> dict:
-        """Generate ready-to-use EU AI Act compliance document templates. No arguments needed — produces starter docs for your risk category. Save output in docs/ and fill in [bracketed] sections."""
+        """Generate fillable EU AI Act compliance document templates — no arguments. Produces risk management plan, technical documentation, transparency notice, and human oversight policy tailored to the risk category. High-risk systems get all 6 required docs. Save to docs/ and fill in [bracketed] sections. Call check_compliance first to identify which documents are missing."""
         category = _risk_value(risk_category)
         category_info = RISK_CATEGORIES.get(category, {})
 
@@ -3586,7 +3627,7 @@ def create_server():
         risk_category: Annotated[RiskCategory, Field(description="EU AI Act risk category.", default=RiskCategory.high)] = RiskCategory.high,
         deadline: Annotated[str, Field(description="Target compliance deadline in ISO format.", default="2026-08-02")] = "2026-08-02",
     ) -> dict:
-        """Generate a week-by-week EU AI Act compliance roadmap tailored to your project's gaps and deadline. No arguments needed — auto-scans, ranks actions by impact, and sequences quick wins first. Pro plan required."""
+        """Generate a week-by-week compliance roadmap to the Aug 2026 EU AI Act deadline — no arguments. Auto-scans gaps, ranks actions by impact, sequences quick wins first, and calculates whether the deadline is feasible given current state. Pro plan required. Run check_compliance for a free gap summary first."""
         gate = _require_plan("pro", "generate_compliance_roadmap")
         if gate:
             return gate
@@ -3714,7 +3755,7 @@ def create_server():
         sign_with_trust_layer: Annotated[bool, Field(description="Certify the package via Trust Layer for Art. 12 audit trail.", default=False)] = False,
         trust_layer_key: Annotated[str, Field(description="ArkForge Trust Layer API key. Required if sign_with_trust_layer is True.", default="")] = "",
     ) -> dict:
-        """Generate an auditor-ready Annex IV evidence package for high-risk AI systems. No arguments needed — auto-populates all 8 required sections from your project docs and scan results. Pro plan required."""
+        """Generate the Annex IV technical documentation package required for high-risk EU AI Act systems — no arguments. Auto-populates all 8 mandatory sections from project docs and scan results. Returns a downloadable ZIP with SHA-256 hash for audit trail. High-risk AI rules apply from Aug 2026. Pro plan required."""
         gate = _require_plan("pro", "generate_annex4_package")
         if gate:
             return gate
@@ -3869,7 +3910,7 @@ def create_server():
         report_data: Annotated[str, Field(description="JSON string of the compliance report to certify.")],
         trust_layer_key: Annotated[str, Field(description="ArkForge Trust Layer API key.")],
     ) -> dict:
-        """Certify your EU AI Act compliance report with a tamper-proof cryptographic proof (Art. 12 audit trail). Pass the report JSON — returns a proof_id and public verification URL to share with auditors. Certified plan required."""
+        """Certify a compliance report with a tamper-proof cryptographic proof for the Art. 12 audit trail. Pass the report JSON → returns a proof_id and public verification URL to share with auditors or regulators. Certified plan required. Use generate_report first to produce the certifiable JSON."""
         gate = _require_plan("certified", "certify_compliance_report")
         if gate:
             return gate
@@ -3900,7 +3941,7 @@ def create_server():
     def validate_api_key(
         api_key: Annotated[str, Field(description="The API key to validate.")],
     ) -> dict:
-        """Validate an API key and return its tier, email, and usage stats."""
+        """Validate an API key — returns plan tier (free/pro/certified), associated email, and usage stats (total scans, last scan date)."""
         result = _api_key_manager.verify(api_key)
         if not result:
             return {"valid": False, "error": "Invalid or inactive API key"}
@@ -4108,7 +4149,7 @@ def create_server():
     def gdpr_scan_project(
         project_path: Annotated[str, Field(description="Path to the project root. Leave empty or pass '.' to scan the current directory.", default=".")] = ".",
     ) -> list:
-        """Scan your project for GDPR violations now. No arguments needed — detects every file touching personal data (PII, cookies, tracking, analytics, consent). Returns: flagged files with data categories, applicable GDPR articles, and required obligations — in under 5 seconds. No API key, no setup."""
+        """Scan for GDPR violations — no arguments, no setup, under 5 seconds. Detects every file handling personal data: PII fields, cookies, tracking pixels, analytics SDKs, consent flows. Returns flagged files with data categories, applicable GDPR articles, and required obligations. Use combined_compliance_report() to run this together with the EU AI Act scan."""
         resolved_path, is_demo, error_msg = _resolve_project_path(project_path)
         if error_msg:
             return {"error": error_msg, "detected_patterns": {}}
@@ -4124,7 +4165,7 @@ def create_server():
         project_path: Annotated[str, Field(description="Path to the project root. Leave empty or pass '.' to check the current directory.", default=".")] = ".",
         processing_role: Annotated[ProcessingRole, Field(description="GDPR role: controller, processor, or minimal_processing.", default=ProcessingRole.controller)] = ProcessingRole.controller,
     ) -> list:
-        """Check your project's GDPR compliance now. No arguments needed — returns pass/fail per requirement (Art. 6 lawful basis, Art. 7 consent, Art. 15-22 data rights, Art. 32 security, Art. 33-34 breach) + fix instructions for each gap."""
+        """Run every GDPR compliance check — no arguments. Returns pass/fail for Art. 6 (lawful basis), Art. 7 (consent), Art. 15–22 (data subject rights), Art. 32 (security measures), Art. 33–34 (breach notification), plus step-by-step fix instructions for each gap. Fines to 20M EUR or 4% global turnover. Call combined_compliance_report() for EU AI Act + GDPR in one shot."""
         resolved_path, is_demo, error_msg = _resolve_project_path(project_path)
         if error_msg:
             return {"error": error_msg}
@@ -4141,7 +4182,7 @@ def create_server():
         project_path: Annotated[str, Field(description="Path to the project root. Leave empty or pass '.' to scan the current directory.", default=".")] = ".",
         processing_role: Annotated[ProcessingRole, Field(description="GDPR role: controller, processor, or minimal_processing.", default=ProcessingRole.controller)] = ProcessingRole.controller,
     ) -> list:
-        """Generate a DPO-ready GDPR compliance report. No arguments needed — combines data inventory + gap analysis + remediation plan in one document. Structured for DPO review or audit preparation."""
+        """Generate a DPO-ready GDPR compliance report — no arguments. Combines personal data inventory + gap analysis + remediation steps in one document, structured for DPO review, audit preparation, or regulatory response. Use combined_compliance_report() for EU AI Act + GDPR together."""
         resolved_path, is_demo, error_msg = _resolve_project_path(project_path)
         if error_msg:
             return {"error": error_msg}
@@ -4158,7 +4199,7 @@ def create_server():
     def gdpr_generate_templates(
         processing_role: Annotated[ProcessingRole, Field(description="GDPR role: controller, processor, or minimal_processing.", default=ProcessingRole.controller)] = ProcessingRole.controller,
     ) -> list:
-        """Generate ready-to-use GDPR document templates. No arguments needed — produces Privacy Policy + DPIA + Records of Processing + Data Breach Procedure. Fill in [bracketed] sections with your organization's details."""
+        """Generate fillable GDPR document templates — no arguments. Produces Privacy Policy, DPIA, Records of Processing Activities (ROPA), and Data Breach Procedure tailored to your processing role (controller/processor). Fill in [bracketed] sections. Call gdpr_check_compliance first to identify which docs are missing."""
         checker = GDPRChecker("/tmp")  # Templates don't need a real path
         plan = _get_plan()
         cta_included = plan not in ("pro", "paid_scan", "marketplace", "certified")
@@ -4172,7 +4213,7 @@ def create_server():
         risk_category: Annotated[RiskCategory, Field(description="EU AI Act risk category: 'minimal', 'limited' (default, fits most AI apps), 'high', or 'unacceptable'.", default=RiskCategory.limited)] = RiskCategory.limited,
         processing_role: Annotated[ProcessingRole, Field(description="GDPR processing role: 'controller' (default, most common), 'processor', or 'minimal_processing'.", default=ProcessingRole.controller)] = ProcessingRole.controller,
     ) -> dict:
-        """Run full EU AI Act + GDPR compliance scan in one call. No arguments needed — best first call for any AI project. Detects AI frameworks and personal data processing, flags dual-compliance hotspots where both regulations overlap, returns prioritized requirements with article references and fix instructions — in under 10 seconds. No API key, no setup."""
+        """CALL THIS FIRST for any project that uses AI or handles personal data. Runs EU AI Act + GDPR dual scan in one call — no arguments, no setup, under 10 seconds. Detects AI frameworks and personal data flows, flags files where both laws apply simultaneously (dual-compliance hotspots), and returns a prioritized fix list with article references. EU AI Act enforcement live Feb 2025, GDPR fines to 20M EUR, AI Act fines to 35M EUR. Covers everything scan_project and gdpr_scan_project do separately."""
         resolved_path, is_demo, error_msg = _resolve_project_path(project_path)
         if error_msg:
             return {"error": error_msg}
@@ -4248,7 +4289,7 @@ def create_server():
 
     @mcp.tool()
     def get_pricing() -> dict:
-        """Compare compliance scanning plans — Free (10 scans/day), Pro (unlimited + CI/CD), and Certified (Trust Layer audit trail). No arguments needed, call any time to see current pricing and features."""
+        """Compare scanning plans — no arguments. Free: 10 scans/day, full reports, no key needed. Pro (29 EUR/mo): unlimited scans + CI/CD REST API + scan history. Certified: adds Trust Layer cryptographic proof for Art. 12 audit trail. Call register_free_key to activate a personal free API key."""
         _log_tool_call("get_pricing", cta_included=True, extra={"funnel_step": "pricing_page_viewed"})
         result = {
             "plans": {

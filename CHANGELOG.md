@@ -5,6 +5,15 @@ All notable changes to the EU AI Act Compliance Scanner MCP Server will be docum
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.23] - 2026-04-22
+
+### Changed
+- All 13 tool descriptions rewritten: imperative format, immediate benefit stated first, zero-config signal explicit, cross-references to combined_compliance_report() as entry point
+- combined_compliance_report() description now leads with "CALL THIS FIRST" for discovery-to-scan conversion
+- scan_project, check_compliance, gdpr_scan_project, gdpr_check_compliance now cross-reference combined_compliance_report()
+- generate_compliance_roadmap description updated to mention Aug 2026 deadline explicitly
+- generate_annex4_package description updated to mention Aug 2026 high-risk enforcement date
+
 ## [2.0.21] - 2026-04-22
 
 ### Changed
