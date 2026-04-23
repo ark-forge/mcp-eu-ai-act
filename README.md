@@ -1,7 +1,7 @@
 # EU AI Act Compliance Toolkit — MCP Server
 
 [![GitHub Stars](https://img.shields.io/github/stars/ark-forge/mcp-eu-ai-act?style=flat&label=⭐%20Star%20this%20repo)](https://github.com/ark-forge/mcp-eu-ai-act/stargazers)
-[![PyPI version](https://badge.fury.io/py/mcp-eu-ai-act.svg)](https://pypi.org/project/mcp-eu-ai-act/)
+[![PyPI version](https://badge.fury.io/py/eu-ai-act-scanner.svg)](https://pypi.org/project/eu-ai-act-scanner/)
 [![Works with Claude](https://img.shields.io/badge/Works%20with-Claude-blueviolet)](https://claude.ai)
 [![Works with Cursor](https://img.shields.io/badge/Works%20with-Cursor-blue)](https://cursor.com)
 
@@ -27,16 +27,14 @@ Detects 16 AI frameworks in your codebase, maps each to binding legal articles, 
 
 ## Quick Start
 
+### CLI (scan any project in 10 seconds)
+
 ```bash
-git clone https://github.com/ark-forge/mcp-eu-ai-act.git
-cd mcp-eu-ai-act
-pip install mcp
-python3 server.py
+pip install eu-ai-act-scanner
+eu-ai-act-scanner /path/to/your/project
 ```
 
-Runs on Python 3.10+.
-
-### Full install
+### MCP Server (from source)
 
 ```bash
 git clone https://github.com/ark-forge/mcp-eu-ai-act.git

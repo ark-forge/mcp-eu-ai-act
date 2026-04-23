@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "eu-ai-act-scanner"
-version = "2.0.23"
+version = "2.0.24"
 description = "EU AI Act + GDPR compliance scan in one call. Detects 16 AI frameworks, maps to binding articles, returns fix instructions. Zero config, free tier. Fines up to 35M EUR start Aug 2025."
 readme = "README.md"
 license = "MIT"
@@ -33,7 +33,7 @@ eu-ai-act-scanner = "cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["."]
-only-include = ["server.py", "cli.py"]
+only-include = ["server.py", "cli.py", "gdpr_module.py", "data/eu_ai_act_articles.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
