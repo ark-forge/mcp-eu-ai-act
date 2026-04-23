@@ -526,7 +526,7 @@ _AUTHORIZE_HTML = """<!DOCTYPE html>
     <input type="hidden" name="scope" value="{scope}">
     <label for="api_key">API Key <span style="color:#6b6b88;font-weight:400;text-transform:none">(optional — leave blank for free tier)</span></label>
     <input type="text" id="api_key" name="api_key" placeholder="ak_..." autocomplete="off" spellcheck="false">
-    <p class="hint">No key? <a href="https://mcp.arkforge.tech/en/pricing.html" target="_blank">Get one here</a> for unlimited scans + roadmap + Annex IV.</p>
+    <p class="hint">No key? <a href="https://arkforge.tech/en/pricing.html?utm_source=mcp_oauth&utm_medium=web" target="_blank">Get one here</a> for unlimited scans + roadmap + Annex IV.</p>
     {error_block}
     <button type="submit" class="btn">Connect &rarr;</button>
   </form>
@@ -584,7 +584,7 @@ async def oauth_authorize_post(request: Request):
     if api_key:
         info = _api_key_manager.verify(api_key)
         if not info:
-            error_block = '<p class="error">Invalid API key. Leave blank for free tier or <a href="https://mcp.arkforge.tech/en/pricing.html" style="color:#c41a1a" target="_blank">get a valid key</a>.</p>'
+            error_block = '<p class="error">Invalid API key. Leave blank for free tier or <a href="https://arkforge.tech/en/pricing.html?utm_source=mcp_oauth&utm_medium=web" style="color:#c41a1a" target="_blank">get a valid key</a>.</p>'
             html = _AUTHORIZE_HTML.format(
                 response_type=body.get("response_type", "code"),
                 client_id=body.get("client_id", ""),

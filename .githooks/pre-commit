@@ -83,8 +83,9 @@ check "Password dans doc/commentaire" \
     "\.env\.example|test_.*\.py|conftest\.py"
 
 # URLs avec credentials embarqués (http://user:pass@host)
+# Exclude Google Fonts CSS URLs (family=Name:wght@400 triggers false positive)
 check "Credentials dans URL" \
-    "https?://[^@\s]{3,}:[^@\s]{3,}@[a-zA-Z0-9]" \
+    "https?://(?!fonts\.googleapis\.com)[^@\s]{3,}:[^@\s]{3,}@[a-zA-Z0-9]" \
     "\.env\.example|test_.*\.py"
 
 # Tokens JWT hardcodés (eyJ... = header base64 d'un JWT)
