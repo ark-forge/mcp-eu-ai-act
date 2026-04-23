@@ -17,5 +17,6 @@ qa-screenshots/
 qa-gate-report.json
 node_modules/
 data/
+!data/eu_ai_act_articles.json
 api_keys.json
 config/
