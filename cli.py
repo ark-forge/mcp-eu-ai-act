@@ -95,6 +95,7 @@ SHORT_HINTS = {
     "data_governance": "Create docs/DATA_GOVERNANCE.md — Art. 10",
     "human_oversight": "Create docs/HUMAN_OVERSIGHT.md — Art. 14",
     "robustness": "Create docs/ROBUSTNESS.md — Art. 15",
+    "basic_documentation": "Create a README.md with project description — Art. 52",
 }
 
 

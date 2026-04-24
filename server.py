@@ -3467,7 +3467,7 @@ def create_server():
         result_dict = _make_result_dict(scan_raw, scan_id=scan_id)
         if is_demo:
             result_dict["mode"] = "demo"
-            result_dict["demo_notice"] = "This scan ran on a built-in demo project (OpenAI + Anthropic + PyTorch + scikit-learn). To scan YOUR codebase, install locally: pip install arkforge-mcp-eu-ai-act && python -m arkforge_mcp_eu_ai_act"
+            result_dict["demo_notice"] = "This scan ran on a built-in demo project (OpenAI + Anthropic + PyTorch + scikit-learn). To scan YOUR codebase, install locally: pip install eu-ai-act-scanner && eu-ai-act-scanner"
         if result_dict.get("detected_models"):
             result_dict["try_trust_layer"] = SCAN_RESULT_TRUST_LAYER_CTA
         _log_tool_call("scan_project", cta_included=cta_included, extra={
@@ -3497,7 +3497,7 @@ def create_server():
         result_dict = _make_result_dict(compliance_raw, scan_id=scan_id)
         if is_demo:
             result_dict["mode"] = "demo"
-            result_dict["demo_notice"] = "This scan ran on a built-in demo project. To scan YOUR codebase, install locally: pip install arkforge-mcp-eu-ai-act && python -m arkforge_mcp_eu_ai_act"
+            result_dict["demo_notice"] = "This scan ran on a built-in demo project. To scan YOUR codebase, install locally: pip install eu-ai-act-scanner && eu-ai-act-scanner"
         return _build_content_blocks(result_dict)
 
     @mcp.tool()
@@ -3519,7 +3519,7 @@ def create_server():
         result_dict = _make_result_dict(report_raw)
         if is_demo:
             result_dict["mode"] = "demo"
-            result_dict["demo_notice"] = "This report is based on a built-in demo project. To scan YOUR codebase, install locally: pip install arkforge-mcp-eu-ai-act && python -m arkforge_mcp_eu_ai_act"
+            result_dict["demo_notice"] = "This report is based on a built-in demo project. To scan YOUR codebase, install locally: pip install eu-ai-act-scanner && eu-ai-act-scanner"
         return _build_content_blocks(result_dict)
 
     @mcp.tool()
@@ -4285,7 +4285,7 @@ def create_server():
         result_dict = _make_result_dict(combined_raw)
         if is_demo:
             result_dict["mode"] = "demo"
-            result_dict["demo_notice"] = "This scan ran on a built-in demo project (OpenAI + Anthropic + PyTorch + scikit-learn + PII processing). To scan YOUR codebase, install locally: pip install arkforge-mcp-eu-ai-act && python -m arkforge_mcp_eu_ai_act"
+            result_dict["demo_notice"] = "This scan ran on a built-in demo project (OpenAI + Anthropic + PyTorch + scikit-learn + PII processing). To scan YOUR codebase, install locally: pip install eu-ai-act-scanner && eu-ai-act-scanner"
         return _build_content_blocks(result_dict)
 
     @mcp.tool()
