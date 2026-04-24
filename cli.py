@@ -12,6 +12,9 @@ Usage:
 import sys
 import json
 import argparse
+import threading
+import urllib.request
+import urllib.error
 from pathlib import Path
 
 from server import EUAIActChecker, RISK_CATEGORIES, ACTIONABLE_GUIDANCE
@@ -42,6 +45,8 @@ def _resolve_version() -> str:
 __version__ = _resolve_version()
 
 PRICING_URL = "https://arkforge.tech/en/pricing.html?utm_source=cli"
+CHECKOUT_URL = "https://arkforge.tech/en/scanner-pro.html?utm_source=cli&utm_medium=upgrade"
+REGISTER_API = "https://mcp.arkforge.tech/api/register"
 
 PRO_FEATURES = [
     "Detailed per-article risk scores with remediation priorities",
@@ -53,18 +58,69 @@ PRO_FEATURES = [
 ]
 
 UPSELL_BLOCK = f"""
-  ── Pro: detailed per-article scores + step-by-step remediation ──
-  29 EUR/month — {PRICING_URL}
+  ── Pro: unlimited scans + CI/CD API + step-by-step remediation ──
+  29 EUR/month — start 14-day free trial → {CHECKOUT_URL}
 """
 
-NEXT_STEPS_MCP = """
-  ── Use as MCP server (Claude / Cursor / VS Code) ──────────────
+
+def _mcp_bridge(failing_count: int) -> str:
+    if failing_count > 0:
+        return f"""
+  ── {failing_count} check{'s' if failing_count > 1 else ''} failed — get step-by-step fix instructions ────────
+  Claude Code:  claude mcp add eu-ai-act -- eu-ai-act-mcp
+  Claude Desktop / Cursor: add to config:
+    {{"command": "eu-ai-act-mcp"}}
+  MCP gives you: fix instructions, compliance roadmap, template
+  generation, GDPR scan, Annex IV package, and certification.
+"""
+    return """
+  ── Extend with MCP server (Claude / Cursor / VS Code) ────────
   Claude Code:  claude mcp add eu-ai-act -- eu-ai-act-mcp
   Claude Desktop / Cursor: add to config:
     {"command": "eu-ai-act-mcp"}
-  MCP gives you: compliance roadmap, template generation, GDPR scan,
+  MCP adds: compliance roadmap, template generation, GDPR scan,
   Annex IV package, and Trust Layer certification.
 """
+
+
+def _register_cli_user(email: str) -> dict | None:
+    """Register email via MCP API. Returns key info or None."""
+    try:
+        payload = json.dumps({"email": email, "source": "cli"}).encode()
+        req = urllib.request.Request(
+            REGISTER_API,
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        resp = urllib.request.urlopen(req, timeout=10)
+        return json.loads(resp.read())
+    except Exception:
+        return None
+
+
+def _ping_usage(scan: dict, compliance: dict) -> None:
+    """Non-blocking anonymous usage ping. No PII. Fail-silent."""
+    def _do():
+        try:
+            payload = json.dumps({
+                "source": "cli_telemetry",
+                "v": __version__,
+                "fw": len(scan.get("detected_models", {})),
+                "files": scan.get("files_scanned", 0),
+                "risk": compliance.get("risk_category", "unknown"),
+                "pct": compliance.get("compliance_percentage", 0),
+            }).encode()
+            req = urllib.request.Request(
+                REGISTER_API.replace("/register", "/cli-ping"),
+                data=payload,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            urllib.request.urlopen(req, timeout=3)
+        except Exception:
+            pass
+    threading.Thread(target=_do, daemon=True).start()
 
 
 def _print_scan_results(scan: dict) -> None:
@@ -182,11 +238,11 @@ def _print_pro_preview(compliance: dict) -> None:
         print(f"    ... +{len(bars) - 2} more articles")
         print("    *** Full risk scores available with Pro ***")
 
-    print(f"\n  Get the complete analysis: {PRICING_URL}")
+    print(f"\n  Start 14-day free trial → {CHECKOUT_URL}")
     print("  ───────────────────────────────────────────────────────────────")
 
 
-def _log_cli_invocation(args: argparse.Namespace, scan: dict) -> None:
+def _log_cli_invocation(args: argparse.Namespace, scan: dict, compliance: dict | None = None) -> None:
     """Append a local telemetry entry for CLI usage (activation tracking)."""
     try:
         from datetime import datetime, timezone
@@ -200,9 +256,17 @@ def _log_cli_invocation(args: argparse.Namespace, scan: dict) -> None:
             "risk": args.risk,
             "pro_flag": args.pro,
             "json_flag": args.json,
+            "register_flag": bool(getattr(args, "register", None)),
             "frameworks_found": len(scan.get("detected_models", {})),
+            "frameworks": list(scan.get("detected_models", {}).keys()),
             "files_scanned": scan.get("files_scanned", 0),
         }
+        if compliance:
+            status = compliance.get("compliance_status", {})
+            entry["compliance_pct"] = compliance.get("compliance_percentage", 0)
+            entry["risk_category"] = compliance.get("risk_category", "unknown")
+            entry["checks_pass"] = sum(1 for v in status.values() if v)
+            entry["checks_fail"] = sum(1 for v in status.values() if not v)
         with open(log_path, "a") as f:
             f.write(json.dumps(entry, default=str) + "\n")
     except Exception:
@@ -237,6 +301,16 @@ def main(argv: list[str] | None = None) -> int:
         help="Output raw JSON results",
     )
     parser.add_argument(
+        "--register",
+        metavar="EMAIL",
+        help="Register for a free API key (unlocks scan history + CI/CD integration)",
+    )
+    parser.add_argument(
+        "--no-telemetry",
+        action="store_true",
+        help="Disable anonymous usage statistics",
+    )
+    parser.add_argument(
         "--version",
         action="version",
         version=f"%(prog)s {__version__}",
@@ -256,9 +330,12 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Error: {scan['error']}", file=sys.stderr)
         return 1
 
-    _log_cli_invocation(args, scan)
-
     compliance = checker.check_compliance(args.risk)
+
+    _log_cli_invocation(args, scan, compliance)
+
+    if not args.no_telemetry:
+        _ping_usage(scan, compliance)
 
     if args.json:
         output = {
@@ -266,9 +343,19 @@ def main(argv: list[str] | None = None) -> int:
             "compliance": compliance,
             "upgrade": {
                 "pricing_url": PRICING_URL,
+                "checkout_url": CHECKOUT_URL,
                 "pro_features": PRO_FEATURES,
             },
         }
+        if args.register:
+            result = _register_cli_user(args.register)
+            if result and result.get("key"):
+                output["registration"] = {
+                    "api_key": result["key"],
+                    "plan": result.get("plan", "free"),
+                }
+            else:
+                output["registration"] = {"error": "Registration failed. Try again or visit " + CHECKOUT_URL}
         print(json.dumps(output, indent=2))
         return 0
 
@@ -280,11 +367,27 @@ def main(argv: list[str] | None = None) -> int:
     _print_scan_results(scan)
     _print_compliance_results(compliance)
 
+    if args.register:
+        result = _register_cli_user(args.register)
+        if result and result.get("key"):
+            print(f"\n  Registered! API key: {result['key']}")
+            print(f"    Plan: {result.get('plan', 'free')} (10 scans/day)")
+            print(f"    Use in CI/CD: X-Api-Key: {result['key']}")
+            print(f"    Upgrade to Pro → {CHECKOUT_URL}")
+        else:
+            print(f"\n  Registration failed. Sign up at: {CHECKOUT_URL}")
+
     if args.pro:
         _print_pro_preview(compliance)
 
-    print(NEXT_STEPS_MCP)
+    failing_count = sum(
+        1 for v in compliance.get("compliance_status", {}).values() if not v
+    )
+    print(_mcp_bridge(failing_count))
     print(UPSELL_BLOCK)
+
+    if not args.register:
+        print(f"  Free API key (scan history + CI/CD): eu-ai-act-scanner . --register you@email.com")
 
     return 0
 
