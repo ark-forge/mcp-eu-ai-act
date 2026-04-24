@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "eu-ai-act-scanner"
-version = "2.0.29"
-description = "EU AI Act + GDPR compliance scan in one call. Detects 16 AI frameworks, maps to binding articles, returns fix instructions. Zero config, free tier. Fines up to 35M EUR start Aug 2025."
+version = "2.0.30"
+description = "CLI scanner for EU AI Act + GDPR compliance. Run `eu-ai-act-scanner` on any project -- detects 16 AI frameworks, maps to binding articles, returns pass/fail with fix instructions. Zero config. Also available as MCP server for Claude/Cursor."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
@@ -15,6 +15,8 @@ dependencies = [
 keywords = [
     "EU AI Act",
     "compliance",
+    "CLI",
+    "scanner",
     "MCP",
     "AI regulation",
     "risk assessment",

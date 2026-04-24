@@ -1,29 +1,24 @@
-# EU AI Act Compliance Toolkit — MCP Server
+# EU AI Act Compliance Scanner — CLI + MCP Server
 
-[![GitHub Stars](https://img.shields.io/github/stars/ark-forge/mcp-eu-ai-act?style=flat&label=⭐%20Star%20this%20repo)](https://github.com/ark-forge/mcp-eu-ai-act/stargazers)
 [![PyPI version](https://badge.fury.io/py/eu-ai-act-scanner.svg)](https://pypi.org/project/eu-ai-act-scanner/)
+[![GitHub Stars](https://img.shields.io/github/stars/ark-forge/mcp-eu-ai-act?style=flat&label=⭐%20Star%20this%20repo)](https://github.com/ark-forge/mcp-eu-ai-act/stargazers)
 [![Works with Claude](https://img.shields.io/badge/Works%20with-Claude-blueviolet)](https://claude.ai)
 [![Works with Cursor](https://img.shields.io/badge/Works%20with-Cursor-blue)](https://cursor.com)
 
-If this tool helps your compliance work, a ⭐ on GitHub helps others discover it.
+One command. Zero config. Full EU AI Act + GDPR compliance report in under 10 seconds.
 
-One call. Zero config. Full EU AI Act + GDPR compliance report in under 10 seconds.
+```bash
+pip install eu-ai-act-scanner
+eu-ai-act-scanner /path/to/your/project
+```
 
 Detects 16 AI frameworks in your codebase, maps each to binding legal articles, returns pass/fail with fix instructions. Free tier, no API key needed.
 
 **August 2, 2026 enforcement deadline. Fines up to 35M EUR or 7% global turnover.**
 
+If this tool helps your compliance work, a ⭐ on GitHub helps others discover it.
+
 > **Need audit-grade proof?** Certify every scan with [ArkForge Trust Layer](https://arkforge.tech/trust?utm_source=github_readme) — tamper-proof, timestamped compliance evidence. 500 free proofs/month.
-
-## What's New in v2
-
-| Feature | Description |
-|---------|-------------|
-| `generate_compliance_roadmap` | Week-by-week action plan to reach compliance before your deadline |
-| `generate_annex4_package` | Auditor-ready ZIP with all 8 Annex IV sections populated from your code |
-| `certify_compliance_report` | Cryptographic proof via Trust Layer (EU AI Act Art. 12) |
-| Content scoring | `check_compliance` now scores document *content* (0-100), not just existence |
-| Article mapping | Every finding mapped to specific EU AI Act article |
 
 ## Quick Start
 
@@ -35,7 +30,40 @@ cd your-project/
 eu-ai-act-scanner
 ```
 
+Output:
+```
+========================================================================
+  EU AI Act Compliance Scanner
+========================================================================
+
+  Files scanned: 42
+  AI frameworks detected: 2
+    - openai (in 3 files)
+    - langchain (in 1 file)
+
+  Risk category: limited
+  Compliance score: 4/7 (57%)
+  Checks:
+    [PASS] Transparency
+    [PASS] User Disclosure
+    [FAIL] Technical Documentation  → Create docs/TECHNICAL_DOCUMENTATION.md
+    [FAIL] Risk Management          → Create docs/RISK_MANAGEMENT.md
+    [FAIL] Data Governance          → Create docs/DATA_GOVERNANCE.md
+```
+
 Or specify a path directly: `eu-ai-act-scanner /path/to/your/project`
+
+Track compliance over time (free): `eu-ai-act-scanner . --register you@email.com`
+
+## What's New in v2
+
+| Feature | Description |
+|---------|-------------|
+| `generate_compliance_roadmap` | Week-by-week action plan to reach compliance before your deadline |
+| `generate_annex4_package` | Auditor-ready ZIP with all 8 Annex IV sections populated from your code |
+| `certify_compliance_report` | Cryptographic proof via Trust Layer (EU AI Act Art. 12) |
+| Content scoring | `check_compliance` now scores document *content* (0-100), not just existence |
+| Article mapping | Every finding mapped to specific EU AI Act article |
 
 ### MCP Server (from source)
 
