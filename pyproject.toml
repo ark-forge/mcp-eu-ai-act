@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "eu-ai-act-scanner"
 version = "2.0.30"
-description = "CLI scanner for EU AI Act + GDPR compliance. Run `eu-ai-act-scanner` on any project -- detects 16 AI frameworks, maps to binding articles, returns pass/fail with fix instructions. Zero config. Also available as MCP server for Claude/Cursor."
+description = "Scan any AI project for EU AI Act + GDPR compliance gaps. Run `eu-ai-act-scanner` -- detects 22 AI frameworks, returns pass/fail per article with fix instructions. Zero config, free. Also available as MCP server for Claude/Cursor."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
@@ -47,7 +47,7 @@ addopts = "--tb=short -q"
 asyncio_mode = "auto"
 
 [tool.coverage.run]
-source = ["server", "gdpr_module", "paywall_api"]
+source = ["server", "gdpr_module"]
 omit = [
     ".venv/*",
     "venv/*",
