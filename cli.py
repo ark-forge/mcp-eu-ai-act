@@ -3,16 +3,43 @@
 CLI interface for the EU AI Act Compliance Scanner.
 
 Usage:
+    eu-ai-act-scanner                        # scan current directory
     eu-ai-act-scanner /path/to/project
-    eu-ai-act-scanner /path/to/project --risk high
-    eu-ai-act-scanner /path/to/project --pro
+    eu-ai-act-scanner . --risk high
+    eu-ai-act-scanner . --pro
 """
 
 import sys
 import json
 import argparse
+from pathlib import Path
 
 from server import EUAIActChecker, RISK_CATEGORIES, ACTIONABLE_GUIDANCE
+
+
+def _resolve_version() -> str:
+    pyproject = Path(__file__).parent / "pyproject.toml"
+    if pyproject.exists():
+        try:
+            import tomllib
+        except ModuleNotFoundError:
+            try:
+                import tomli as tomllib  # type: ignore[no-redef]
+            except ModuleNotFoundError:
+                tomllib = None
+        if tomllib is not None:
+            with open(pyproject, "rb") as f:
+                v = tomllib.load(f).get("project", {}).get("version")
+            if v:
+                return v
+    try:
+        from importlib.metadata import version
+        return version("eu-ai-act-scanner")
+    except Exception:
+        return "dev"
+
+
+__version__ = _resolve_version()
 
 PRICING_URL = "https://arkforge.tech/en/pricing.html?utm_source=cli"
 
@@ -26,23 +53,17 @@ PRO_FEATURES = [
 ]
 
 UPSELL_BLOCK = f"""
-================================================================================
-  UPGRADE TO PRO — Unlock full compliance intelligence
-================================================================================
+  ── Pro: detailed per-article scores + step-by-step remediation ──
+  29 EUR/month — {PRICING_URL}
+"""
 
-  Your scan is complete. With Pro, you also get:
-
-    * Detailed per-article risk scores with remediation priorities
-    * Full actionable recommendations with step-by-step guidance
-    * PDF/JSON export for auditors and legal teams
-    * CI/CD integration — block deploys on non-compliance
-    * Unlimited scans + scan history dashboard
-
-  29 EUR/month — Start now:
-  {PRICING_URL}
-
-  Questions? contact@arkforge.tech
-================================================================================
+NEXT_STEPS_MCP = """
+  ── Use as MCP server (Claude / Cursor / VS Code) ──────────────
+  Claude Code:  claude mcp add eu-ai-act -- eu-ai-act-mcp
+  Claude Desktop / Cursor: add to config:
+    {"command": "eu-ai-act-mcp"}
+  MCP gives you: compliance roadmap, template generation, GDPR scan,
+  Annex IV package, and Trust Layer certification.
 """
 
 
@@ -56,6 +77,25 @@ def _print_scan_results(scan: dict) -> None:
             print(f"    - {fw} (in {len(locations)} file{'s' if len(locations) > 1 else ''})")
     else:
         print("  AI frameworks detected: 0")
+        if files == 0:
+            print("\n  No source files found. Make sure you point to your project root:")
+            print("    eu-ai-act-scanner /path/to/your/project")
+        else:
+            print("\n  No AI frameworks detected in this project.")
+            print("  Supported: openai, anthropic, langchain, huggingface, tensorflow,")
+            print("  pytorch, gemini, cohere, bedrock, azure_openai, ollama, and more.")
+
+
+SHORT_HINTS = {
+    "technical_documentation": "Create docs/TECHNICAL_DOCUMENTATION.md — Art. 11",
+    "risk_management": "Create docs/RISK_MANAGEMENT.md — Art. 9",
+    "transparency": "Add AI disclosure to README.md — Art. 52",
+    "user_disclosure": "Add 'AI Disclosure' section to README.md — Art. 52(1)",
+    "content_marking": "Label AI-generated outputs — Art. 52(3)",
+    "data_governance": "Create docs/DATA_GOVERNANCE.md — Art. 10",
+    "human_oversight": "Create docs/HUMAN_OVERSIGHT.md — Art. 14",
+    "robustness": "Create docs/ROBUSTNESS.md — Art. 15",
+}
 
 
 def _print_compliance_results(compliance: dict) -> None:
@@ -65,11 +105,21 @@ def _print_compliance_results(compliance: dict) -> None:
     print(f"\n  Risk category: {risk}")
     print(f"  Compliance score: {score} ({pct}%)")
     status = compliance.get("compliance_status", {})
+    failing = []
     if status:
         print("  Checks:")
         for check, passed in status.items():
             icon = "PASS" if passed else "FAIL"
-            print(f"    [{icon}] {check.replace('_', ' ').title()}")
+            hint = ""
+            if not passed:
+                failing.append(check)
+                hint_text = SHORT_HINTS.get(check)
+                if hint_text:
+                    hint = f"  → {hint_text}"
+            print(f"    [{icon}] {check.replace('_', ' ').title()}{hint}")
+
+    if failing:
+        print(f"\n  Quick fix: run with --pro for step-by-step remediation guidance.")
 
 
 def _print_pro_preview(compliance: dict) -> None:
@@ -135,12 +185,40 @@ def _print_pro_preview(compliance: dict) -> None:
     print("  ───────────────────────────────────────────────────────────────")
 
 
+def _log_cli_invocation(args: argparse.Namespace, scan: dict) -> None:
+    """Append a local telemetry entry for CLI usage (activation tracking)."""
+    try:
+        from datetime import datetime, timezone
+        log_path = Path(__file__).parent / "data" / "tool_calls.jsonl"
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        entry = {
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "tool": "cli_scan",
+            "source": "cli",
+            "version": __version__,
+            "risk": args.risk,
+            "pro_flag": args.pro,
+            "json_flag": args.json,
+            "frameworks_found": len(scan.get("detected_models", {})),
+            "files_scanned": scan.get("files_scanned", 0),
+        }
+        with open(log_path, "a") as f:
+            f.write(json.dumps(entry, default=str) + "\n")
+    except Exception:
+        pass
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="eu-ai-act-scanner",
         description="EU AI Act Compliance Scanner — Scan your project for AI framework usage and check regulatory compliance.",
     )
-    parser.add_argument("project_path", help="Path to the project to scan")
+    parser.add_argument(
+        "project_path",
+        nargs="?",
+        default=".",
+        help="Path to the project to scan (default: current directory)",
+    )
     parser.add_argument(
         "--risk",
         choices=list(RISK_CATEGORIES.keys()),
@@ -157,6 +235,16 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Output raw JSON results",
     )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
+    )
+
+    if argv is None:
+        argv = sys.argv[1:]
+    if argv and argv[0] == "scan":
+        argv = argv[1:] or ["."]
 
     args = parser.parse_args(argv)
 
@@ -166,6 +254,8 @@ def main(argv: list[str] | None = None) -> int:
     if scan.get("error"):
         print(f"Error: {scan['error']}", file=sys.stderr)
         return 1
+
+    _log_cli_invocation(args, scan)
 
     compliance = checker.check_compliance(args.risk)
 
@@ -192,7 +282,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.pro:
         _print_pro_preview(compliance)
 
-    # Always show upsell block
+    print(NEXT_STEPS_MCP)
     print(UPSELL_BLOCK)
 
     return 0

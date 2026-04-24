@@ -31,8 +31,11 @@ Detects 16 AI frameworks in your codebase, maps each to binding legal articles, 
 
 ```bash
 pip install eu-ai-act-scanner
-eu-ai-act-scanner /path/to/your/project
+cd your-project/
+eu-ai-act-scanner
 ```
+
+Or specify a path directly: `eu-ai-act-scanner /path/to/your/project`
 
 ### MCP Server (from source)
 
@@ -53,6 +56,18 @@ pytest tests/ -v
 
 ## MCP Integration
 
+### Install from PyPI (recommended)
+
+```bash
+pip install eu-ai-act-scanner
+```
+
+### Claude Code
+
+```bash
+claude mcp add eu-ai-act -- eu-ai-act-mcp
+```
+
 ### Claude Desktop
 
 Add to `claude_desktop_config.json`:
@@ -61,17 +76,10 @@ Add to `claude_desktop_config.json`:
 {
   "mcpServers": {
     "eu-ai-act": {
-      "command": "python3",
-      "args": ["/path/to/mcp-eu-ai-act/server.py"]
+      "command": "eu-ai-act-mcp"
     }
   }
 }
-```
-
-### Claude Code
-
-```bash
-claude mcp add eu-ai-act python3 /path/to/mcp-eu-ai-act/server.py
 ```
 
 ### Cursor
@@ -82,8 +90,7 @@ Add to `.cursor/mcp.json`:
 {
   "mcpServers": {
     "eu-ai-act": {
-      "command": "python3",
-      "args": ["/path/to/mcp-eu-ai-act/server.py"]
+      "command": "eu-ai-act-mcp"
     }
   }
 }

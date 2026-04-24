@@ -4105,7 +4105,8 @@ def create_server():
                 "Scan history tracking",
                 "Full compliance reports (EU AI Act + GDPR)",
             ],
-            "upgrade_to_pro": "For unlimited scans + priority support at 29 EUR/mo, contact contact@arkforge.tech",
+            "upgrade_to_pro": f"Unlimited scans + CI/CD API + priority support at 29 EUR/mo. Upgrade: {_PRICING_URL}&utm_content=post_registration_upsell",
+            "upgrade_url": f"{_PRICING_URL}&utm_content=post_registration_upsell",
         }
         if gated_recs:
             # gated_recs is a dict with recommendations, compliance_status, detected_models,
@@ -4417,14 +4418,15 @@ class MCPServer:
         ]}
 
 
-if __name__ == "__main__":
+def run_mcp():
+    """Entry point for `eu-ai-act-mcp` console script (pip install)."""
     import sys
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(message)s")
-    server = create_server()
+    srv = create_server()
     if "--http" in sys.argv:
         import uvicorn
-        logger.info("Starting MCP EU AI Act scanner (HTTP mode) on %s:%s", server.settings.host, server.settings.port)
-        app = RateLimitMiddleware(server.streamable_http_app())
+        logger.info("Starting MCP EU AI Act scanner (HTTP mode) on %s:%s", srv.settings.host, srv.settings.port)
+        app = RateLimitMiddleware(srv.streamable_http_app())
         workers = int(os.environ.get("UVICORN_WORKERS", "1"))
         if workers > 1:
             raise RuntimeError(
@@ -4433,11 +4435,15 @@ if __name__ == "__main__":
             )
         config = uvicorn.Config(
             app,
-            host=server.settings.host,
-            port=server.settings.port,
+            host=srv.settings.host,
+            port=srv.settings.port,
             log_level="info",
         )
         uvicorn.Server(config).run()
     else:
         logger.info("Starting MCP EU AI Act scanner (stdio mode)")
-        server.run(transport="stdio")
+        srv.run(transport="stdio")
+
+
+if __name__ == "__main__":
+    run_mcp()

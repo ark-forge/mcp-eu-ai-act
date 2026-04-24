@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "eu-ai-act-scanner"
-version = "2.0.26"
+version = "2.0.27"
 description = "EU AI Act + GDPR compliance scan in one call. Detects 16 AI frameworks, maps to binding articles, returns fix instructions. Zero config, free tier. Fines up to 35M EUR start Aug 2025."
 readme = "README.md"
 license = "MIT"
@@ -30,6 +30,7 @@ Documentation = "https://mcp.arkforge.tech/fr/mcp-eu-ai-act.html?utm_source=pypi
 
 [project.scripts]
 eu-ai-act-scanner = "cli:main"
+eu-ai-act-mcp = "server:run_mcp"
 
 [tool.hatch.build.targets.wheel]
 packages = ["."]
