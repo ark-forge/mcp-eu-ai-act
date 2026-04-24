@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.ark-forge/mcp-eu-ai-act",
-  "description": "EU AI Act + GDPR compliance scan. 16 AI frameworks, pass/fail per article, fix instructions. Free.",
+  "description": "Run combined_compliance_report() before your next deploy — finds every EU AI Act + GDPR gap in your AI project. No arguments, under 10 seconds, free. Detects 22 frameworks, pass/fail per article, fix instructions included.",
   "version": "2.0.23",
   "repository": {
     "url": "https://github.com/ark-forge/mcp-eu-ai-act",

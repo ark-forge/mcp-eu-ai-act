@@ -1,7 +1,7 @@
 {
   "name": "@arkforge/mcp-eu-ai-act",
   "version": "1.5.0",
-  "description": "One-call EU AI Act + GDPR compliance scan for AI projects. Detects 16 frameworks, returns fix instructions with article citations. Zero config, free tier.",
+  "description": "Run combined_compliance_report() before your next deploy — finds every EU AI Act + GDPR gap in your AI project. No arguments, under 10 seconds, free. Detects 22 frameworks, pass/fail per article, fix instructions included.",
   "mcpName": "io.github.ark-forge/mcp-eu-ai-act",
   "module": "./src/index.ts",
   "type": "module",

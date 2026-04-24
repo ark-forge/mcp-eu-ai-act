@@ -8,39 +8,39 @@
   "tools": [
     {
       "name": "scan_project",
-      "description": "Find every AI framework in your project and see which EU AI Act articles apply. Detects OpenAI, Anthropic, LangChain, HuggingFace, PyTorch, TensorFlow, scikit-learn across Python/JS/Go/Java/Rust. Returns risk category + obligations + required actions in under 5 seconds. Zero arguments, free."
+      "description": "Find out in 5 seconds if your project triggers EU AI Act obligations — no arguments, no setup. Detects OpenAI, Anthropic, LangChain, HuggingFace, PyTorch, TensorFlow, scikit-learn across Python/JS/Go/Java/Rust. Returns your risk category and the legal actions required before you ship. Enforcement live since Feb 2025."
     },
     {
       "name": "check_compliance",
-      "description": "Check your project's EU AI Act compliance now. No arguments needed — auto-detects AI frameworks and returns pass/fail per requirement (Art. 52, Art. 11, Art. 14, Art. 15) with fix instructions for each gap in under 5 seconds."
+      "description": "Check whether your project passes or fails each EU AI Act requirement — no arguments, 5 seconds. See which articles you violate (Art. 52, Art. 11, Art. 14, Art. 15) and get step-by-step fix instructions for every gap."
     },
     {
       "name": "generate_report",
-      "description": "Generate a shareable EU AI Act compliance report. No arguments needed — combines framework detection + gap analysis + remediation plan. Structured for legal review or DPIA attachment."
+      "description": "Generate the compliance report your legal team is asking for — no arguments. One call auto-detects AI frameworks, runs gap analysis, and produces a structured remediation plan ready for legal review or DPIA attachment."
     },
     {
       "name": "suggest_risk_category",
-      "description": "Identify the EU AI Act risk category for your AI system from a plain-language description. Returns matched category, confidence level, risk indicators, applicable articles, and recommended next step. No API key, no setup."
+      "description": "Describe what your AI system does in plain language — get back your EU AI Act risk tier, applicable articles, and your first compliance step. No project scan needed, no API key."
     },
     {
       "name": "generate_compliance_templates",
-      "description": "Generate ready-to-use EU AI Act compliance document templates. No arguments needed — produces starter docs for your risk category."
+      "description": "Stop writing compliance docs from scratch — get pre-filled templates for risk management, technical documentation, transparency, and human oversight tailored to your risk category. High-risk systems get all 6 mandatory documents."
     },
     {
       "name": "generate_compliance_roadmap",
-      "description": "Generate a week-by-week action plan to reach EU AI Act compliance. No arguments needed — scans project, identifies gaps, sequences actions with quick wins first. Pro plan required."
+      "description": "Get a prioritized, week-by-week plan to close every compliance gap before Aug 2026 — no arguments. Auto-scans your project, ranks fixes by impact, sequences quick wins first. Pro plan required."
     },
     {
       "name": "generate_annex4_package",
-      "description": "Generate the auditor-ready Annex IV evidence package for high-risk AI systems. No arguments needed — populates all 8 required sections from project scan results. Pro plan required."
+      "description": "Build the Annex IV evidence package your auditor needs for high-risk AI — no arguments. All 8 mandatory sections auto-populated from your project, SHA-256 integrity hash included. Pro plan required."
     },
     {
       "name": "certify_compliance_report",
-      "description": "Certify your EU AI Act compliance report with a tamper-proof cryptographic proof (Art. 12 audit trail). Pass the report JSON — returns a proof_id and public verification URL for auditors. Certified plan required."
+      "description": "Make your compliance report tamper-proof for Art. 12 audit trail — pass the report JSON, get back a proof_id and verification URL for auditors. Certified plan required."
     },
     {
       "name": "validate_api_key",
-      "description": "Validate an API key and check its associated plan tier and usage limits."
+      "description": "Check your API key status — returns plan tier (free/pro/certified), email, and usage stats."
     },
     {
       "name": "register_free_key",
@@ -48,27 +48,27 @@
     },
     {
       "name": "gdpr_scan_project",
-      "description": "Scan your project for GDPR violations now. No arguments needed — detects every file touching personal data (PII, cookies, tracking, consent). Returns flagged files + data categories + applicable GDPR articles in under 5 seconds. No API key, no setup."
+      "description": "Find every file in your project that touches personal data — no arguments, 5 seconds, free. Detects PII, cookies, tracking pixels, analytics SDKs, consent flows. Returns flagged files with data categories and applicable GDPR articles."
     },
     {
       "name": "gdpr_check_compliance",
-      "description": "Check your project's GDPR compliance now. No arguments needed — returns pass/fail per requirement (Art. 6, Art. 7, Art. 15-22, Art. 32, Art. 33-34) + fix instructions for each gap."
+      "description": "Check whether your project passes or fails each GDPR requirement — no arguments. Pass/fail for Art. 6, 7, 15-22, 32, 33-34 with fix instructions for every gap. Fines reach 20M EUR or 4% turnover."
     },
     {
       "name": "gdpr_generate_report",
-      "description": "Generate a DPO-ready GDPR compliance report. No arguments needed — combines data inventory + gap analysis + remediation plan in one document."
+      "description": "Generate the GDPR report your DPO needs — no arguments. Personal data inventory + gap analysis + remediation steps in one structured document for audit prep or regulatory response."
     },
     {
       "name": "gdpr_generate_templates",
-      "description": "Generate ready-to-use GDPR document templates. No arguments needed — produces Privacy Policy + DPIA + Records of Processing + Data Breach Procedure."
+      "description": "Get pre-filled GDPR templates your organization actually needs — no arguments. Privacy Policy, DPIA, Records of Processing Activities (ROPA), Data Breach Procedure."
     },
     {
       "name": "combined_compliance_report",
-      "description": "Best first call for any AI project. Runs EU AI Act + GDPR scan simultaneously — detects 16 AI frameworks + personal data processing, flags dual-compliance hotspots, returns pass/fail per article with fix instructions. Under 10 seconds, zero arguments, free. Start here."
+      "description": "Run this before your next deploy. EU AI Act + GDPR scan in one call — detects 22 AI frameworks + personal data flows, flags where both laws overlap, returns pass/fail per article with a prioritized fix list. Under 10 seconds, no arguments, free."
     },
     {
       "name": "get_pricing",
-      "description": "Compare compliance scanning plans — Free (10 scans/day), Pro (unlimited + CI/CD), and Certified (Trust Layer audit trail). No arguments needed, call any time to see current pricing and features."
+      "description": "See pricing and features for every plan — Free (10 scans/day, full reports), Pro (unlimited + CI/CD at 29 EUR/mo), Certified (cryptographic audit trail). No arguments."
     }
   ]
 }
