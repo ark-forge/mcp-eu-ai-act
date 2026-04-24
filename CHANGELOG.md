@@ -165,6 +165,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.31] — 2026-04-24
+
+### Fixed
+- remove phantom paywall_api from coverage source config
+
+### Changed
+- rewrite all MCP tool descriptions for listtools→scan conversion
+
+---
+
 ## [2.0.20] — 2026-04-19
 
 ### Fixed
