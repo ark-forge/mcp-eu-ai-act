@@ -1,0 +1,50 @@
+{
+  "measurement_type": "description_rewrite_conversion_tracking",
+  "v1_rewrite": {
+    "commit": "958dbcdee",
+    "ts": "2026-04-20T12:25:25+00:00",
+    "smithery_propagation_confirmed": true,
+    "smithery_propagation_delay_hours": 4.5
+  },
+  "v2_rewrite": {
+    "commit": "3dd5949",
+    "ts": "2026-04-24T17:37:52+00:00",
+    "pypi_version": "2.0.31",
+    "pypi_published_ts": "2026-04-24T17:43:19+00:00",
+    "pypi_publish_method": "oidc_trusted_publisher",
+    "smithery_descriptions_updated": true,
+    "glama_descriptions_updated": true,
+    "registry_propagation_expected_by": "2026-04-25T00:00:00+00:00"
+  },
+  "conversion_baseline": {
+    "measured_at": "2026-04-24T17:41:44+00:00",
+    "visitor_to_trial": 0.009,
+    "visitor_to_pricing": 0.008,
+    "pricing_to_trial": 0.143,
+    "register_free_key_7d": 16,
+    "external_scan_calls_total": 3,
+    "tool_calls_total_lines": 5196,
+    "unique_visitors_24h": 933,
+    "trial_signups_24h": 8
+  },
+  "conversion_target": {
+    "metric": "visitor_to_trial",
+    "baseline": 0.009,
+    "target": 0.03,
+    "target_date": "2026-04-28",
+    "measurement_method": "funnel_tracker.snapshot"
+  },
+  "watch_fields": [
+    "visitor_to_trial",
+    "register_free_key_7d",
+    "external_scan_calls_delta"
+  ],
+  "invalidation_rule": "If visitor_to_trial < 0.015 by 2026-04-28, pivot description strategy",
+  "notes": [
+    "v2 rewrite uses imperative + urgency framing: 'before your next deploy', 'Find out in 5 seconds'",
+    "Smithery propagates within ~4.5h of commit (confirmed v1)",
+    "Glama reads glama.json directly from repo",
+    "MCP Registry publish triggered by v* tag via GitHub Actions",
+    "PyPI v2.0.31 published via OIDC Trusted Publishing (token auth blocked by unverified email on Arkforge account)"
+  ]
+}
