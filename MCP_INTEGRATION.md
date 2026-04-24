@@ -1,6 +1,14 @@
 # MCP Integration — EU AI Act Compliance Scanner
 
-## 1. Claude Desktop
+## 1. Install from PyPI (recommended)
+
+```bash
+pip install eu-ai-act-scanner
+```
+
+This installs two commands: `eu-ai-act-scanner` (CLI) and `eu-ai-act-mcp` (MCP server).
+
+## 2. Claude Desktop
 
 Add to `claude_desktop_config.json`:
 
@@ -8,22 +16,19 @@ Add to `claude_desktop_config.json`:
 {
   "mcpServers": {
     "eu-ai-act": {
-      "command": "python3",
-      "args": ["/absolute/path/to/mcp-eu-ai-act/server.py"]
+      "command": "eu-ai-act-mcp"
     }
   }
 }
 ```
 
-Replace `/absolute/path/to/` with the actual installation directory (must be absolute).
-
-## 2. Claude Code
+## 3. Claude Code
 
 ```bash
-claude mcp add eu-ai-act python3 /absolute/path/to/mcp-eu-ai-act/server.py
+claude mcp add eu-ai-act -- eu-ai-act-mcp
 ```
 
-## 3. VS Code / Cursor
+## 4. VS Code / Cursor
 
 Add to `.vscode/mcp.json` or `.cursor/mcp.json`:
 
@@ -31,24 +36,23 @@ Add to `.vscode/mcp.json` or `.cursor/mcp.json`:
 {
   "mcpServers": {
     "eu-ai-act": {
-      "command": "python3",
-      "args": ["/absolute/path/to/mcp-eu-ai-act/server.py"]
+      "command": "eu-ai-act-mcp"
     }
   }
 }
 ```
 
-## 4. HTTP Mode
+## 5. HTTP Mode
 
 For remote access, CI/CD, or non-MCP clients:
 
 ```bash
 pip install uvicorn
-python3 server.py --http
+eu-ai-act-mcp --http
 # Listening on 0.0.0.0:8089
 ```
 
-## 5. REST API
+## 6. REST API
 
 A separate HTTP API (`paywall_api.py`) provides rate-limited REST endpoints:
 
@@ -83,7 +87,7 @@ curl -X POST https://mcp.arkforge.tech/mcp/api/v1/scan \
 | `POST` | `/api/v1/generate-report` | Free/Pro | Full compliance report |
 | `POST` | `/api/v1/scan-repo` | Internal | Scan a GitHub repo (Trust Layer integration) |
 
-## 6. CI/CD Integration
+## 7. CI/CD Integration
 
 ### GitHub Actions
 
@@ -140,7 +144,7 @@ eu-ai-act-check:
     - if: $CI_COMMIT_BRANCH == "main"
 ```
 
-## 7. Dependencies
+## 8. Dependencies
 
 **Required:**
 - Python 3.10+
@@ -156,7 +160,7 @@ Install all:
 pip install -r requirements.txt
 ```
 
-## 8. Security
+## 9. Security
 
 - Read-only: the server never modifies scanned files
 - Path validation: blocks system directories (`/etc`, `/proc`, `/sys`, etc.)
@@ -171,5 +175,5 @@ pip install -r requirements.txt
 
 ---
 
-**Version**: 1.2.0
+**Version**: 2.0.0
 **Maintained by**: ArkForge
