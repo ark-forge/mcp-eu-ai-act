@@ -333,7 +333,7 @@ certify_compliance_report(
 )
 ```
 
-Free Trust Layer account: 500 certified proofs/month → [arkforge.tech](https://arkforge.tech/trust)
+Free Trust Layer account: 500 certified proofs/month → [arkforge.tech](https://arkforge.tech/trust?utm_source=github_readme&utm_medium=referral)
 
 ## Pricing
 
@@ -343,7 +343,7 @@ Free Trust Layer account: 500 certified proofs/month → [arkforge.tech](https:/
 | Pro | €29/month | Unlimited scans · all 10 tools · compliance roadmap · Annex IV package |
 | Certified | €99/month | Everything in Pro + Trust Layer certification on every report |
 
-[Get your API key →](https://arkforge.tech/en/mcp-eu-ai-act.html)
+[Get your API key →](https://arkforge.tech/en/mcp-eu-ai-act.html?utm_source=github_readme&utm_medium=referral)
 
 ## REST API
 
