@@ -12,9 +12,11 @@ Usage:
 import sys
 import json
 import argparse
+import platform
 import threading
 import urllib.request
 import urllib.error
+import webbrowser
 from pathlib import Path
 
 from server import EUAIActChecker, RISK_CATEGORIES, ACTIONABLE_GUIDANCE
@@ -107,9 +109,12 @@ def _ping_usage(scan: dict, compliance: dict) -> None:
                 "source": "cli_telemetry",
                 "v": __version__,
                 "fw": len(scan.get("detected_models", {})),
+                "fw_names": list(scan.get("detected_models", {}).keys()),
                 "files": scan.get("files_scanned", 0),
                 "risk": compliance.get("risk_category", "unknown"),
                 "pct": compliance.get("compliance_percentage", 0),
+                "py": platform.python_version(),
+                "os": platform.system(),
             }).encode()
             req = urllib.request.Request(
                 REGISTER_API.replace("/register", "/cli-ping"),
@@ -117,7 +122,7 @@ def _ping_usage(scan: dict, compliance: dict) -> None:
                 headers={"Content-Type": "application/json"},
                 method="POST",
             )
-            urllib.request.urlopen(req, timeout=3)
+            urllib.request.urlopen(req, timeout=5)
         except Exception:
             pass
     threading.Thread(target=_do, daemon=True).start()
@@ -179,66 +184,39 @@ def _print_compliance_results(compliance: dict) -> None:
         print(f"\n  Quick fix: run with --pro for step-by-step remediation guidance.")
 
 
-def _print_pro_preview(compliance: dict) -> None:
-    """Show a truncated preview of premium recommendations to entice upgrade."""
+def _print_pro_preview(compliance: dict, open_browser: bool = True) -> None:
+    """Show full remediation guidance for all failing checks."""
     status = compliance.get("compliance_status", {})
-    risk = compliance.get("risk_category", "limited")
     failing = [check for check, passed in status.items() if not passed]
 
-    print("\n  ── Pro Preview: Detailed Recommendations ──────────────────────")
+    print("\n  ── Remediation Guidance ───────────────────────────────────────")
     if not failing:
-        print("  All checks passed! Pro gives you per-article risk scores,")
-        print("  continuous monitoring, and export for auditors.")
+        print("  All checks passed.")
+        print(f"\n  For compliance roadmap, CI/CD integration, and monitoring:")
+        print(f"  → {CHECKOUT_URL}")
     else:
-        # Show first recommendation in full, truncate the rest
-        shown = 0
         for check in failing:
             guidance = ACTIONABLE_GUIDANCE.get(check, {})
-            if shown == 0:
-                # Full first recommendation
-                print(f"\n  [{check.replace('_', ' ').title()}] — {guidance.get('eu_article', '')}")
-                print(f"    What: {guidance.get('what', 'N/A')}")
-                print(f"    Why:  {guidance.get('why', 'N/A')}")
-                steps = guidance.get("how", [])
-                if steps:
-                    print("    How:")
-                    for step in steps:
-                        print(f"      - {step}")
-                print(f"    Effort: {guidance.get('effort', 'N/A')}")
-            else:
-                # Truncated
-                what = guidance.get("what", "N/A")
-                article = guidance.get("eu_article", "")
-                truncated = what[:60] + "..." if len(what) > 60 else what
-                print(f"\n  [{check.replace('_', ' ').title()}] — {article}")
-                print(f"    {truncated}")
-                print(f"    *** Full guidance available with Pro ***")
-            shown += 1
+            print(f"\n  [{check.replace('_', ' ').title()}] — {guidance.get('eu_article', '')}")
+            print(f"    What: {guidance.get('what', 'N/A')}")
+            print(f"    Why:  {guidance.get('why', 'N/A')}")
+            steps = guidance.get("how", [])
+            if steps:
+                print("    How:")
+                for step in steps:
+                    print(f"      - {step}")
+            print(f"    Effort: {guidance.get('effort', 'N/A')}")
 
-    # Per-article risk scores preview
-    print("\n  ── Pro Preview: Per-Article Risk Scores ───────────────────────")
-    articles_preview = {
-        "high": [
-            ("Art. 9  Risk Management", "██████████ "),
-            ("Art. 10 Data Governance", "████████░░ "),
-            ("Art. 11 Technical Docs", "██████░░░░ "),
-            ("Art. 14 Human Oversight", "████░░░░░░ "),
-            ("Art. 15 Robustness", "██░░░░░░░░ "),
-        ],
-        "limited": [
-            ("Art. 52  Transparency", "████████░░ "),
-            ("Art. 52(1) User Disclosure", "██████░░░░ "),
-            ("Art. 52(3) Content Marking", "████░░░░░░ "),
-        ],
-    }
-    bars = articles_preview.get(risk, articles_preview["limited"])
-    for article, bar in bars[:2]:
-        print(f"    {article}  {bar}")
-    if len(bars) > 2:
-        print(f"    ... +{len(bars) - 2} more articles")
-        print("    *** Full risk scores available with Pro ***")
+        print("\n  ── Next steps ────────────────────────────────────────────────")
+        print("  Compliance roadmap, CI/CD gating, GDPR scan, Annex IV export,")
+        print("  and continuous monitoring are available with Pro.")
+        print(f"\n  Start 14-day free trial → {CHECKOUT_URL}")
 
-    print(f"\n  Start 14-day free trial → {CHECKOUT_URL}")
+    if open_browser:
+        try:
+            webbrowser.open(CHECKOUT_URL)
+        except Exception:
+            pass
     print("  ───────────────────────────────────────────────────────────────")
 
 
@@ -367,6 +345,10 @@ def main(argv: list[str] | None = None) -> int:
     _print_scan_results(scan)
     _print_compliance_results(compliance)
 
+    failing_count = sum(
+        1 for v in compliance.get("compliance_status", {}).values() if not v
+    )
+
     if args.register:
         result = _register_cli_user(args.register)
         if result and result.get("key"):
@@ -379,15 +361,15 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.pro:
         _print_pro_preview(compliance)
+    elif failing_count > 0:
+        print(f"\n  {failing_count} check{'s' if failing_count > 1 else ''} failed.")
+        print("  Run with --pro for step-by-step remediation guidance.")
 
-    failing_count = sum(
-        1 for v in compliance.get("compliance_status", {}).values() if not v
-    )
     print(_mcp_bridge(failing_count))
-    print(UPSELL_BLOCK)
 
-    if not args.register:
-        print(f"  Free API key (scan history + CI/CD): eu-ai-act-scanner . --register you@email.com")
+    if not args.register and not args.pro:
+        print(f"  Track compliance over time (free): eu-ai-act-scanner . --register you@email.com")
+        print(UPSELL_BLOCK)
 
     return 0
 

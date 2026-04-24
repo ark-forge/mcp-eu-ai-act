@@ -116,7 +116,7 @@ class TestProFlag:
         rc = main([project_with_openai, "--pro"])
         assert rc == 0
         out = capsys.readouterr().out
-        assert "Pro Preview" in out
+        assert "Remediation Guidance" in out
 
 
 class TestTelemetry:

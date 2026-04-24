@@ -298,6 +298,32 @@ def scan(req: ScanRequest, request: Request):
         shutil.rmtree(tmpdir, ignore_errors=True)
 
 
+@app.post("/api/cli-ping")
+async def cli_ping(request: Request):
+    """Anonymous CLI usage telemetry. No PII. Fail-silent."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    ping_path = _DATA_DIR / "cli_pings.jsonl"
+    entry = {
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "ip": _get_client_ip(request),
+        "v": body.get("v", "?"),
+        "fw": body.get("fw", 0),
+        "fw_names": body.get("fw_names", []),
+        "files": body.get("files", 0),
+        "risk": body.get("risk", "?"),
+        "pct": body.get("pct", 0),
+    }
+    try:
+        with open(ping_path, "a") as f:
+            f.write(json.dumps(entry) + "\n")
+    except Exception:
+        pass
+    return {"ok": True}
+
+
 @app.post("/api/checkout")
 async def checkout(request: Request):
     """Create a Stripe Checkout Session for pro or certified plan."""
@@ -333,10 +359,11 @@ async def checkout(request: Request):
     params = {
         "payment_method_types[0]": "card",
         "mode": "subscription",
-        "success_url": "https://arkforge.tech/en/mcp-eu-ai-act.html?checkout=success",
-        "cancel_url": "https://arkforge.tech/en/mcp-eu-ai-act.html?checkout=cancel",
+        "success_url": "https://arkforge.tech/en/scanner-pro-success.html",
+        "cancel_url": "https://arkforge.tech/en/scanner-pro.html?checkout=cancelled",
         "line_items[0][price]": price_id,
         "line_items[0][quantity]": "1",
+        "subscription_data[trial_period_days]": "14",
         "metadata[plan]": plan,
         "metadata[email]": email,
     }
@@ -419,7 +446,7 @@ async def webhook(request: Request):
 
     if event_type == "checkout.session.completed":
         obj = event.get("data", {}).get("object", {})
-        email = obj.get("customer_email") or obj.get("metadata", {}).get("email", "")
+        email = obj.get("customer_email") or obj.get("customer_details", {}).get("email", "") or obj.get("metadata", {}).get("email", "")
         plan = obj.get("metadata", {}).get("plan", "pro")
         if email:
             entry = _api_key_manager.register_key(email, plan)
