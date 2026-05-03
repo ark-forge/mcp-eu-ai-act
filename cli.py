@@ -114,8 +114,38 @@ def _register_cli_user(email: str) -> dict | None:
         return None
 
 
+_PRO_CACHE_TTL = 3600  # 1 hour
+
+
+def _pro_cache_path() -> Path:
+    return Path.home() / ".eu-ai-act" / "pro_cache.json"
+
+
+def _read_pro_cache(api_key: str) -> bool | None:
+    """Return cached pro status if fresh, else None."""
+    try:
+        cache = json.loads(_pro_cache_path().read_text())
+        if cache.get("key") == api_key and cache.get("ts", 0) + _PRO_CACHE_TTL > __import__("time").time():
+            return cache.get("is_pro", False)
+    except Exception:
+        pass
+    return None
+
+
+def _write_pro_cache(api_key: str, is_pro: bool) -> None:
+    try:
+        p = _pro_cache_path()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps({"key": api_key, "is_pro": is_pro, "ts": __import__("time").time()}))
+    except Exception:
+        pass
+
+
 def _is_pro_key(api_key: str) -> bool:
-    """Check if an API key has a Pro plan. Returns False on any error."""
+    """Check if an API key has a Pro plan. Caches result locally for 1h."""
+    cached = _read_pro_cache(api_key)
+    if cached is not None:
+        return cached
     try:
         payload = json.dumps({"key": api_key}).encode()
         req = urllib.request.Request(
@@ -126,9 +156,11 @@ def _is_pro_key(api_key: str) -> bool:
         )
         resp = urllib.request.urlopen(req, timeout=5)
         data = json.loads(resp.read())
-        return data.get("valid") and data.get("plan") in ("pro", "certified")
+        result = bool(data.get("valid") and data.get("plan") in ("pro", "certified"))
     except Exception:
-        return False
+        result = False
+    _write_pro_cache(api_key, result)
+    return result
 
 
 def _ping_usage(scan: dict, compliance: dict) -> None:

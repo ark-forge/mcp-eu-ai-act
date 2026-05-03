@@ -118,6 +118,33 @@ class TestHumanOutput:
         assert "free_to_pro" in out["upgrade"]["checkout_url"]
 
 
+class TestProKeyCache:
+    def test_cache_avoids_network_call(self, tmp_path, monkeypatch):
+        import time
+        from cli import _write_pro_cache, _is_pro_key, _PRO_CACHE_TTL
+        monkeypatch.setattr("cli._pro_cache_path", lambda: tmp_path / "cache.json")
+        _write_pro_cache("ak_test_123", True)
+        # _is_pro_key should return cached True without hitting network
+        assert _is_pro_key("ak_test_123") is True
+
+    def test_cache_expires(self, tmp_path, monkeypatch):
+        import time
+        from cli import _write_pro_cache, _read_pro_cache, _PRO_CACHE_TTL
+        monkeypatch.setattr("cli._pro_cache_path", lambda: tmp_path / "cache.json")
+        _write_pro_cache("ak_test_old", True)
+        # Manually expire the cache
+        cache = json.loads((tmp_path / "cache.json").read_text())
+        cache["ts"] = time.time() - _PRO_CACHE_TTL - 1
+        (tmp_path / "cache.json").write_text(json.dumps(cache))
+        assert _read_pro_cache("ak_test_old") is None
+
+    def test_cache_wrong_key_returns_none(self, tmp_path, monkeypatch):
+        from cli import _write_pro_cache, _read_pro_cache
+        monkeypatch.setattr("cli._pro_cache_path", lambda: tmp_path / "cache.json")
+        _write_pro_cache("ak_key_a", True)
+        assert _read_pro_cache("ak_key_b") is None
+
+
 class TestRiskFlag:
     def test_risk_high(self, project_with_openai, capsys):
         rc = main([project_with_openai, "--risk", "high", "--json"])
