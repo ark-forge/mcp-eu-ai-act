@@ -164,6 +164,13 @@ def _print_compliance_results(compliance: dict) -> None:
     score = compliance.get("compliance_score", "0/0")
     pct = compliance.get("compliance_percentage", 0)
     risk = compliance.get("risk_category", "unknown")
+
+    if compliance.get("no_ai_detected"):
+        print(f"\n  Risk category: {risk}")
+        print(f"  No AI frameworks detected — EU AI Act checks shown for reference only.")
+        print(f"  If your project uses AI indirectly (via API), these checks still apply.")
+        return
+
     print(f"\n  Risk category: {risk}")
     print(f"  Compliance score: {score} ({pct}%)")
     status = compliance.get("compliance_status", {})
@@ -185,9 +192,10 @@ def _print_compliance_results(compliance: dict) -> None:
 
 
 def _print_pro_preview(compliance: dict, open_browser: bool = True) -> None:
-    """Show full remediation guidance for all failing checks."""
+    """Show remediation guidance: first 2 checks free, rest gated."""
     status = compliance.get("compliance_status", {})
     failing = [check for check, passed in status.items() if not passed]
+    FREE_PREVIEW_COUNT = 2
 
     print("\n  ── Remediation Guidance ───────────────────────────────────────")
     if not failing:
@@ -195,7 +203,13 @@ def _print_pro_preview(compliance: dict, open_browser: bool = True) -> None:
         print(f"\n  For compliance roadmap, CI/CD integration, and monitoring:")
         print(f"  → {CHECKOUT_URL}")
     else:
-        for check in failing:
+        for i, check in enumerate(failing):
+            if i >= FREE_PREVIEW_COUNT:
+                gated = len(failing) - FREE_PREVIEW_COUNT
+                print(f"\n  ── {gated} more remediation{'s' if gated > 1 else ''} available with free registration ──")
+                print(f"  Register: eu-ai-act-scanner . --register you@email.com")
+                print(f"  Or start Pro trial → {CHECKOUT_URL}")
+                break
             guidance = ACTIONABLE_GUIDANCE.get(check, {})
             print(f"\n  [{check.replace('_', ' ').title()}] — {guidance.get('eu_article', '')}")
             print(f"    What: {guidance.get('what', 'N/A')}")
@@ -208,8 +222,8 @@ def _print_pro_preview(compliance: dict, open_browser: bool = True) -> None:
             print(f"    Effort: {guidance.get('effort', 'N/A')}")
 
         print("\n  ── Next steps ────────────────────────────────────────────────")
-        print("  Compliance roadmap, CI/CD gating, GDPR scan, Annex IV export,")
-        print("  and continuous monitoring are available with Pro.")
+        print("  Full remediation + compliance roadmap + CI/CD gating + GDPR")
+        print("  scan + Annex IV export available with Pro.")
         print(f"\n  Start 14-day free trial → {CHECKOUT_URL}")
 
     if open_browser:
@@ -361,11 +375,12 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.pro:
         _print_pro_preview(compliance)
-    elif failing_count > 0:
+    elif failing_count > 0 and not compliance.get("no_ai_detected"):
         print(f"\n  {failing_count} check{'s' if failing_count > 1 else ''} failed.")
         print("  Run with --pro for step-by-step remediation guidance.")
 
-    print(_mcp_bridge(failing_count))
+    effective_failing = 0 if compliance.get("no_ai_detected") else failing_count
+    print(_mcp_bridge(effective_failing))
 
     if not args.register and not args.pro:
         print(f"  Track compliance over time (free): eu-ai-act-scanner . --register you@email.com")

@@ -40,6 +40,33 @@
     "external_scan_calls_delta"
   ],
   "invalidation_rule": "If visitor_to_trial < 0.015 by 2026-04-28, pivot description strategy",
+  "followup_2228": {
+    "measured_at": "2026-04-24T19:02:00+00:00",
+    "hours_since_v2_deploy": 1.4,
+    "funnel_snapshot": {
+      "visitor_to_trial": 0.008,
+      "visitor_to_pricing": 0.009,
+      "pricing_to_trial": 0.111,
+      "register_free_key_7d": 16,
+      "trial_signups_24h": 8,
+      "unique_visitors_24h": 956,
+      "payments_7d": 1
+    },
+    "registry_propagation": {
+      "pypi": {"status": "confirmed", "version": "2.0.31", "method": "oidc_trusted_publisher"},
+      "smithery": {"status": "pending", "old_description_still_shown": true, "expected_propagation_hours": 4.5, "expected_by": "2026-04-24T22:07:00+00:00"},
+      "glama": {"status": "config_updated", "glama_json_in_repo": true, "note": "Glama reads glama.json from repo on crawl, no manual trigger available"}
+    },
+    "point_status": {
+      "1_conversion_tracking": "active — watch_fields defined, J+0 measurement recorded, too early for signal (1.4h post-deploy)",
+      "2_pypi_publish": "resolved — v2.0.31 live on PyPI via OIDC Trusted Publishing",
+      "3_registry_recrawl": "in_progress — Smithery auto-crawl expected ~4.5h, no manual trigger available. Glama glama.json updated in repo",
+      "4_combined_compliance_opener": "done — commit 3dd5949, informational",
+      "5_scan_project_change": "done — commit 3dd5949, informational"
+    },
+    "next_measurement": "2026-04-25T17:00:00+00:00",
+    "note": "J+0 snapshot. No conversion delta expected yet — registries still propagating. Remeasure at J+1 (24h post-deploy) for first signal."
+  },
   "notes": [
     "v2 rewrite uses imperative + urgency framing: 'before your next deploy', 'Find out in 5 seconds'",
     "Smithery propagates within ~4.5h of commit (confirmed v1)",

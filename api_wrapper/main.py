@@ -298,6 +298,40 @@ def scan(req: ScanRequest, request: Request):
         shutil.rmtree(tmpdir, ignore_errors=True)
 
 
+@app.post("/api/register")
+async def api_register(request: Request):
+    """Register for a free API key. Accepts {"email": "...", "source": "cli"}."""
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail={"error": "Invalid JSON body. Expected: {\"email\": \"user@example.com\"}"})
+
+    email = (body.get("email") or "").strip()
+    if not email or "@" not in email or "." not in email.split("@")[-1]:
+        raise HTTPException(status_code=400, detail={"error": "Valid email required"})
+
+    plan = body.get("plan", "free")
+    if plan not in ("free", "pro"):
+        plan = "free"
+
+    result = _api_key_manager.register_key(email, plan)
+
+    reg_ip = _get_client_ip(request)
+    source = body.get("source", "api_direct")
+    reg_log = _DATA_DIR / "registration_log.jsonl"
+    try:
+        with open(reg_log, "a") as f:
+            f.write(json.dumps({
+                "ts": datetime.now(timezone.utc).isoformat(),
+                "email": email, "plan": plan, "source": source,
+                "ip": reg_ip, "key": result.get("key", ""),
+            }) + "\n")
+    except Exception:
+        pass
+
+    return {"key": result.get("key", ""), "email": email, "plan": plan}
+
+
 @app.post("/api/cli-ping")
 async def cli_ping(request: Request):
     """Anonymous CLI usage telemetry. No PII. Fail-silent."""
@@ -315,6 +349,8 @@ async def cli_ping(request: Request):
         "files": body.get("files", 0),
         "risk": body.get("risk", "?"),
         "pct": body.get("pct", 0),
+        "py": body.get("py", "?"),
+        "os": body.get("os", "?"),
     }
     try:
         with open(ping_path, "a") as f:
