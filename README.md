@@ -21,6 +21,8 @@ If this tool helps your compliance work, a ⭐ on GitHub helps others discover i
 
 > **Need audit-grade proof?** Certify every scan with [ArkForge Trust Layer](https://arkforge.tech/trust?utm_source=github_readme) — tamper-proof, timestamped compliance evidence. 500 free proofs/month.
 
+**[Get your compliance report →](https://arkforge.tech/en/pricing.html?utm_source=pypi&utm_medium=readme&utm_campaign=mcp_euaiact)**
+
 ## Quick Start
 
 ### CLI (scan any project in 10 seconds)
