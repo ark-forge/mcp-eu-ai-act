@@ -114,7 +114,8 @@ def _register_cli_user(email: str) -> dict | None:
         return None
 
 
-_PRO_CACHE_TTL = 3600  # 1 hour
+_PRO_CACHE_TTL = 3600  # 1 hour for verified pro keys
+_PRO_CACHE_TTL_NEGATIVE = 300  # 5 min for failed verifications (retry sooner)
 
 
 def _pro_cache_path() -> Path:
@@ -125,8 +126,12 @@ def _read_pro_cache(api_key: str) -> bool | None:
     """Return cached pro status if fresh, else None."""
     try:
         cache = json.loads(_pro_cache_path().read_text())
-        if cache.get("key") == api_key and cache.get("ts", 0) + _PRO_CACHE_TTL > __import__("time").time():
-            return cache.get("is_pro", False)
+        if cache.get("key") != api_key:
+            return None
+        is_pro = cache.get("is_pro", False)
+        ttl = _PRO_CACHE_TTL if is_pro else _PRO_CACHE_TTL_NEGATIVE
+        if cache.get("ts", 0) + ttl > __import__("time").time():
+            return is_pro
     except Exception:
         pass
     return None
@@ -142,7 +147,7 @@ def _write_pro_cache(api_key: str, is_pro: bool) -> None:
 
 
 def _is_pro_key(api_key: str) -> bool:
-    """Check if an API key has a Pro plan. Caches result locally for 1h."""
+    """Check if an API key has a Pro plan. Caches result locally (1h pro, 5min free)."""
     cached = _read_pro_cache(api_key)
     if cached is not None:
         return cached
@@ -154,7 +159,7 @@ def _is_pro_key(api_key: str) -> bool:
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        resp = urllib.request.urlopen(req, timeout=5)
+        resp = urllib.request.urlopen(req, timeout=2)
         data = json.loads(resp.read())
         result = bool(data.get("valid") and data.get("plan") in ("pro", "certified"))
     except Exception:
