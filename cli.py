@@ -9,6 +9,7 @@ Usage:
     eu-ai-act-scanner . --pro
 """
 
+import os
 import sys
 import json
 import argparse
@@ -48,7 +49,9 @@ __version__ = _resolve_version()
 
 PRICING_URL = "https://arkforge.tech/en/pricing.html?utm_source=cli"
 CHECKOUT_URL = "https://arkforge.tech/en/scanner-pro.html?utm_source=cli&utm_medium=upgrade"
+UPGRADE_CTA_URL = "https://arkforge.tech/en/scanner-pro.html?utm_source=cli&utm_medium=scan_result&utm_campaign=free_to_pro"
 REGISTER_API = "https://mcp.arkforge.tech/api/register"
+VERIFY_KEY_API = "https://mcp.arkforge.tech/api/verify-key"
 
 PRO_FEATURES = [
     "Detailed per-article risk scores with remediation priorities",
@@ -63,6 +66,16 @@ UPSELL_BLOCK = f"""
   ── Pro: unlimited scans + CI/CD API + step-by-step remediation ──
   29 EUR/month — start 14-day free trial → {CHECKOUT_URL}
 """
+
+UPGRADE_CTA = f"""
+  ── Upgrade to Pro ────────────────────────────────────────────────
+  1. CI/CD integration -- block non-compliant deploys via API
+  2. Unlimited scans -- no daily cap, full scan history
+  3. Compliance reports -- PDF/JSON export for auditors
+
+  29 EUR/month -- 14-day free trial, cancel anytime
+  {UPGRADE_CTA_URL}
+  ─────────────────────────────────────────────────────────────────"""
 
 
 def _mcp_bridge(failing_count: int) -> str:
@@ -99,6 +112,23 @@ def _register_cli_user(email: str) -> dict | None:
         return json.loads(resp.read())
     except Exception:
         return None
+
+
+def _is_pro_key(api_key: str) -> bool:
+    """Check if an API key has a Pro plan. Returns False on any error."""
+    try:
+        payload = json.dumps({"key": api_key}).encode()
+        req = urllib.request.Request(
+            VERIFY_KEY_API,
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        resp = urllib.request.urlopen(req, timeout=5)
+        data = json.loads(resp.read())
+        return data.get("valid") and data.get("plan") in ("pro", "certified")
+    except Exception:
+        return False
 
 
 def _ping_usage(scan: dict, compliance: dict) -> None:
@@ -293,6 +323,12 @@ def main(argv: list[str] | None = None) -> int:
         help="Output raw JSON results",
     )
     parser.add_argument(
+        "--api-key",
+        metavar="KEY",
+        default=os.environ.get("EU_AI_ACT_API_KEY", ""),
+        help="API key for Pro features (or set EU_AI_ACT_API_KEY env var)",
+    )
+    parser.add_argument(
         "--register",
         metavar="EMAIL",
         help="Register for a free API key (unlocks scan history + CI/CD integration)",
@@ -329,16 +365,20 @@ def main(argv: list[str] | None = None) -> int:
     if not args.no_telemetry:
         _ping_usage(scan, compliance)
 
+    api_key = getattr(args, "api_key", "") or ""
+    is_pro = bool(api_key) and _is_pro_key(api_key)
+
     if args.json:
         output = {
             "scan": scan,
             "compliance": compliance,
-            "upgrade": {
-                "pricing_url": PRICING_URL,
-                "checkout_url": CHECKOUT_URL,
-                "pro_features": PRO_FEATURES,
-            },
         }
+        if not is_pro:
+            output["upgrade"] = {
+                "pricing_url": PRICING_URL,
+                "checkout_url": UPGRADE_CTA_URL,
+                "pro_features": PRO_FEATURES,
+            }
         if args.register:
             result = _register_cli_user(args.register)
             if result and result.get("key"):
@@ -382,9 +422,10 @@ def main(argv: list[str] | None = None) -> int:
     effective_failing = 0 if compliance.get("no_ai_detected") else failing_count
     print(_mcp_bridge(effective_failing))
 
-    if not args.register and not args.pro:
-        print(f"  Track compliance over time (free): eu-ai-act-scanner . --register you@email.com")
-        print(UPSELL_BLOCK)
+    if not is_pro:
+        print(UPGRADE_CTA)
+        if not args.register and not args.pro:
+            print(f"  Track compliance over time (free): eu-ai-act-scanner . --register you@email.com")
 
     return 0
 

@@ -91,11 +91,31 @@ class TestHumanOutput:
         out = capsys.readouterr().out
         assert "AI frameworks detected: 0" in out
 
-    def test_upsell_block_shown(self, project_with_openai, capsys):
+    def test_upgrade_cta_shown(self, project_with_openai, capsys):
         main([project_with_openai])
         out = capsys.readouterr().out
-        assert "Pro:" in out
+        assert "Upgrade to Pro" in out
         assert "EUR/month" in out
+        assert "utm_campaign=free_to_pro" in out
+
+
+    def test_upgrade_cta_hidden_with_pro_key(self, project_with_openai, capsys):
+        with patch("cli._is_pro_key", return_value=True):
+            main([project_with_openai, "--api-key", "ak_test_pro"])
+        out = capsys.readouterr().out
+        assert "Upgrade to Pro" not in out
+
+    def test_upgrade_cta_in_json_hidden_with_pro_key(self, project_with_openai, capsys):
+        with patch("cli._is_pro_key", return_value=True):
+            main([project_with_openai, "--api-key", "ak_test_pro", "--json"])
+        out = json.loads(capsys.readouterr().out)
+        assert "upgrade" not in out
+
+    def test_upgrade_cta_in_json_shown_without_key(self, project_with_openai, capsys):
+        main([project_with_openai, "--json"])
+        out = json.loads(capsys.readouterr().out)
+        assert "upgrade" in out
+        assert "free_to_pro" in out["upgrade"]["checkout_url"]
 
 
 class TestRiskFlag:
