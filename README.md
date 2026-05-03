@@ -2,6 +2,7 @@
 
 [![PyPI version](https://badge.fury.io/py/eu-ai-act-scanner.svg)](https://pypi.org/project/eu-ai-act-scanner/)
 [![GitHub Stars](https://img.shields.io/github/stars/ark-forge/mcp-eu-ai-act?style=flat&label=⭐%20Star%20this%20repo)](https://github.com/ark-forge/mcp-eu-ai-act/stargazers)
+[![Pro Plan — €29/mo](https://img.shields.io/badge/Pro_Plan-€29%2Fmo-brightgreen)](https://arkforge.tech/en/pricing.html?utm_source=github&utm_medium=readme&utm_campaign=mcp_euaiact)
 [![Works with Claude](https://img.shields.io/badge/Works%20with-Claude-blueviolet)](https://claude.ai)
 [![Works with Cursor](https://img.shields.io/badge/Works%20with-Cursor-blue)](https://cursor.com)
 
@@ -25,7 +26,7 @@ If this tool helps your compliance work, a ⭐ on GitHub helps others discover i
 ### CLI (scan any project in 10 seconds)
 
 ```bash
-pip install eu-ai-act-scanner
+pip install eu-ai-act-scanner   # or: pip install mcp-eu-ai-act
 cd your-project/
 eu-ai-act-scanner
 ```
@@ -54,6 +55,18 @@ Output:
 Or specify a path directly: `eu-ai-act-scanner /path/to/your/project`
 
 Track compliance over time (free): `eu-ai-act-scanner . --register you@email.com`
+
+## Get Started
+
+| | Free | Pro (€29/mo) |
+|--|------|--------------|
+| Scans/day | 5 | Unlimited |
+| Tools | scan + suggest_risk | All 10 tools |
+| Roadmap generator | — | ✓ |
+| Annex IV package | — | ✓ |
+| Trust Layer certification | — | ✓ (Certified plan) |
+
+**[→ See pricing & get your API key](https://arkforge.tech/en/pricing.html?utm_source=github&utm_medium=readme&utm_campaign=mcp_euaiact)**
 
 ## What's New in v2
 
@@ -371,7 +384,7 @@ Free Trust Layer account: 500 certified proofs/month → [arkforge.tech](https:/
 | Pro | €29/month | Unlimited scans · all 10 tools · compliance roadmap · Annex IV package |
 | Certified | €99/month | Everything in Pro + Trust Layer certification on every report |
 
-[Get your API key →](https://arkforge.tech/en/mcp-eu-ai-act.html?utm_source=github_readme&utm_medium=referral)
+[Get your API key →](https://arkforge.tech/en/pricing.html?utm_source=pypi&utm_medium=readme&utm_campaign=mcp_euaiact)
 
 ## REST API
 
@@ -394,7 +407,7 @@ python3 paywall_api.py
 | `POST` | `/api/webhook` | Stripe sig | Stripe webhook handler |
 
 **Free tier**: 5 scans/day per IP, no sign-up required.
-**Pro tier**: Unlimited scans, `X-API-Key` header. 29 EUR/month via [arkforge.tech/en/mcp-eu-ai-act.html](https://arkforge.tech/en/mcp-eu-ai-act.html?utm_source=pypi).
+**Pro tier**: Unlimited scans, `X-API-Key` header. 29 EUR/month via [arkforge.tech/pricing](https://arkforge.tech/en/pricing.html?utm_source=pypi&utm_medium=readme&utm_campaign=mcp_euaiact).
 
 ### Example: scan via REST
 
