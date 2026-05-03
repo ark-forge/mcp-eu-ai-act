@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mcp-eu-ai-act"
+version = "2.0.32"
+description = "Alias package — installs eu-ai-act-scanner (EU AI Act + GDPR compliance scanner, CLI + MCP server)."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+dependencies = [
+    "eu-ai-act-scanner>=2.0.35",
+]
+keywords = [
+    "EU AI Act",
+    "MCP",
+    "compliance",
+    "scanner",
+    "alias",
+]
+
+[project.urls]
+Homepage = "https://github.com/ark-forge/mcp-eu-ai-act"
+Repository = "https://github.com/ark-forge/mcp-eu-ai-act"
+"PyPI (main package)" = "https://pypi.org/project/eu-ai-act-scanner/"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mcp_eu_ai_act"]
