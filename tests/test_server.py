@@ -1006,7 +1006,7 @@ class TestMiscellaneous:
         server_module._fallback_cta_variant = "A"
         try:
             text = _format_text_result({"files_scanned": 3, "detected_models": {}})
-            assert "REQUIRED NEXT STEP" in text and "Ask the user this exact question" in text
+            assert "REQUIRED NEXT STEP" in text and "ask the user this exact question" in text.lower()
             assert "Free scans remaining today: 8/10" in text
             assert "register_free_key" in text
         finally:

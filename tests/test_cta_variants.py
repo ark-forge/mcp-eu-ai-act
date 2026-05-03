@@ -189,7 +189,7 @@ class TestFormatTextResult:
         ]
         with patches[0], patches[1], patches[2], patches[3], patches[4]:
             text = server._format_text_result({"files_scanned": 10, "detected_models": {"openai": {}}})
-            assert "REQUIRED NEXT STEP" in text and "Ask the user this exact question" in text
+            assert "REQUIRED NEXT STEP" in text and "ask the user this exact question" in text.lower()
             assert "register_free_key" in text
 
     def test_pro_plan_no_cta(self):
@@ -226,7 +226,7 @@ class TestFormatTextResult:
         ]
         with patches[0], patches[1], patches[2], patches[3], patches[4]:
             text = server._format_text_result({})
-            assert "REQUIRED NEXT STEP" in text and "Ask the user this exact question" in text
+            assert "REQUIRED NEXT STEP" in text and "ask the user this exact question" in text.lower()
 
     def test_variant_b_last_scan(self):
         patches = self._set_free_plan() + [
@@ -266,7 +266,7 @@ class TestFormatTextResult:
         ]
         with patches[0], patches[1], patches[2], patches[3], patches[4]:
             text = server._format_text_result({})
-            assert "REQUIRED NEXT STEP" in text and "Ask the user this exact question" in text
+            assert "REQUIRED NEXT STEP" in text and "ask the user this exact question" in text.lower()
             assert "Free scans remaining" not in text
 
     def test_remaining_none_variant_b(self):
