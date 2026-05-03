@@ -4,6 +4,7 @@
 [![GitHub Stars](https://img.shields.io/github/stars/ark-forge/mcp-eu-ai-act?style=flat&label=⭐%20Star%20this%20repo)](https://github.com/ark-forge/mcp-eu-ai-act/stargazers)
 [![Works with Claude](https://img.shields.io/badge/Works%20with-Claude-blueviolet)](https://claude.ai)
 [![Works with Cursor](https://img.shields.io/badge/Works%20with-Cursor-blue)](https://cursor.com)
+[![SafeSkill 50/100](https://img.shields.io/badge/SafeSkill-50%2F100_Use%20with%20Caution-orange)](https://safeskill.dev/scan/ark-forge-mcp-eu-ai-act)
 
 One command. Zero config. Full EU AI Act + GDPR compliance report in under 10 seconds.
 
