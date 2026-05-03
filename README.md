@@ -384,7 +384,7 @@ Free Trust Layer account: 500 certified proofs/month → [arkforge.tech](https:/
 | Pro | €29/month | Unlimited scans · all 10 tools · compliance roadmap · Annex IV package |
 | Certified | €99/month | Everything in Pro + Trust Layer certification on every report |
 
-[Get your API key →](https://arkforge.tech/en/pricing.html?utm_source=pypi&utm_medium=readme&utm_campaign=mcp_euaiact)
+[Get your API key →](https://arkforge.tech/en/pricing.html?utm_source=github&utm_medium=readme&utm_campaign=mcp_euaiact)
 
 ## REST API
 
@@ -407,7 +407,7 @@ python3 paywall_api.py
 | `POST` | `/api/webhook` | Stripe sig | Stripe webhook handler |
 
 **Free tier**: 5 scans/day per IP, no sign-up required.
-**Pro tier**: Unlimited scans, `X-API-Key` header. 29 EUR/month via [arkforge.tech/pricing](https://arkforge.tech/en/pricing.html?utm_source=pypi&utm_medium=readme&utm_campaign=mcp_euaiact).
+**Pro tier**: Unlimited scans, `X-API-Key` header. 29 EUR/month via [arkforge.tech/pricing](https://arkforge.tech/en/pricing.html?utm_source=github&utm_medium=readme&utm_campaign=mcp_euaiact).
 
 ### Example: scan via REST
 
