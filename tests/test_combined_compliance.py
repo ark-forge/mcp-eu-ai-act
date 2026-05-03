@@ -1,18 +1,22 @@
 """Tests for combined_compliance_report tool and its helper functions.
 
 Covers: _compute_combined_requirements, _generate_combined_insight,
-        combined_compliance_report MCP tool (via direct function call).
+        combined_compliance_report MCP tool (via direct function call),
+        gating of recommendations in combined report.
 """
 
 import sys
 import pytest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from server import (
     _compute_combined_requirements,
     _generate_combined_insight,
+    _gate_recommendations,
+    _make_result_dict,
     EUAIActChecker,
     GDPRChecker,
 )
@@ -238,3 +242,76 @@ class TestCombinedComplianceReportIntegration:
         assert isinstance(combined["overlap_type"], list)
         assert isinstance(combined["requirements"], list)
         assert combined["priority"] in ("critical", "high", "medium", "low")
+
+
+# ============================================================
+# Gating: combined_compliance_report produces gateable recommendations
+# ============================================================
+
+class TestCombinedReportGating:
+    """Verify that combined_compliance_report generates recommendations
+    and that _make_result_dict gates them correctly (first 2 full, rest gated)."""
+
+    def test_high_risk_generates_recommendations(self, tmp_path):
+        """High-risk project with AI + PII must produce 3+ recommendations."""
+        (tmp_path / "app.py").write_text(
+            "import openai\nclient = openai.OpenAI()\n"
+            "email = user.email\nfirst_name = user.first_name\n"
+        )
+        eu = EUAIActChecker(str(tmp_path))
+        eu.scan_project()
+        compliance = eu.check_compliance("high")
+        recs = eu._generate_recommendations(compliance)
+        failing = [r for r in recs if r.get("status") == "FAIL"]
+        assert len(failing) >= 3, f"Expected 3+ failing recs for high-risk, got {len(failing)}"
+
+    def test_gating_applied_to_combined_raw(self, tmp_path):
+        """_make_result_dict must gate recommendations from combined report."""
+        (tmp_path / "app.py").write_text(
+            "import openai\nclient = openai.OpenAI()\n"
+            "email = user.email\nfirst_name = user.first_name\n"
+        )
+        eu = EUAIActChecker(str(tmp_path))
+        eu_scan = eu.scan_project()
+        compliance = eu.check_compliance("high")
+        recs = eu._generate_recommendations(compliance)
+
+        combined_raw = {
+            "recommendations": recs,
+            "compliance_status": compliance.get("compliance_status", {}),
+            "compliance_score": compliance.get("compliance_score"),
+            "compliance_percentage": compliance.get("compliance_percentage", 0),
+            "detected_models": eu_scan.get("detected_models", {}),
+        }
+        with patch("server._get_plan", return_value="free"):
+            result = _make_result_dict(combined_raw)
+
+        gated_recs = result.get("recommendations", [])
+        assert len(gated_recs) >= 3
+        ungated = [r for r in gated_recs if not r.get("gated")]
+        gated = [r for r in gated_recs if r.get("gated")]
+        assert len(ungated) == 2, f"Expected 2 ungated, got {len(ungated)}"
+        assert len(gated) >= 1, f"Expected 1+ gated, got {len(gated)}"
+        assert "how" in ungated[0]
+        assert "how" not in gated[0]
+
+    def test_pro_plan_no_gating(self, tmp_path):
+        """Pro plan must see all recommendations ungated."""
+        (tmp_path / "app.py").write_text("import openai\nclient = openai.OpenAI()\n")
+        eu = EUAIActChecker(str(tmp_path))
+        eu.scan_project()
+        compliance = eu.check_compliance("high")
+        recs = eu._generate_recommendations(compliance)
+
+        combined_raw = {
+            "recommendations": recs,
+            "compliance_status": compliance.get("compliance_status", {}),
+            "compliance_score": compliance.get("compliance_score"),
+            "compliance_percentage": compliance.get("compliance_percentage", 0),
+        }
+        with patch("server._get_plan", return_value="pro"):
+            result = _make_result_dict(combined_raw)
+
+        all_recs = result.get("recommendations", [])
+        assert len(all_recs) == len(recs)
+        assert not any(r.get("gated") for r in all_recs)
