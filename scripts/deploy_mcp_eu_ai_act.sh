@@ -465,7 +465,7 @@ PYPI_BUILD_OK=false
 PYPI_UPLOAD_OK=false
 if rm -rf dist/ && python3 -m build -q >> "$LOG_FILE" 2>&1; then
     PYPI_BUILD_OK=true
-    TWINE_OUT=$(twine upload dist/* 2>&1)
+    TWINE_OUT=$(python3 -m twine upload dist/* 2>&1)
     echo "$TWINE_OUT" >> "$LOG_FILE"
     if echo "$TWINE_OUT" | grep -q "View at:"; then
         PYPI_UPLOAD_OK=true
