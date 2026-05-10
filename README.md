@@ -78,7 +78,7 @@ Track compliance over time (free): `eu-ai-act-scanner . --register you@email.com
 
 Free tier: no sign-up, no API key — just `pip install` and scan. Pro unlocks the full compliance toolkit your team needs before the August 2026 deadline.
 
-**[→ Compare plans & get your API key](https://arkforge.tech/en/pricing.html?utm_source=pypi&utm_medium=readme&utm_campaign=mcp_euaiact)**
+**[→ Compare plans & get your API key](https://arkforge.tech/en/pricing.html?utm_source=github&utm_medium=readme&utm_campaign=mcp_euaiact)**
 
 ## What's New in v2
 
@@ -396,7 +396,7 @@ Free Trust Layer account: 500 certified proofs/month → [arkforge.tech](https:/
 | Pro | €29/month | Unlimited scans · all 10 tools · compliance roadmap · Annex IV package |
 | Certified | €99/month | Everything in Pro + Trust Layer certification on every report |
 
-[Get your API key →](https://arkforge.tech/en/pricing.html?utm_source=pypi&utm_medium=readme&utm_campaign=mcp_euaiact)
+[Get your API key →](https://arkforge.tech/en/pricing.html?utm_source=github&utm_medium=readme&utm_campaign=mcp_euaiact)
 
 ## REST API
 
