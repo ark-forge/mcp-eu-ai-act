@@ -118,6 +118,12 @@ class TestHumanOutput:
         assert "upgrade" in out
         assert "free_to_pro" in out["upgrade"]["checkout_url"]
 
+    def test_upgrade_cta_hidden_with_pro_flag(self, project_with_openai, capsys):
+        main([project_with_openai, "--pro"])
+        out = capsys.readouterr().out
+        assert "Unlock with Pro" not in out
+        assert "Scan Summary" not in out
+
 
 class TestProKeyCache:
     def test_cache_avoids_network_call(self, tmp_path, monkeypatch):

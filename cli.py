@@ -50,7 +50,6 @@ __version__ = _resolve_version()
 PRICING_URL = "https://arkforge.tech/en/pricing.html?utm_source=cli"
 CHECKOUT_URL = "https://arkforge.tech/en/scanner-pro.html?utm_source=cli&utm_medium=upgrade"
 UPGRADE_CTA_URL = "https://arkforge.tech/en/scanner-pro.html?utm_source=cli&utm_medium=scan_result&utm_campaign=free_to_pro"
-PRO_SCAN_CTA_URL = "https://arkforge.tech/en/pricing.html?utm_source=cli&utm_medium=scan_cta"
 REGISTER_API = "https://mcp.arkforge.tech/api/register"
 VERIFY_KEY_API = "https://mcp.arkforge.tech/api/verify-key"
 
@@ -491,9 +490,9 @@ def main(argv: list[str] | None = None) -> int:
     effective_failing = 0 if compliance.get("no_ai_detected") else failing_count
     print(_mcp_bridge(effective_failing))
 
-    if not is_pro:
+    if not is_pro and not args.pro:
         print(_build_post_scan_cta(scan, compliance))
-        if not args.register and not args.pro:
+        if not args.register:
             print(f"  Track compliance over time (free): eu-ai-act-scanner . --register you@email.com")
 
     return 0
