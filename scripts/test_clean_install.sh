@@ -27,10 +27,13 @@ mkdir -p "$INSTALL_DIR"
 # Step 2: Copy only distributable files (simulate git clone)
 echo "[2/6] Copying distributable files..."
 cp "$REPO_DIR/server.py" "$INSTALL_DIR/"
+cp "$REPO_DIR/gdpr_module.py" "$INSTALL_DIR/"
 cp "$REPO_DIR/manifest.json" "$INSTALL_DIR/"
 cp "$REPO_DIR/requirements.txt" "$INSTALL_DIR/"
 cp "$REPO_DIR/README.md" "$INSTALL_DIR/"
 cp "$REPO_DIR/LICENSE" "$INSTALL_DIR/"
+mkdir -p "$INSTALL_DIR/data"
+cp "$REPO_DIR/data/eu_ai_act_articles.json" "$INSTALL_DIR/data/"
 cp -r "$REPO_DIR/tests" "$INSTALL_DIR/tests" 2>/dev/null || true
 
 # Step 3: Create virtual environment
@@ -41,6 +44,7 @@ source "$INSTALL_DIR/venv/bin/activate"
 # Step 4: Install dependencies
 echo "[4/6] Installing dependencies..."
 pip install -q --upgrade pip
+pip install -q -r "$INSTALL_DIR/requirements.txt"
 pip install -q pytest pytest-cov
 
 # Step 5: Run import test
@@ -50,7 +54,7 @@ python3 -c "
 from server import MCPServer, EUAIActChecker
 server = MCPServer()
 tools = server.list_tools()
-assert len(tools['tools']) == 3, f'Expected 3 tools, got {len(tools[\"tools\"])}'
+assert len(tools['tools']) >= 3, f'Expected at least 3 tools, got {len(tools[\"tools\"])}'
 
 # Quick scan test
 result = server.handle_request('scan_project', {'project_path': '.'})

@@ -741,6 +741,43 @@ def _record_mcp_scan(api_key: Optional[str], ip: str, tool_name: str,
 
 _UNIQUE_CLIENTS_PATH = Path(__file__).parent / "data" / "unique_mcp_clients.json"
 
+_PHONE_HOME_URL = "https://trust.arkforge.tech/api/mcp-scan-ping"
+
+
+def _stdio_phone_home(tool_name: str, scan_id: str = None,
+                      models_found: int = 0, files_scanned: int = 0):
+    """Fire-and-forget ping to track stdio usage. Non-blocking, fail-silent."""
+    transport = _get_transport()
+    if transport not in ("stdio", "unknown"):
+        return
+    import threading
+
+    def _ping():
+        try:
+            import urllib.request
+            payload = json.dumps({
+                "tool": tool_name,
+                "transport": "stdio",
+                "scan_id": scan_id or "",
+                "models_found": models_found,
+                "files_scanned": files_scanned,
+                "v": _SCHEMA_VERSION,
+            }).encode()
+            req = urllib.request.Request(
+                _PHONE_HOME_URL,
+                data=payload,
+                headers={
+                    "Content-Type": "application/json",
+                    "User-Agent": "ArkForge-MCP-Scanner/2.0.33",
+                },
+                method="POST",
+            )
+            urllib.request.urlopen(req, timeout=5)
+        except Exception:
+            pass
+
+    threading.Thread(target=_ping, daemon=True).start()
+
 
 def _compute_funnel_metrics() -> dict:
     """Compute corrected conversion funnel metrics.
@@ -3486,7 +3523,7 @@ def create_server():
         port=8090,
         json_response=True,
         transport_security=TransportSecuritySettings(
-            allowed_hosts=["mcp.arkforge.tech", "arkforge.tech", "127.0.0.1:8090", "localhost:8090"],
+            allowed_hosts=["mcp.arkforge.tech", "arkforge.tech", "trust.arkforge.tech", "127.0.0.1:8090", "localhost:8090"],
         ),
     )
 
@@ -3516,6 +3553,9 @@ def create_server():
             "scan_id": scan_id,
             "is_demo": is_demo,
         })
+        _stdio_phone_home("scan_project", scan_id=scan_id,
+                          models_found=len(result_dict.get("detected_models", {})),
+                          files_scanned=result_dict.get("files_scanned", 0))
         return _build_content_blocks(result_dict)
 
     @mcp.tool()
@@ -3533,6 +3573,7 @@ def create_server():
         scan_id = _generate_scan_id()
         _log_tool_call("check_compliance", cta_included=plan not in ("pro", "paid_scan", "marketplace", "certified"),
                        extra={"scan_id": scan_id, "is_demo": is_demo})
+        _stdio_phone_home("check_compliance", scan_id=scan_id)
         compliance_raw = checker.check_compliance(_risk_value(risk_category))
         result_dict = _make_result_dict(compliance_raw, scan_id=scan_id)
         if is_demo:
@@ -3555,6 +3596,7 @@ def create_server():
         plan = _get_plan()
         cta_included = plan not in ("pro", "paid_scan", "marketplace", "certified")
         _log_tool_call("generate_report", cta_included=cta_included, extra={"is_demo": is_demo})
+        _stdio_phone_home("generate_report")
         report_raw = checker.generate_report(scan_results, compliance_results)
         result_dict = _make_result_dict(report_raw)
         if is_demo:
@@ -4304,6 +4346,9 @@ def create_server():
             "hotspots": len(dual_flagged),
             "is_demo": is_demo,
         })
+        _stdio_phone_home("combined_compliance_report",
+                          models_found=len(eu_scan.get("detected_models", {})),
+                          files_scanned=eu_scan.get("files_scanned", 0))
         combined_raw = {
             "project_path": resolved_path if not is_demo else "demo-project",
             "scan_summary": {

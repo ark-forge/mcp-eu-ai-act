@@ -18,7 +18,7 @@ An auditor visiting the `verification_url` can independently verify that your co
 
 ## Getting an API Key
 
-1. Go to [arkforge.tech/en/pricing.html](https://arkforge.tech/en/pricing.html)
+1. Go to [arkforge.tech/en/pricing.html](https://arkforge.tech/en/pricing.html?utm_source=github_docs&utm_medium=readme)
 2. Choose the **Free** plan (500 proofs/month included) or a paid plan for higher volume
 3. Register with your email — your API key is generated immediately
 4. Save the key securely; it starts with `ak_` followed by 40 hex characters

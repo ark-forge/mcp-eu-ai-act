@@ -50,6 +50,7 @@ __version__ = _resolve_version()
 PRICING_URL = "https://arkforge.tech/en/pricing.html?utm_source=cli"
 CHECKOUT_URL = "https://arkforge.tech/en/scanner-pro.html?utm_source=cli&utm_medium=upgrade"
 UPGRADE_CTA_URL = "https://arkforge.tech/en/scanner-pro.html?utm_source=cli&utm_medium=scan_result&utm_campaign=free_to_pro"
+PRO_SCAN_CTA_URL = "https://arkforge.tech/en/pricing.html?utm_source=cli&utm_medium=scan_cta"
 REGISTER_API = "https://mcp.arkforge.tech/api/register"
 VERIFY_KEY_API = "https://mcp.arkforge.tech/api/verify-key"
 
@@ -76,6 +77,12 @@ UPGRADE_CTA = f"""
   29 EUR/month -- 14-day free trial, cancel anytime
   {UPGRADE_CTA_URL}
   ─────────────────────────────────────────────────────────────────"""
+
+PRO_SCAN_CTA = (
+    "\n  ⭐ Pro features: PDF export · CI/CD integration · GDPR scan\n"
+    "     Unlimited scans · Annex IV package · Compliance roadmap\n"
+    f"     → {PRO_SCAN_CTA_URL}\n"
+)
 
 
 def _mcp_bridge(failing_count: int) -> str:
@@ -435,6 +442,9 @@ def main(argv: list[str] | None = None) -> int:
 
     _print_scan_results(scan)
     _print_compliance_results(compliance)
+
+    if not is_pro:
+        print(PRO_SCAN_CTA)
 
     failing_count = sum(
         1 for v in compliance.get("compliance_status", {}).values() if not v
