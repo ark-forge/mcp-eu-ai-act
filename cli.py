@@ -68,21 +68,46 @@ UPSELL_BLOCK = f"""
   29 EUR/month — start 14-day free trial → {CHECKOUT_URL}
 """
 
-UPGRADE_CTA = f"""
-  ── Upgrade to Pro ────────────────────────────────────────────────
-  1. CI/CD integration -- block non-compliant deploys via API
-  2. Unlimited scans -- no daily cap, full scan history
-  3. Compliance reports -- PDF/JSON export for auditors
 
-  29 EUR/month -- 14-day free trial, cancel anytime
-  {UPGRADE_CTA_URL}
-  ─────────────────────────────────────────────────────────────────"""
+def _build_post_scan_cta(scan: dict, compliance: dict) -> str:
+    """Build a concise post-scan CTA summarizing findings and Pro benefits."""
+    lines: list[str] = []
+    lines.append("")
+    lines.append("  ── Scan Summary ──────────────────────────────────────────────")
 
-PRO_SCAN_CTA = (
-    "\n  ⭐ Pro features: PDF export · CI/CD integration · GDPR scan\n"
-    "     Unlimited scans · Annex IV package · Compliance roadmap\n"
-    f"     → {PRO_SCAN_CTA_URL}\n"
-)
+    files = scan.get("files_scanned", 0)
+    frameworks = scan.get("detected_models", {})
+    status = compliance.get("compliance_status", {})
+    passing = sum(1 for v in status.values() if v)
+    total = len(status)
+    failing = total - passing
+    risk = compliance.get("risk_category", "unknown")
+
+    summary_parts = [f"{files} files scanned"]
+    if frameworks:
+        fw_names = ", ".join(frameworks.keys())
+        summary_parts.append(f"{len(frameworks)} AI framework{'s' if len(frameworks) > 1 else ''} ({fw_names})")
+    summary_parts.append(f"{passing}/{total} checks passing")
+    lines.append(f"  {' · '.join(summary_parts)}")
+
+    if failing > 0:
+        lines.append(f"  Risk: {risk} — {failing} check{'s' if failing > 1 else ''} need attention")
+    else:
+        lines.append(f"  Risk: {risk} — all checks passing")
+
+    lines.append("")
+    lines.append("  ── Unlock with Pro ───────────────────────────────────────────")
+    lines.append("  · CI/CD gating — block non-compliant deploys automatically")
+    lines.append("  · Scan history — track compliance over time")
+    lines.append("  · PDF/JSON export — audit-ready reports for legal teams")
+    if failing > 0:
+        lines.append(f"  · Step-by-step remediation for {failing} failing check{'s' if failing > 1 else ''}")
+    lines.append("")
+    lines.append(f"  29 EUR/month — 14-day free trial → {UPGRADE_CTA_URL}")
+    lines.append("  ─────────────────────────────────────────────────────────────────")
+    lines.append("")
+
+    return "\n".join(lines)
 
 
 def _mcp_bridge(failing_count: int) -> str:
@@ -443,9 +468,6 @@ def main(argv: list[str] | None = None) -> int:
     _print_scan_results(scan)
     _print_compliance_results(compliance)
 
-    if not is_pro:
-        print(PRO_SCAN_CTA)
-
     failing_count = sum(
         1 for v in compliance.get("compliance_status", {}).values() if not v
     )
@@ -470,7 +492,7 @@ def main(argv: list[str] | None = None) -> int:
     print(_mcp_bridge(effective_failing))
 
     if not is_pro:
-        print(UPGRADE_CTA)
+        print(_build_post_scan_cta(scan, compliance))
         if not args.register and not args.pro:
             print(f"  Track compliance over time (free): eu-ai-act-scanner . --register you@email.com")
 

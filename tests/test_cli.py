@@ -94,16 +94,17 @@ class TestHumanOutput:
     def test_upgrade_cta_shown(self, project_with_openai, capsys):
         main([project_with_openai])
         out = capsys.readouterr().out
-        assert "Upgrade to Pro" in out
+        assert "Unlock with Pro" in out
+        assert "Scan Summary" in out
         assert "EUR/month" in out
         assert "utm_campaign=free_to_pro" in out
-
 
     def test_upgrade_cta_hidden_with_pro_key(self, project_with_openai, capsys):
         with patch("cli._is_pro_key", return_value=True):
             main([project_with_openai, "--api-key", "ak_test_pro"])
         out = capsys.readouterr().out
-        assert "Upgrade to Pro" not in out
+        assert "Unlock with Pro" not in out
+        assert "Scan Summary" not in out
 
     def test_upgrade_cta_in_json_hidden_with_pro_key(self, project_with_openai, capsys):
         with patch("cli._is_pro_key", return_value=True):
