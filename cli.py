@@ -62,11 +62,6 @@ PRO_FEATURES = [
     "Email alerts when compliance status changes",
 ]
 
-UPSELL_BLOCK = f"""
-  ── Pro: unlimited scans + CI/CD API + step-by-step remediation ──
-  29 EUR/month — start 14-day free trial → {CHECKOUT_URL}
-"""
-
 
 def _build_post_scan_cta(scan: dict, compliance: dict) -> str:
     """Build a concise post-scan CTA summarizing findings and Pro benefits."""
