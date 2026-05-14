@@ -165,6 +165,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.37] — 2026-05-14
+
+### Added
+- add trial badge to READMEs + post-scan CTA in CLI
+- consolidate post-scan CTA with personalized summary
+
+### Fixed
+- align UTM tracking — pypi attribution for CLI constants + sidebar disambiguation
+- remove dead UPSELL_BLOCK constant
+- suppress post-scan CTA when --pro flag is used
+
+---
+
 ## [2.0.31] — 2026-04-24
 
 ### Fixed
