@@ -47,9 +47,9 @@ def _resolve_version() -> str:
 
 __version__ = _resolve_version()
 
-PRICING_URL = "https://arkforge.tech/en/pricing.html?utm_source=cli"
-CHECKOUT_URL = "https://arkforge.tech/en/scanner-pro.html?utm_source=cli&utm_medium=upgrade"
-UPGRADE_CTA_URL = "https://arkforge.tech/en/scanner-pro.html?utm_source=cli&utm_medium=scan_result&utm_campaign=free_to_pro"
+PRICING_URL = "https://arkforge.tech/en/pricing.html?utm_source=pypi&utm_medium=cli"
+CHECKOUT_URL = "https://arkforge.tech/en/scanner-pro.html?utm_source=pypi&utm_medium=cli&utm_campaign=upgrade"
+UPGRADE_CTA_URL = "https://arkforge.tech/en/scanner-pro.html?utm_source=pypi&utm_medium=cli&utm_campaign=free_to_pro"
 TRIAL_URL = "https://trust.arkforge.tech/trial?utm_source=pypi_mcp&utm_medium=cli_postscan"
 REGISTER_API = "https://mcp.arkforge.tech/api/register"
 VERIFY_KEY_API = "https://mcp.arkforge.tech/api/verify-key"
@@ -492,7 +492,22 @@ def main(argv: list[str] | None = None) -> int:
     if not is_pro and not args.pro:
         print(_build_post_scan_cta(scan, compliance))
         if not args.register:
-            print(f"  Track compliance over time (free): eu-ai-act-scanner . --register you@email.com")
+            if sys.stdin.isatty() and sys.stdout.isatty():
+                try:
+                    email = input("  Save this scan — enter your email for a free API key (Enter to skip): ").strip()
+                    if email and "@" in email:
+                        result = _register_cli_user(email)
+                        if result and result.get("key"):
+                            print(f"\n  Registered! API key: {result['key']}")
+                            print(f"    Plan: {result.get('plan', 'free')} (10 scans/day)")
+                            print(f"    Set EU_AI_ACT_API_KEY={result['key']} for CI/CD")
+                            print(f"    Upgrade to Pro → {CHECKOUT_URL}")
+                        elif result:
+                            print(f"\n  Registration failed. Sign up at: {CHECKOUT_URL}")
+                except (EOFError, KeyboardInterrupt):
+                    print()
+            else:
+                print(f"  Track compliance over time (free): eu-ai-act-scanner . --register you@email.com")
 
     return 0
 

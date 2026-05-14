@@ -29,7 +29,7 @@ keywords = [
 Homepage = "https://github.com/ark-forge/mcp-eu-ai-act"
 Repository = "https://github.com/ark-forge/mcp-eu-ai-act"
 Documentation = "https://mcp.arkforge.tech/fr/mcp-eu-ai-act.html?utm_source=pypi"
-Pricing = "https://arkforge.tech/en/pricing.html?utm_source=pypi&utm_medium=readme&utm_campaign=mcp_euaiact"
+Pricing = "https://arkforge.tech/en/pricing.html?utm_source=pypi&utm_medium=pypi_sidebar&utm_campaign=mcp_euaiact"
 
 [project.scripts]
 eu-ai-act-scanner = "cli:main"
