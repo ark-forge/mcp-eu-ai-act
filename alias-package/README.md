@@ -1,5 +1,7 @@
 # mcp-eu-ai-act
 
+[![Try Free](https://img.shields.io/badge/Try_Free-14_day_trial-orange)](https://trust.arkforge.tech/trial?utm_source=pypi_mcp&utm_medium=readme)
+
 This is an alias package that installs [`eu-ai-act-scanner`](https://pypi.org/project/eu-ai-act-scanner/).
 
 ```bash

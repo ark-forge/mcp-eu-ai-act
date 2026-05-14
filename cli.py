@@ -50,6 +50,7 @@ __version__ = _resolve_version()
 PRICING_URL = "https://arkforge.tech/en/pricing.html?utm_source=cli"
 CHECKOUT_URL = "https://arkforge.tech/en/scanner-pro.html?utm_source=cli&utm_medium=upgrade"
 UPGRADE_CTA_URL = "https://arkforge.tech/en/scanner-pro.html?utm_source=cli&utm_medium=scan_result&utm_campaign=free_to_pro"
+TRIAL_URL = "https://trust.arkforge.tech/trial?utm_source=pypi_mcp&utm_medium=cli_postscan"
 REGISTER_API = "https://mcp.arkforge.tech/api/register"
 VERIFY_KEY_API = "https://mcp.arkforge.tech/api/verify-key"
 
@@ -461,6 +462,9 @@ def main(argv: list[str] | None = None) -> int:
 
     _print_scan_results(scan)
     _print_compliance_results(compliance)
+
+    if not is_pro:
+        print(f"\n  Start a 14-day free trial → {TRIAL_URL}")
 
     failing_count = sum(
         1 for v in compliance.get("compliance_status", {}).values() if not v

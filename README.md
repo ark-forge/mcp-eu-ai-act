@@ -2,6 +2,7 @@
 
 [![PyPI version](https://badge.fury.io/py/eu-ai-act-scanner.svg)](https://pypi.org/project/eu-ai-act-scanner/)
 [![GitHub Stars](https://img.shields.io/github/stars/ark-forge/mcp-eu-ai-act?style=flat&label=⭐%20Star%20this%20repo)](https://github.com/ark-forge/mcp-eu-ai-act/stargazers)
+[![Try Free](https://img.shields.io/badge/Try_Free-14_day_trial-orange)](https://trust.arkforge.tech/trial?utm_source=pypi_mcp&utm_medium=readme)
 [![Pro Plan — €29/mo](https://img.shields.io/badge/Pro_Plan-€29%2Fmo-brightgreen)](https://arkforge.tech/en/pricing.html?utm_source=github&utm_medium=readme&utm_campaign=mcp_euaiact)
 [![Works with Claude](https://img.shields.io/badge/Works%20with-Claude-blueviolet)](https://claude.ai)
 [![Works with Cursor](https://img.shields.io/badge/Works%20with-Cursor-blue)](https://cursor.com)
