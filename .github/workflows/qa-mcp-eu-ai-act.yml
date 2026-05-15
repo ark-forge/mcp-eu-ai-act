@@ -219,15 +219,17 @@ jobs:
         run: pip install pip-audit
 
       - name: Run Bandit (security linter)
+        continue-on-error: true
         run: |
-          bandit -r . -f json -o bandit-report.json || true
-          bandit -r . -ll || true
+          bandit -r . -f json -o bandit-report.json
+          bandit -r . -ll
 
       - name: Check dependencies for vulnerabilities (pip-audit)
+        continue-on-error: true
         run: |
           if [ -f requirements.txt ]; then
-            pip-audit -r requirements.txt --format=json -o pip-audit-report.json || echo "⚠️ Vulnerabilities found, check pip-audit-report.json"
-            pip-audit -r requirements.txt || true
+            pip-audit -r requirements.txt --format=json -o pip-audit-report.json
+            pip-audit -r requirements.txt
           else
             echo "No requirements.txt found, skipping pip-audit"
           fi
