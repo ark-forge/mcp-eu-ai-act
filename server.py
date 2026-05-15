@@ -633,7 +633,7 @@ def _record_registration(email: str, source: str, ip: str, api_key: str,
     entry = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "email_hash": hashlib.sha256(email.lower().strip().encode()).hexdigest()[:16],
-        "source": source,  # "mcp_tool", "api_direct", "cli"
+        "source": source,  # "mcp_tool", "api_direct", "cli", "mcp_phonehome", "mcp_tool_local_fallback"
         "ip": ip,
         "api_key_prefix": api_key[:12] + "..." if api_key else None,
         "scan_id": scan_id,
@@ -1062,6 +1062,7 @@ class RateLimitMiddleware:
                 return
             result = _api_key_manager.register_key(email, plan)
             # Log registration for funnel tracking
+            reg_source = (data.get("source") or "api_direct").strip().lower()[:64]
             reg_ip = _get_header(scope, b"x-real-ip")
             if not reg_ip:
                 xff = _get_header(scope, b"x-forwarded-for")
@@ -1070,7 +1071,7 @@ class RateLimitMiddleware:
                 client = scope.get("client")
                 reg_ip = client[0] if client else "unknown"
             _record_registration(
-                email=email, source="api_direct", ip=reg_ip,
+                email=email, source=reg_source, ip=reg_ip,
                 api_key=result.get("key", ""),
             )
             await self._json_response(send, 201, result)
