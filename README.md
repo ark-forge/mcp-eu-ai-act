@@ -2,8 +2,8 @@
 
 [![PyPI version](https://badge.fury.io/py/eu-ai-act-scanner.svg)](https://pypi.org/project/eu-ai-act-scanner/)
 [![GitHub Stars](https://img.shields.io/github/stars/ark-forge/mcp-eu-ai-act?style=flat&label=⭐%20Star%20this%20repo)](https://github.com/ark-forge/mcp-eu-ai-act/stargazers)
-[![Try Free](https://img.shields.io/badge/Try_Free-14_day_trial-orange)](https://trust.arkforge.tech/trial?utm_source=pypi_mcp&utm_medium=readme)
-[![Pro Plan — €29/mo](https://img.shields.io/badge/Pro_Plan-€29%2Fmo-brightgreen)](https://arkforge.tech/en/pricing.html?utm_source=github&utm_medium=readme&utm_campaign=mcp_euaiact)
+[![Start Free](https://img.shields.io/badge/Start_Free-scan_now-orange)](https://arkforge.tech/en/pricing.html?utm_source=pypi&utm_medium=readme)
+[![Pro Plan — €29/mo](https://img.shields.io/badge/Pro_Plan-€29%2Fmo-brightgreen)](https://arkforge.tech/en/pricing.html?utm_source=pypi&utm_medium=readme&utm_campaign=mcp_euaiact)
 [![Works with Claude](https://img.shields.io/badge/Works%20with-Claude-blueviolet)](https://claude.ai)
 [![Works with Cursor](https://img.shields.io/badge/Works%20with-Cursor-blue)](https://cursor.com)
 
@@ -20,9 +20,9 @@ Detects 16 AI frameworks in your codebase, maps each to binding legal articles, 
 
 If this tool helps your compliance work, a ⭐ on GitHub helps others discover it.
 
-> **Need audit-grade proof?** Certify every scan with [ArkForge Trust Layer](https://arkforge.tech/trust?utm_source=github_readme) — tamper-proof, timestamped compliance evidence. 500 free proofs/month.
+> **Need audit-grade proof?** Certify every scan with [ArkForge Trust Layer](https://arkforge.tech/trust?utm_source=pypi_readme) — tamper-proof, timestamped compliance evidence. 500 free proofs/month.
 
-**[Get your compliance report →](https://arkforge.tech/en/pricing.html?utm_source=github&utm_medium=readme&utm_campaign=mcp_euaiact)**
+**[Get your compliance report →](https://arkforge.tech/en/pricing.html?utm_source=pypi&utm_medium=readme&utm_campaign=mcp_euaiact)**
 
 ## Quick Start
 
@@ -79,7 +79,7 @@ Track compliance over time (free): `eu-ai-act-scanner . --register you@email.com
 
 Free tier: no sign-up, no API key — just `pip install` and scan. Pro unlocks the full compliance toolkit your team needs before the August 2026 deadline.
 
-**[→ Compare plans & get your API key](https://arkforge.tech/en/pricing.html?utm_source=github&utm_medium=readme&utm_campaign=mcp_euaiact)**
+**[→ Compare plans & get your API key](https://arkforge.tech/en/pricing.html?utm_source=pypi&utm_medium=readme&utm_campaign=mcp_euaiact)**
 
 ## What's New in v2
 
@@ -387,7 +387,7 @@ certify_compliance_report(
 )
 ```
 
-Free Trust Layer account: 500 certified proofs/month → [arkforge.tech](https://arkforge.tech/trust?utm_source=github_readme&utm_medium=referral)
+Free Trust Layer account: 500 certified proofs/month → [arkforge.tech](https://arkforge.tech/trust?utm_source=pypi_readme&utm_medium=referral)
 
 ## Pricing
 
@@ -397,7 +397,7 @@ Free Trust Layer account: 500 certified proofs/month → [arkforge.tech](https:/
 | Pro | €29/month | Unlimited scans · all 10 tools · compliance roadmap · Annex IV package |
 | Certified | €99/month | Everything in Pro + Trust Layer certification on every report |
 
-[Get your API key →](https://arkforge.tech/en/pricing.html?utm_source=github&utm_medium=readme&utm_campaign=mcp_euaiact)
+[Get your API key →](https://arkforge.tech/en/pricing.html?utm_source=pypi&utm_medium=readme&utm_campaign=mcp_euaiact)
 
 ## REST API
 
@@ -420,7 +420,7 @@ python3 paywall_api.py
 | `POST` | `/api/webhook` | Stripe sig | Stripe webhook handler |
 
 **Free tier**: 5 scans/day per IP, no sign-up required.
-**Pro tier**: Unlimited scans, `X-API-Key` header. 29 EUR/month via [arkforge.tech/pricing](https://arkforge.tech/en/pricing.html?utm_source=github&utm_medium=readme&utm_campaign=mcp_euaiact).
+**Pro tier**: Unlimited scans, `X-API-Key` header. 29 EUR/month via [arkforge.tech/pricing](https://arkforge.tech/en/pricing.html?utm_source=pypi&utm_medium=readme&utm_campaign=mcp_euaiact).
 
 ### Example: scan via REST
 

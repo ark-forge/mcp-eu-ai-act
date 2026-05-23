@@ -51,6 +51,7 @@ PRICING_URL = "https://arkforge.tech/en/pricing.html?utm_source=pypi&utm_medium=
 CHECKOUT_URL = "https://arkforge.tech/en/scanner-pro.html?utm_source=pypi&utm_medium=cli&utm_campaign=upgrade"
 UPGRADE_CTA_URL = "https://arkforge.tech/en/scanner-pro.html?utm_source=pypi&utm_medium=cli&utm_campaign=free_to_pro"
 TRIAL_URL = "https://trust.arkforge.tech/trial?utm_source=pypi_mcp&utm_medium=cli_postscan"
+POST_SCAN_CTA_URL = "https://arkforge.tech/en/pricing.html?utm_source=cli_scan&utm_medium=terminal&utm_campaign=eu_ai_act"
 REGISTER_API = "https://mcp.arkforge.tech/api/register"
 VERIFY_KEY_API = "https://mcp.arkforge.tech/api/verify-key"
 
@@ -98,7 +99,7 @@ def _build_post_scan_cta(scan: dict, compliance: dict) -> str:
     if failing > 0:
         lines.append(f"  · Step-by-step remediation for {failing} failing check{'s' if failing > 1 else ''}")
     lines.append("")
-    lines.append(f"  29 EUR/month — 14-day free trial → {UPGRADE_CTA_URL}")
+    lines.append(f"  29 EUR/month — 14-day free trial → {POST_SCAN_CTA_URL}")
     lines.append("  ─────────────────────────────────────────────────────────────────")
     lines.append("")
 
@@ -439,7 +440,7 @@ def main(argv: list[str] | None = None) -> int:
         }
         if not is_pro:
             output["upgrade"] = {
-                "pricing_url": PRICING_URL,
+                "pricing_url": POST_SCAN_CTA_URL,
                 "checkout_url": UPGRADE_CTA_URL,
                 "pro_features": PRO_FEATURES,
             }
@@ -464,7 +465,7 @@ def main(argv: list[str] | None = None) -> int:
     _print_compliance_results(compliance)
 
     if not is_pro:
-        print(f"\n  Start a 14-day free trial → {TRIAL_URL}")
+        print(f"\n  Unlock unlimited scans & CI/CD integration → {POST_SCAN_CTA_URL}")
 
     failing_count = sum(
         1 for v in compliance.get("compliance_status", {}).values() if not v
