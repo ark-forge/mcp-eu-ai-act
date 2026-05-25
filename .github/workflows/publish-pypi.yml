@@ -72,9 +72,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: publish-pypi
     environment: pypi
-    # Soft-fail: alias package requires a Pending Trusted Publisher on pypi.org
-    # to create the project for the first time. Don't block main package publish.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v6
 
@@ -84,26 +81,30 @@ jobs:
           python-version: '3.12'
 
       - name: Install build tools
-        run: pip install build
+        run: pip install build twine
 
       - name: Build alias package
         working-directory: alias-package
         run: python -m build
 
-      - name: Check PYPI_TOKEN availability
-        id: check_pypi_alias
+      - name: Check alias project status
+        id: check_alias
         run: |
-          if [ -n "$PYPI_TOKEN_VAL" ]; then
-            echo "available=true" >> $GITHUB_OUTPUT
+          if curl -sf "https://pypi.org/pypi/mcp-eu-ai-act/json" > /dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
           else
-            echo "available=false" >> $GITHUB_OUTPUT
-            echo "::warning::PYPI_TOKEN not set — attempting OIDC Trusted Publishing for alias package"
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+          if [ -n "$PYPI_TOKEN_VAL" ]; then
+            echo "has_token=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_token=false" >> $GITHUB_OUTPUT
           fi
         env:
           PYPI_TOKEN_VAL: ${{ secrets.PYPI_TOKEN }}
 
       - name: Publish alias to PyPI (API token)
-        if: steps.check_pypi_alias.outputs.available == 'true'
+        if: steps.check_alias.outputs.exists == 'true' && steps.check_alias.outputs.has_token == 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_TOKEN }}
@@ -111,17 +112,32 @@ jobs:
           skip-existing: true
 
       - name: Publish alias to PyPI (Trusted Publishing / OIDC)
-        if: steps.check_pypi_alias.outputs.available == 'false'
-        # Requires Pending Trusted Publisher on pypi.org for NEW projects:
-        #   Project: mcp-eu-ai-act | Owner: ark-forge | Repo: mcp-eu-ai-act
-        #   Workflow: publish-pypi.yml | Env: pypi
-        # Setup: https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/
+        if: steps.check_alias.outputs.exists == 'true' && steps.check_alias.outputs.has_token == 'false'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: alias-package/dist/
           skip-existing: true
 
-      - name: Verify alias package publish
+      - name: First-time publish alias
+        if: steps.check_alias.outputs.exists == 'false'
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          if [ -z "$TWINE_PASSWORD" ]; then
+            echo "::warning::Cannot create mcp-eu-ai-act on PyPI without PYPI_TOKEN. Configure a Pending Trusted Publisher at pypi.org/manage/account/publishing or set PYPI_TOKEN secret."
+            exit 0
+          fi
+          python -m twine upload alias-package/dist/* --skip-existing 2>&1 || {
+            echo "::warning::Alias upload failed — verify email at pypi.org/manage/account then re-run this workflow."
+            exit 0
+          }
+
+      - name: Verify alias package
         run: |
           sleep 10
-          curl -sf "https://pypi.org/pypi/mcp-eu-ai-act/json" > /dev/null 2>&1 && echo "mcp-eu-ai-act found on PyPI" || echo "::warning::mcp-eu-ai-act not yet visible — Trusted Publisher may need setup for this project name"
+          if curl -sf "https://pypi.org/pypi/mcp-eu-ai-act/json" > /dev/null 2>&1; then
+            echo "mcp-eu-ai-act found on PyPI"
+          else
+            echo "::notice::mcp-eu-ai-act not yet on PyPI — verify email at pypi.org/manage/account then re-run"
+          fi
