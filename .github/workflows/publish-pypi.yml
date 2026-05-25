@@ -87,7 +87,32 @@ jobs:
         working-directory: alias-package
         run: python -m build
 
+      - name: Check PYPI_TOKEN availability
+        id: check_pypi_alias
+        run: |
+          if [ -n "$PYPI_TOKEN_VAL" ]; then
+            echo "available=true" >> $GITHUB_OUTPUT
+          else
+            echo "available=false" >> $GITHUB_OUTPUT
+            echo "::warning::PYPI_TOKEN not set — attempting OIDC Trusted Publishing for alias package"
+          fi
+        env:
+          PYPI_TOKEN_VAL: ${{ secrets.PYPI_TOKEN }}
+
+      - name: Publish alias to PyPI (API token)
+        if: steps.check_pypi_alias.outputs.available == 'true'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_TOKEN }}
+          packages-dir: alias-package/dist/
+          skip-existing: true
+
       - name: Publish alias to PyPI (Trusted Publishing / OIDC)
+        if: steps.check_pypi_alias.outputs.available == 'false'
+        # Requires Pending Trusted Publisher on pypi.org for NEW projects:
+        #   Project: mcp-eu-ai-act | Owner: ark-forge | Repo: mcp-eu-ai-act
+        #   Workflow: publish-pypi.yml | Env: pypi
+        # Setup: https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: alias-package/dist/
