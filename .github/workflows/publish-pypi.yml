@@ -53,6 +53,7 @@ jobs:
         with:
           password: ${{ secrets.PYPI_TOKEN }}
           skip-existing: true
+          attestations: false
 
       - name: Publish to PyPI (Trusted Publishing / OIDC)
         if: steps.check_pypi.outputs.available == 'false'
