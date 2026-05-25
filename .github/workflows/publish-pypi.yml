@@ -72,6 +72,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: publish-pypi
     environment: pypi
+    # Soft-fail: alias package requires a Pending Trusted Publisher on pypi.org
+    # to create the project for the first time. Don't block main package publish.
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v6
 
