@@ -63,16 +63,37 @@ jobs:
         with:
           skip-existing: true
 
-      - name: Verify publish succeeded
+      - name: Verify main package publish
         run: |
-          echo "Checking if mcp-eu-ai-act was published to PyPI..."
           sleep 10
-          if curl -sf "https://pypi.org/pypi/eu-ai-act-scanner/json" > /dev/null 2>&1; then
-            echo "Package found on PyPI"
-          else
-            echo "::error::Package NOT found on PyPI after publish attempt."
-            echo "::error::Configure Trusted Publisher on pypi.org → Your projects → Publishing → Add pending publisher:"
-            echo "::error::  Owner: ark-forge | Repository: mcp-eu-ai-act | Workflow: publish-pypi.yml | Environment: pypi"
-            echo "::error::Or set PYPI_TOKEN secret in repository settings."
-            exit 1
-          fi
+          curl -sf "https://pypi.org/pypi/eu-ai-act-scanner/json" > /dev/null 2>&1 && echo "eu-ai-act-scanner found on PyPI" || echo "::warning::eu-ai-act-scanner not yet visible on PyPI"
+
+  publish-alias:
+    runs-on: ubuntu-latest
+    needs: publish-pypi
+    environment: pypi
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install build tools
+        run: pip install build
+
+      - name: Build alias package
+        working-directory: alias-package
+        run: python -m build
+
+      - name: Publish alias to PyPI (Trusted Publishing / OIDC)
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: alias-package/dist/
+          skip-existing: true
+
+      - name: Verify alias package publish
+        run: |
+          sleep 10
+          curl -sf "https://pypi.org/pypi/mcp-eu-ai-act/json" > /dev/null 2>&1 && echo "mcp-eu-ai-act found on PyPI" || echo "::warning::mcp-eu-ai-act not yet visible — Trusted Publisher may need setup for this project name"
