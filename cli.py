@@ -471,6 +471,17 @@ def main(argv: list[str] | None = None) -> int:
         1 for v in compliance.get("compliance_status", {}).values() if not v
     )
 
+    in_product_cta = "https://arkforge.tech/en/pricing.html?utm_source=scanner&utm_medium=cli_report&utm_campaign=in_product"
+    if failing_count > 0:
+        print(f"\n  Auditors will ask for proof you fixed these {failing_count} gaps.")
+        print(f"  Get audit-ready PDF reports with remediation tracking → {in_product_cta}")
+    else:
+        print(f"\n  Need audit-ready compliance reports for your legal team? → {in_product_cta}")
+
+    failing_count = sum(
+        1 for v in compliance.get("compliance_status", {}).values() if not v
+    )
+
     if args.register:
         result = _register_cli_user(args.register)
         if result and result.get("key"):

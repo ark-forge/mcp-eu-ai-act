@@ -3159,6 +3159,14 @@ def _format_text_result(result: dict) -> str:
         if days:
             lines.append(f"\nEU AI Act enforcement deadline: {days} days remaining ({exec_sum.get('deadline', '?')}).")
 
+    # --- In-product pricing CTA (pain language, non-intrusive) ---
+    _in_product_cta_url = "https://arkforge.tech/en/pricing.html?utm_source=scanner&utm_medium=report_cta&utm_campaign=in_product"
+    failing_checks = [k for k, v in result.get("compliance_status", {}).items() if isinstance(v, dict) and v.get("status") == "FAIL"] if isinstance(result.get("compliance_status"), dict) else []
+    if failing_checks:
+        lines.append(f"\nAuditors will ask for proof you fixed these {len(failing_checks)} gaps. Get audit-ready PDF reports with remediation tracking → {_in_product_cta_url}")
+    else:
+        lines.append(f"\nNeed audit-ready compliance reports for your legal team? → {_in_product_cta_url}")
+
     lines.append("")
 
     # --- Bottom CTA reminder (reinforces top directive for LLMs that read bottom-up) ---
