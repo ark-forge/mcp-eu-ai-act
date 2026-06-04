@@ -5,6 +5,7 @@ Scans projects to detect AI model usage and verify EU AI Act compliance
 """
 
 import ast
+import asyncio
 import os
 import re
 import json
@@ -911,6 +912,31 @@ def _extract_api_key(scope) -> Optional[str]:
     return None
 
 
+def _scan_repo_url(repo_url: str) -> tuple:
+    """Shallow-clone a repo and run the EU AI Act scan on it.
+    Blocking (git clone + filesystem scan) — call via asyncio.to_thread.
+    Returns (http_status, response_body)."""
+    import subprocess
+    import shutil
+    clone_dir = tempfile.mkdtemp(prefix="scan_")
+    try:
+        subprocess.run(
+            ["git", "clone", "--depth", "1", repo_url, clone_dir],
+            check=True, capture_output=True, text=True, timeout=60,
+        )
+        checker = EUAIActChecker(clone_dir)
+        scan_result = checker.scan_project()
+        compliance = checker.check_compliance("limited")
+        scan_result["report"] = checker.generate_report(scan_result, compliance)
+    except subprocess.CalledProcessError as e:
+        return 400, {"error": f"Cannot clone repo: {(e.stderr or '')[:200]}"}
+    except subprocess.TimeoutExpired:
+        return 408, {"error": "Git clone timed out (60s limit)"}
+    finally:
+        shutil.rmtree(clone_dir, ignore_errors=True)
+    return 200, {"scan_result": {"plan": "trust_layer", "repo_url": repo_url, **scan_result}}
+
+
 class RateLimitMiddleware:
     """ASGI middleware: rate-limits MCP tools/call requests per client IP.
     Handles /api/verify-key endpoint. Pro API keys bypass rate limiting."""
@@ -1097,6 +1123,44 @@ class RateLimitMiddleware:
                 await self._json_response(send, 200, {"valid": True, "plan": result["plan"], "email": result["email"]})
             else:
                 await self._json_response(send, 401, {"valid": False, "error": "Invalid or inactive API key"})
+            return
+
+        # --- /api/v1/scan-repo endpoint (POST) — public repo scan, rate-limited (Trust Layer integration) ---
+        if path == "/api/v1/scan-repo" and scope.get("method") == "POST":
+            ip = _get_header(scope, b"x-real-ip")
+            if not ip:
+                xff = _get_header(scope, b"x-forwarded-for")
+                ip = xff.split(",")[-1].strip() if xff else None
+            if not ip:
+                client = scope.get("client")
+                ip = client[0] if client else "unknown"
+            allowed, remaining = _rate_limiter.check(ip)
+            if not allowed:
+                await self._json_response(send, 429, {
+                    "error": f"Free tier daily limit reached ({_rate_limiter.max_requests} scans/day)",
+                    "upgrade": FREE_TIER_BANNER,
+                }, self._rate_limit_headers(0))
+                return
+            body_parts = []
+            while True:
+                message = await receive()
+                body_parts.append(message.get("body", b""))
+                if not message.get("more_body", False):
+                    break
+            try:
+                data = json.loads(b"".join(body_parts))
+                repo_url = (data.get("repo_url") or "").strip()
+            except (json.JSONDecodeError, ValueError, TypeError):
+                await self._json_response(send, 400, {"error": "Invalid JSON body. Expected: {\"repo_url\": \"https://...\"}"})
+                return
+            if not repo_url:
+                await self._json_response(send, 400, {"error": "repo_url is required"})
+                return
+            if not repo_url.startswith("https://"):
+                await self._json_response(send, 400, {"error": "repo_url must be an HTTPS URL"})
+                return
+            status, payload = await asyncio.to_thread(_scan_repo_url, repo_url)
+            await self._json_response(send, status, payload, self._rate_limit_headers(remaining))
             return
 
         if scope.get("method") != "POST":
