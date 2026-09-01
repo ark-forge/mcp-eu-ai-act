@@ -44,7 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `scan_project` / `check_compliance` to an allowlist of roots. Unset by default,
   which keeps existing behaviour.
 
-Reported by Syed Anas Mohiuddin, independent security researcher.
+Reported by Syed Anas Mohiuddin, maintainer of mcp-safeguard security scanner and independent security researcher.
 
 ## [2.0.23] - 2026-04-22
 
