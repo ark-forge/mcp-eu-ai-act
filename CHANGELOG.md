@@ -30,6 +30,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   every branch since that release, and `pip install eu-ai-act-scanner` produced a
   server that would not start.
 
+- `generate_compliance_roadmap` default deadline moved from `2026-08-02` to
+  `2027-08-02`. The old default is in the past, so this Pro tool answered
+  `{"error": "Deadline has passed"}` to every default call since 2026-08-02.
+  2027-08-02 is the next milestone in Reg. (EU) 2024/1689: art. 6(1) high-risk
+  systems under Annex I, and GPAI models placed on the market before 2025-08-02.
+  The `enforcement_deadline` in the articles database still reads 2026-08-02 —
+  that one records when the rules started applying and is a fact, not a target.
+  A test now asserts the default deadline is in the future.
+
 ### Added
 - `EUAIACT_SCAN_ROOTS` (optional, colon-separated absolute paths): confines
   `scan_project` / `check_compliance` to an allowlist of roots. Unset by default,

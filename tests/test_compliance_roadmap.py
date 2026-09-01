@@ -37,7 +37,7 @@ def _get_roadmap_tool():
     return server._tool_manager._tools["generate_compliance_roadmap"].fn
 
 
-def _roadmap(project_path, risk_category="high", deadline="2026-08-02"):
+def _roadmap(project_path, risk_category="high", deadline="2027-08-02"):
     """Call generate_compliance_roadmap with positional args matching its signature."""
     tool = _get_roadmap_tool()
     return _unwrap_result(tool(
@@ -243,4 +243,23 @@ def test_total_effort_is_sum_of_steps(tmp_path):
     computed_total = sum(s["effort_days"] for s in steps)
     assert result["total_effort_days"] == computed_total, (
         f"total_effort_days ({result['total_effort_days']}) != sum of steps ({computed_total})"
+    )
+
+
+def test_default_deadline_is_still_in_the_future():
+    """The default deadline must never be a past date.
+
+    It was 2026-08-02. Once that date passed, generate_compliance_roadmap — a Pro
+    tool — returned {"error": "Deadline has passed"} for every default call, and the
+    seven tests in this file went red without anyone touching the code. A hardcoded
+    date rots silently; this asserts it out loud.
+    """
+    import inspect
+    from datetime import datetime, timezone
+
+    default = inspect.signature(_get_roadmap_tool()).parameters["deadline"].default
+    parsed = datetime.fromisoformat(default).replace(tzinfo=timezone.utc)
+    assert parsed > datetime.now(timezone.utc), (
+        f"Default deadline {default} is in the past — generate_compliance_roadmap "
+        f"now errors on every default call. Move it to the next EU AI Act milestone."
     )

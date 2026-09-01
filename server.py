@@ -2919,7 +2919,7 @@ class EUAIActChecker:
         report["executive_summary"] = {
             "compliance_percentage": compliance_pct,
             "days_to_deadline": max(0, days_to_deadline),
-            "deadline": "2026-08-02",
+            "deadline": "2027-08-02",
             "status": "compliant" if compliance_pct == 100 else ("on_track" if compliance_pct >= 60 else "at_risk"),
             "critical_gaps": gaps,
             "gap_count": len(gaps),
@@ -3886,9 +3886,9 @@ def create_server():
     def generate_compliance_roadmap(
         project_path: Annotated[str, Field(description="Path to the project root. Leave empty or pass '.' to scan the current directory.", default=".")] = ".",
         risk_category: Annotated[RiskCategory, Field(description="EU AI Act risk category.", default=RiskCategory.high)] = RiskCategory.high,
-        deadline: Annotated[str, Field(description="Target compliance deadline in ISO format.", default="2026-08-02")] = "2026-08-02",
+        deadline: Annotated[str, Field(description="Target compliance deadline in ISO format.", default="2027-08-02")] = "2027-08-02",
     ) -> dict:
-        """Get a prioritized, week-by-week plan to close every compliance gap before Aug 2026 — no arguments. Auto-scans your project, ranks fixes by impact, sequences quick wins first, tells you whether your deadline is achievable. Pro plan required — run check_compliance() for a free gap summary."""
+        """Get a prioritized, week-by-week plan to close every compliance gap before Aug 2027 — no arguments. Auto-scans your project, ranks fixes by impact, sequences quick wins first, tells you whether your deadline is achievable. Pro plan required — run check_compliance() for a free gap summary."""
         gate = _require_plan("pro", "generate_compliance_roadmap")
         if gate:
             return gate
@@ -3901,7 +3901,7 @@ def create_server():
         try:
             deadline_dt = datetime.fromisoformat(deadline).replace(tzinfo=timezone.utc)
         except ValueError:
-            return {"error": f"Invalid deadline format: {deadline}. Use ISO date e.g. 2026-08-02"}
+            return {"error": f"Invalid deadline format: {deadline}. Use ISO date e.g. 2027-08-02"}
 
         now = datetime.now(timezone.utc)
         days_remaining = max(0, (deadline_dt - now).days)
@@ -4677,7 +4677,7 @@ class MCPServer:
             {"name": "generate_report", "description": "Produce a compliance report ready for your legal team or DPIA — zero arguments. Framework detection + gap analysis + remediation plan in one document.", "parameters": {"project_path": "string (optional, default: '.')", "risk_category": "string (optional, default: 'limited')"}},
             {"name": "suggest_risk_category", "description": "Determine your EU AI Act risk tier — describe your AI system in plain language. Returns category, confidence, applicable articles, and next step.", "parameters": {"system_description": "string (required)"}},
             {"name": "generate_compliance_templates", "description": "Get pre-filled EU AI Act compliance document templates — zero arguments. Risk management, data governance, transparency docs tailored to your risk category.", "parameters": {"risk_category": "string (optional, default: 'high')"}},
-            {"name": "generate_compliance_roadmap", "description": "Get a week-by-week action plan to reach compliance before Aug 2026 — zero arguments. Quick wins first. Pro plan required.", "parameters": {"project_path": "string (optional, default: '.')", "risk_category": "string (optional, default: 'high')", "deadline": "string (optional, default: '2026-08-02')"}},
+            {"name": "generate_compliance_roadmap", "description": "Get a week-by-week action plan to reach compliance before Aug 2027 — zero arguments. Quick wins first. Pro plan required.", "parameters": {"project_path": "string (optional, default: '.')", "risk_category": "string (optional, default: 'high')", "deadline": "string (optional, default: '2027-08-02')"}},
             {"name": "generate_annex4_package", "description": "Build the auditor-ready Annex IV evidence package — zero arguments. All 8 mandatory sections auto-populated from your project. Pro plan required.", "parameters": {"project_path": "string (optional, default: '.')", "sign_with_trust_layer": "boolean (optional, default: false)", "trust_layer_key": "string (optional)"}},
             {"name": "certify_compliance_report", "description": "Lock your compliance report with a tamper-proof cryptographic proof for Art. 12 audit trail. Returns proof_id + verification URL. Certified plan required.", "parameters": {"report_data": "string (required)", "trust_layer_key": "string (required)"}},
             {"name": "validate_api_key", "description": "Check your API key status — returns plan tier, email, and usage stats.", "parameters": {"api_key": "string (required)"}},

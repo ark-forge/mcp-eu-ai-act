@@ -77,7 +77,7 @@ Track compliance over time (free): `eu-ai-act-scanner . --register you@email.com
 | **API key** | Not required | ✓ | ✓ |
 | **Tools available** | 2 | 10 | 10 + certification |
 
-Free tier: no sign-up, no API key — just `pip install` and scan. Pro unlocks the full compliance toolkit your team needs before the August 2026 deadline.
+Free tier: no sign-up, no API key — just `pip install` and scan. Pro unlocks the full compliance toolkit your team needs before the August 2027 deadline.
 
 **[→ Compare plans & get your API key](https://arkforge.tech/en/pricing.html?utm_source=pypi&utm_medium=readme&utm_campaign=mcp_euaiact)**
 
@@ -211,7 +211,7 @@ Scores document *content* quality (0-100) and maps each finding to a specific EU
 
 Deadline-aware, week-by-week action plan to reach EU AI Act compliance before August 2, 2026. Sequences quick wins first using a criticality × 1/effort algorithm.
 
-**Key parameters:** `project_path` (string, required), `risk_category` (string), `target_date` (string, ISO format, default: `2026-08-02`)
+**Key parameters:** `project_path` (string, required), `risk_category` (string), `target_date` (string, ISO format, default: `2027-08-02`)
 
 **Example output:**
 ```json
@@ -250,7 +250,7 @@ Runs scan + compliance check, returns a combined report with two-level output: e
 {
   "executive_summary": {
     "compliance_percentage": 67,
-    "deadline": "2026-08-02",
+    "deadline": "2027-08-02",
     "days_remaining": 117,
     "gap_count": 3,
     "verdict": "Action required — 3 gaps must be addressed before deadline"
