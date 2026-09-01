@@ -415,7 +415,7 @@ python3 paywall_api.py
 | `POST` | `/api/v1/scan` | Free/Pro | Scan a project for AI frameworks |
 | `POST` | `/api/v1/check-compliance` | Free/Pro | Check EU AI Act compliance |
 | `POST` | `/api/v1/generate-report` | Free/Pro | Full compliance report |
-| `POST` | `/api/v1/scan-repo` | Free (rate-limited) | Scan a GitHub repo by URL |
+| `POST` | `/api/v1/scan-repo` | Free (rate-limited) | Scan a public HTTPS Git repo by URL (port 443, public hosts only) |
 | `POST` | `/api/checkout` | None | Stripe checkout session |
 | `POST` | `/api/webhook` | Stripe sig | Stripe webhook handler |
 

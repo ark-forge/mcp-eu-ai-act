@@ -5,6 +5,32 @@ All notable changes to the EU AI Act Compliance Scanner MCP Server will be docum
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.39] - 2026-09-01
+
+### Security
+- `POST /api/v1/scan-repo`: `repo_url` was passed to `git clone` behind a single
+  `startswith("https://")` check, letting any caller make the server connect to
+  arbitrary hosts and ports (CWE-918, SSRF). The URL is now parsed, must use port 443,
+  must not embed credentials, and must resolve exclusively to public internet
+  addresses (loopback, RFC1918, link-local/metadata, CGNAT, multicast and reserved
+  ranges are rejected, including through IPv4-mapped, 6to4 and Teredo IPv6 forms).
+- `scan-repo` no longer echoes git's stderr to the caller. The distinct messages for
+  connection-refused, TLS error and repository-not-found were a service-fingerprinting
+  oracle.
+- `git clone` now runs with `http.followRedirects=false`, `GIT_ALLOW_PROTOCOL=https`
+  and `GIT_TERMINAL_PROMPT=0`: git resolves redirects after our checks, so a redirect
+  would have handed back the bypass.
+- `_INSTALL_ROOT` no longer collapses to `/`. In the Docker image (`WORKDIR /app`) it
+  resolved four levels up to `/`, an entry that matched nothing and left `/app` — with
+  `api_keys.json` and `data/` — scannable. It now falls back to the server's own directory.
+
+### Added
+- `EUAIACT_SCAN_ROOTS` (optional, colon-separated absolute paths): confines
+  `scan_project` / `check_compliance` to an allowlist of roots. Unset by default,
+  which keeps existing behaviour.
+
+Reported by Syed Anas Mohiuddin, independent security researcher.
+
 ## [2.0.23] - 2026-04-22
 
 ### Changed

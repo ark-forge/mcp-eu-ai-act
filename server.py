@@ -12,10 +12,13 @@ import json
 import time
 import hashlib
 import secrets
+import socket
 import logging
 import tempfile
+import ipaddress
 import contextvars
 from pathlib import Path
+from urllib.parse import urlsplit
 from typing import Annotated, Dict, List, Any, Optional
 
 from pydantic import Field
@@ -912,24 +915,101 @@ def _extract_api_key(scope) -> Optional[str]:
     return None
 
 
+# Only 443 — any other port on an https:// URL is a port probe, not a Git remote.
+_ALLOWED_REPO_PORTS = frozenset({443})
+
+
+def _is_public_address(raw_addr: str) -> bool:
+    """True if raw_addr is a routable public internet address.
+
+    IPv4-mapped, 6to4 and Teredo IPv6 addresses are unwrapped first: they carry an
+    IPv4 address that must be judged on its own (::ffff:127.0.0.1 is loopback).
+    """
+    try:
+        addr = ipaddress.ip_address(raw_addr)
+    except ValueError:
+        return False
+    for wrapped in ("ipv4_mapped", "sixtofour", "teredo"):
+        inner = getattr(addr, wrapped, None)
+        if inner:
+            addr = inner[0] if isinstance(inner, tuple) else inner
+            break
+    if addr.is_loopback or addr.is_private or addr.is_link_local:
+        return False
+    if addr.is_reserved or addr.is_multicast or addr.is_unspecified:
+        return False
+    return addr.is_global
+
+
+def _validate_repo_url(repo_url: str) -> tuple:
+    """Validate a caller-supplied repo URL before handing it to git (CWE-918).
+
+    git clone opens a connection to whatever host the URL names, so an unrestricted
+    URL turns this endpoint into an SSRF probe against everything the server can
+    reach. Returns (is_safe, error_message).
+    """
+    try:
+        parts = urlsplit(repo_url)
+    except ValueError:
+        return False, "repo_url is not a valid URL"
+
+    if parts.scheme != "https":
+        return False, "repo_url must be an HTTPS URL"
+    if parts.username or parts.password:
+        return False, "repo_url must not embed credentials"
+
+    host = parts.hostname
+    if not host:
+        return False, "repo_url must contain a hostname"
+    try:
+        port = parts.port
+    except ValueError:
+        return False, "repo_url has an invalid port"
+    if port is not None and port not in _ALLOWED_REPO_PORTS:
+        return False, "repo_url must use the default HTTPS port"
+
+    # A literal IP skips DNS but must pass the same test.
+    try:
+        infos = socket.getaddrinfo(host, port or 443, proto=socket.IPPROTO_TCP)
+    except (socket.gaierror, UnicodeError, OSError):
+        return False, "repo_url hostname could not be resolved"
+    if not infos:
+        return False, "repo_url hostname could not be resolved"
+    for info in infos:
+        if not _is_public_address(info[4][0]):
+            return False, "repo_url must resolve to a public internet address"
+    return True, ""
+
+
 def _scan_repo_url(repo_url: str) -> tuple:
     """Shallow-clone a repo and run the EU AI Act scan on it.
-    Blocking (git clone + filesystem scan) — call via asyncio.to_thread.
+    Blocking (DNS + git clone + filesystem scan) — call via asyncio.to_thread.
     Returns (http_status, response_body)."""
     import subprocess
     import shutil
+
+    safe, reason = _validate_repo_url(repo_url)
+    if not safe:
+        return 400, {"error": reason}
+
     clone_dir = tempfile.mkdtemp(prefix="scan_")
+    # followRedirects=false: a redirect is resolved by git, after our checks, so it
+    # would hand back the bypass we just closed. GIT_ALLOW_PROTOCOL keeps a redirect
+    # or a submodule from switching to file:// or ssh://.
+    env = {**os.environ, "GIT_TERMINAL_PROMPT": "0", "GIT_ALLOW_PROTOCOL": "https"}
     try:
         subprocess.run(
-            ["git", "clone", "--depth", "1", repo_url, clone_dir],
-            check=True, capture_output=True, text=True, timeout=60,
+            ["git", "-c", "http.followRedirects=false", "clone", "--depth", "1", repo_url, clone_dir],
+            check=True, capture_output=True, text=True, timeout=60, env=env,
         )
         checker = EUAIActChecker(clone_dir)
         scan_result = checker.scan_project()
         compliance = checker.check_compliance("limited")
         scan_result["report"] = checker.generate_report(scan_result, compliance)
-    except subprocess.CalledProcessError as e:
-        return 400, {"error": f"Cannot clone repo: {(e.stderr or '')[:200]}"}
+    except subprocess.CalledProcessError:
+        # git stderr is deliberately not echoed: it tells refused apart from
+        # TLS-error apart from no-such-repo, which is a service-fingerprinting oracle.
+        return 400, {"error": "Cannot clone repo. Check that the URL points to a public HTTPS Git repository."}
     except subprocess.TimeoutExpired:
         return 408, {"error": "Git clone timed out (60s limit)"}
     finally:
@@ -1156,9 +1236,8 @@ class RateLimitMiddleware:
             if not repo_url:
                 await self._json_response(send, 400, {"error": "repo_url is required"})
                 return
-            if not repo_url.startswith("https://"):
-                await self._json_response(send, 400, {"error": "repo_url must be an HTTPS URL"})
-                return
+            # URL validation lives in _scan_repo_url: it needs DNS (blocking), and a
+            # single gate on the function that clones cannot be walked around.
             status, payload = await asyncio.to_thread(_scan_repo_url, repo_url)
             await self._json_response(send, status, payload, self._rate_limit_headers(remaining))
             return
@@ -2211,6 +2290,11 @@ def _enrich_matches_with_articles(
 # Security: directories that must NEVER be scanned
 # Dynamically resolve the installation root (4 levels up from server.py)
 _INSTALL_ROOT = os.environ.get("ARKFORGE_ROOT", str(Path(__file__).resolve().parent.parent.parent.parent))
+# In the Docker image server.py sits at /app, where four levels up is "/" — an entry
+# that matches nothing (the prefix test looks for "//") and silently leaves /app, with
+# api_keys.json and data/, scannable. Protect the server's own directory instead.
+if _INSTALL_ROOT in ("/", ""):
+    _INSTALL_ROOT = str(Path(__file__).resolve().parent)
 BLOCKED_PATHS = [
     _INSTALL_ROOT,
     "/etc",
@@ -2228,6 +2312,21 @@ BLOCKED_PATHS = [
     "/mnt",
     "/media",
 ]
+
+# Optional allowlist: when EUAIACT_SCAN_ROOTS is set (colon-separated absolute
+# paths), nothing outside those roots can be scanned. Unset — the default, and what
+# a developer scanning their own machine wants — leaves only the blocklist below.
+def _load_scan_roots() -> list:
+    raw = os.environ.get("EUAIACT_SCAN_ROOTS", "")
+    roots = []
+    for entry in raw.split(":"):
+        entry = entry.strip()
+        if entry:
+            roots.append(str(Path(entry).resolve()))
+    return roots
+
+
+SCAN_ROOTS = _load_scan_roots()
 
 # Security: max files to scan (prevent DoS)
 MAX_FILES_TO_SCAN = 5000
@@ -2253,6 +2352,13 @@ def _validate_project_path(project_path: str) -> tuple[bool, str]:
         return False, f"Invalid path: {project_path}"
 
     resolved_str = str(resolved)
+
+    # Allowlist wins when the operator configured one
+    if SCAN_ROOTS and not any(
+        resolved_str == root or resolved_str.startswith(root.rstrip("/") + "/")
+        for root in SCAN_ROOTS
+    ):
+        return False, "Access denied: path is outside the configured scan roots"
 
     # Block absolute paths to sensitive directories
     for blocked in BLOCKED_PATHS:
