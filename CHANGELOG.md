@@ -24,6 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   resolved four levels up to `/`, an entry that matched nothing and left `/app` — with
   `api_keys.json` and `data/` — scannable. It now falls back to the server's own directory.
 
+### Fixed
+- Pinned `mcp>=1.27.0,<2`. mcp 2.x renamed `FastMCP` to `MCPServer`, so any fresh
+  install resolved to a version that cannot import `server.py` — CI has been red on
+  every branch since that release, and `pip install eu-ai-act-scanner` produced a
+  server that would not start.
+
 ### Added
 - `EUAIACT_SCAN_ROOTS` (optional, colon-separated absolute paths): confines
   `scan_project` / `check_compliance` to an allowlist of roots. Unset by default,
