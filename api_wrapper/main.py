@@ -395,7 +395,7 @@ async def checkout(request: Request):
     params = {
         "payment_method_types[0]": "card",
         "mode": "subscription",
-        "success_url": "https://arkforge.tech/en/scanner-pro-success.html",
+        "success_url": "https://arkforge.tech/en/scanner-pro.html?checkout=success",
         "cancel_url": "https://arkforge.tech/en/scanner-pro.html?checkout=cancelled",
         "line_items[0][price]": price_id,
         "line_items[0][quantity]": "1",

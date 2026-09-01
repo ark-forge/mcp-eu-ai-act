@@ -461,6 +461,40 @@ class TestStripeCheckout:
         assert data["checkout_url"] == fake_session["url"]
         assert data["session_id"] == fake_session["id"]
 
+    def test_checkout_return_urls_land_on_a_page_that_reads_them(self, stripe_client):
+        """success_url and cancel_url must both point at scanner-pro.html?checkout=...
+
+        That page reads ?checkout= and renders the confirmation (and fires the
+        scanner_pro_checkout_success analytics event). The previous success_url,
+        scanner-pro-success.html, reads ?session_id= — which the checkout session
+        never passes, so its support reference rendered as null. Nothing pinned
+        these URLs, so the fix lived only in the production working copy and any
+        git reset silently reverted the paid funnel.
+        """
+        import api_wrapper.main as main_mod
+        import urllib.parse
+        captured = {}
+
+        class FakeResponse:
+            def read(self):
+                return json.dumps({"id": "cs_test_abc123", "url": "https://checkout.stripe.com/pay/x"}).encode()
+            def __enter__(self):
+                return self
+            def __exit__(self, *a):
+                pass
+
+        def capture(req, *a, **k):
+            captured.update(urllib.parse.parse_qs(req.data.decode()))
+            return FakeResponse()
+
+        with patch.object(main_mod, "_STRIPE", {"secret_key": "sk_test_fake", "webhook_secret": "whsec_x", "price_pro": "price_pro_abc", "price_certified": "price_cert_abc"}), \
+             patch("urllib.request.urlopen", side_effect=capture):
+            resp = stripe_client.post("/api/checkout", json={"plan": "pro", "email": "user@example.com"})
+
+        assert resp.status_code == 200
+        assert captured["success_url"] == ["https://arkforge.tech/en/scanner-pro.html?checkout=success"]
+        assert captured["cancel_url"] == ["https://arkforge.tech/en/scanner-pro.html?checkout=cancelled"]
+
 
 class TestStripeWebhook:
 
