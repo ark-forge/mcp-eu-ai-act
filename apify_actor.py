@@ -21,6 +21,7 @@ ACTIONNAIRE SETUP:
 import asyncio
 import sys
 import json
+import os
 import subprocess
 import tempfile
 from pathlib import Path
@@ -28,22 +29,36 @@ from pathlib import Path
 # Apify SDK 3.3.0 — pay-per-event supported
 from apify import Actor
 
+# Add server module to path for imports
+sys.path.insert(0, str(Path(__file__).parent))
+
 
 async def run_compliance_scan(repo_url: str, risk_category: str = "limited") -> dict:
     """Run the EU AI Act compliance scanner on a GitHub repo."""
+    # Validate repo URL to prevent SSRF (CWE-918)
+    try:
+        from server import _validate_repo_url
+    except ImportError:
+        return {"error": "Cannot load URL validator"}
+
+    safe, reason = _validate_repo_url(repo_url)
+    if not safe:
+        return {"error": f"Invalid repo URL: {reason}"}
+
     # Clone repo to temp dir
     with tempfile.TemporaryDirectory() as tmpdir:
+        env = {**os.environ, "GIT_TERMINAL_PROMPT": "0", "GIT_ALLOW_PROTOCOL": "https"}
         result = subprocess.run(
-            ["git", "clone", "--depth=1", repo_url, tmpdir],
+            ["git", "-c", "http.followRedirects=false", "clone", "--depth=1", repo_url, tmpdir],
             capture_output=True,
             text=True,
-            timeout=60
+            timeout=60,
+            env=env
         )
         if result.returncode != 0:
-            return {"error": f"Git clone failed: {result.stderr[:200]}"}
+            return {"error": "Git clone failed. Check that the URL points to a public HTTPS Git repository."}
 
         # Import and run the compliance checker
-        sys.path.insert(0, str(Path(__file__).parent))
         try:
             from server import EUAIActChecker
             checker = EUAIActChecker(risk_category=risk_category)
