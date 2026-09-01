@@ -16,7 +16,7 @@ It is the highest-value tool in the MCP: instead of a static list of gaps, it pr
 |-------|------|---------|
 | `project_path` | string | The scanned project directory |
 | `risk_category` | string | The risk category used for the assessment (`high`, `limited`, `minimal`) |
-| `deadline` | string | The target compliance date (ISO format, default `2026-08-02`) |
+| `deadline` | string | The target compliance date (ISO format, default `2027-08-02`) |
 | `days_remaining` | int | Calendar days from today until the deadline |
 | `initial_compliance_pct` | float | Compliance percentage before any actions (based on current project state) |
 | `final_compliance_pct` | float | Projected compliance percentage after completing all steps |
@@ -72,7 +72,7 @@ For **high-risk** systems, Art. 9 (risk management) reaches criticality=9 with e
 {
   "project_path": "/projects/my-chatbot",
   "risk_category": "limited",
-  "deadline": "2026-08-02",
+  "deadline": "2027-08-02",
   "days_remaining": 118,           // plenty of time
   "initial_compliance_pct": 33.3,  // currently 1/3 checks passing
   "final_compliance_pct": 100.0,   // all 3 checks will pass after roadmap

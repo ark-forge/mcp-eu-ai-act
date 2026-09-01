@@ -7,6 +7,7 @@ from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+import server
 from server import _validate_project_path, BLOCKED_PATHS
 
 
@@ -63,3 +64,58 @@ class TestPathTraversal:
         for blocked in BLOCKED_PATHS:
             safe, msg = _validate_project_path(blocked)
             assert not safe, f"{blocked} should be blocked"
+
+
+class TestScanRootsAllowlist:
+    """EUAIACT_SCAN_ROOTS confines scanning when an operator sets it."""
+
+    def test_unset_keeps_current_behaviour(self, monkeypatch):
+        monkeypatch.setattr(server, "SCAN_ROOTS", [])
+        with tempfile.TemporaryDirectory() as d:
+            safe, _ = _validate_project_path(d)
+            assert safe
+
+    def test_path_inside_root_allowed(self, monkeypatch):
+        with tempfile.TemporaryDirectory() as d:
+            monkeypatch.setattr(server, "SCAN_ROOTS", [str(Path(d).resolve())])
+            inside = Path(d) / "project"
+            inside.mkdir()
+            safe, _ = _validate_project_path(str(inside))
+            assert safe
+
+    def test_path_outside_root_denied(self, monkeypatch):
+        with tempfile.TemporaryDirectory() as d:
+            monkeypatch.setattr(server, "SCAN_ROOTS", [str(Path(d).resolve())])
+            safe, msg = _validate_project_path("/tmp")
+            assert not safe
+            assert "scan roots" in msg
+
+    def test_sibling_prefix_is_not_inside_root(self, monkeypatch):
+        """/srv/apps must not open /srv/apps-backup."""
+        monkeypatch.setattr(server, "SCAN_ROOTS", ["/srv/apps"])
+        safe, _ = _validate_project_path("/srv/apps-backup/x")
+        assert not safe
+
+    def test_blocklist_still_applies_inside_a_root(self, monkeypatch):
+        monkeypatch.setattr(server, "SCAN_ROOTS", ["/"])
+        safe, _ = _validate_project_path("/etc")
+        assert not safe
+
+    def test_load_scan_roots_parses_and_resolves(self, monkeypatch):
+        monkeypatch.setenv("EUAIACT_SCAN_ROOTS", "/srv/a: /srv/b/. ::")
+        assert server._load_scan_roots() == ["/srv/a", "/srv/b"]
+
+    def test_load_scan_roots_empty_when_unset(self, monkeypatch):
+        monkeypatch.delenv("EUAIACT_SCAN_ROOTS", raising=False)
+        assert server._load_scan_roots() == []
+
+
+class TestInstallRoot:
+    """_INSTALL_ROOT must never collapse to '/', where it blocks nothing."""
+
+    def test_install_root_is_not_filesystem_root(self):
+        assert server._INSTALL_ROOT not in ("/", "")
+
+    def test_install_root_entry_actually_blocks_itself(self):
+        safe, _ = _validate_project_path(server._INSTALL_ROOT)
+        assert not safe

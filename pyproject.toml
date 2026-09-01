@@ -10,7 +10,7 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
 dependencies = [
-    "mcp>=1.27.0",
+    "mcp>=1.27.0,<2",
 ]
 keywords = [
     "EU AI Act",

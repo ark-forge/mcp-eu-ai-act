@@ -28,7 +28,7 @@
     },
     {
       "name": "generate_compliance_roadmap",
-      "description": "Get a prioritized, week-by-week plan to close every compliance gap before Aug 2026 — no arguments. Auto-scans your project, ranks fixes by impact, sequences quick wins first. Pro plan required."
+      "description": "Get a prioritized, week-by-week plan to close every compliance gap before Aug 2027 — no arguments. Auto-scans your project, ranks fixes by impact, sequences quick wins first. Pro plan required."
     },
     {
       "name": "generate_annex4_package",
