@@ -236,10 +236,18 @@ fi
 NEW_COMMIT=$(git rev-parse HEAD)
 log "Local commit: $NEW_COMMIT"
 
-# Check OVH current state
-OVH_COMMIT=$(ssh -o ConnectTimeout=10 "$OVH_HOST" \
-    "GIT_DIR=${OVH_REPO}/.git git rev-parse HEAD 2>/dev/null" 2>/dev/null || echo "unknown")
-log "OVH commit: $OVH_COMMIT"
+# Check OVH current state — only when OVH is actually a deploy target.
+# This probe used to run unconditionally, so a deploy with OVH_ENABLED=false still
+# opened an SSH session on the OVH host. That is a side effect on a machine this
+# script is configured not to touch.
+if [ "$OVH_ENABLED" = true ]; then
+    OVH_COMMIT=$(ssh -o ConnectTimeout=10 "$OVH_HOST" \
+        "GIT_DIR=${OVH_REPO}/.git git rev-parse HEAD 2>/dev/null" 2>/dev/null || echo "unknown")
+    log "OVH commit: $OVH_COMMIT"
+else
+    OVH_COMMIT="n/a (OVH_ENABLED=false)"
+    log "OVH probe skipped (OVH_ENABLED=false)"
+fi
 
 if [ "$NEW_COMMIT" = "$PREV_COMMIT" ] && [ "$OVH_COMMIT" = "$NEW_COMMIT" ]; then
     log "Nothing to deploy — local and OVH are already on $NEW_COMMIT. Exiting."
