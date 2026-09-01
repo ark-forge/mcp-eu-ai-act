@@ -912,12 +912,64 @@ def _extract_api_key(scope) -> Optional[str]:
     return None
 
 
+def _validate_repo_url(repo_url: str) -> Optional[str]:
+    """Validate repo URL to prevent SSRF attacks. Returns error message if invalid, None if OK."""
+    import urllib.parse
+    import ipaddress
+
+    if not repo_url or len(repo_url) > 2048:
+        return "repo_url must be non-empty and under 2048 characters"
+
+    try:
+        parsed = urllib.parse.urlparse(repo_url)
+    except Exception:
+        return "Invalid URL format"
+
+    if parsed.scheme not in ("http", "https"):
+        return "URL must use http or https scheme"
+
+    hostname = parsed.hostname
+    if not hostname:
+        return "URL must have a valid hostname"
+
+    # Reject reserved/private IP ranges
+    try:
+        ip = ipaddress.ip_address(hostname)
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved:
+            return f"Private/reserved IP address not allowed: {hostname}"
+        if ip == ipaddress.ip_address("169.254.169.254"):
+            return "Cloud metadata endpoints not allowed"
+    except ValueError:
+        # Not an IP — validate as hostname
+        hostname_lower = hostname.lower()
+        # Whitelist known public git hosts
+        allowed_hosts = {
+            "github.com", "gitlab.com", "bitbucket.org", "gitea.io",
+            "git.sr.ht", "gitee.com", "gitpod.io", "sourceforge.net",
+            "githubusercontent.com",  # GitHub CDN/raw content
+        }
+        # Allow subdomains of whitelisted hosts
+        is_allowed = (
+            hostname_lower in allowed_hosts or
+            any(hostname_lower.endswith("." + host) for host in allowed_hosts)
+        )
+        if not is_allowed:
+            return f"Hostname not in whitelist. Allowed: github.com (and subdomains), gitlab.com, bitbucket.org, gitea.io, git.sr.ht, gitee.com, gitpod.io, sourceforge.net"
+
+    return None
+
+
 def _scan_repo_url(repo_url: str) -> tuple:
     """Shallow-clone a repo and run the EU AI Act scan on it.
     Blocking (git clone + filesystem scan) — call via asyncio.to_thread.
     Returns (http_status, response_body)."""
     import subprocess
     import shutil
+
+    validation_error = _validate_repo_url(repo_url)
+    if validation_error:
+        return 400, {"error": validation_error}
+
     clone_dir = tempfile.mkdtemp(prefix="scan_")
     try:
         subprocess.run(
@@ -1155,9 +1207,6 @@ class RateLimitMiddleware:
                 return
             if not repo_url:
                 await self._json_response(send, 400, {"error": "repo_url is required"})
-                return
-            if not repo_url.startswith("https://"):
-                await self._json_response(send, 400, {"error": "repo_url must be an HTTPS URL"})
                 return
             status, payload = await asyncio.to_thread(_scan_repo_url, repo_url)
             await self._json_response(send, status, payload, self._rate_limit_headers(remaining))
