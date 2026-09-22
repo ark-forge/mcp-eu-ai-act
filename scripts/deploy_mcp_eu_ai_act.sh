@@ -97,12 +97,11 @@ rollback_both() {
     local prev_commit="$1" reason="$2"
     log "Rollback local: git reset --hard $prev_commit"
     git reset --hard "$prev_commit" >> "$LOG_FILE" 2>&1
-    sudo systemctl restart "$SERVICE_MCP" "$SERVICE_API" 2>/dev/null || \
-        sudo systemctl restart "$SERVICE_MCP" 2>/dev/null || true
+    { sudo -n /usr/local/sbin/arkforge-run relance "$SERVICE_MCP" && sudo -n /usr/local/sbin/arkforge-run relance "$SERVICE_API"; } 2>/dev/null || true
     log "Rollback OVH: git reset --hard $prev_commit"
     if ssh -o ConnectTimeout=10 "$OVH_HOST" \
         "cd ${OVH_REPO} && git reset --hard $prev_commit && \
-         sudo systemctl restart mcp-eu-ai-act arkforge-euaiact-api" \
+         sudo -n /usr/local/sbin/arkforge-run relance mcp-eu-ai-act && sudo -n /usr/local/sbin/arkforge-run relance arkforge-euaiact-api" \
         >> "$LOG_FILE" 2>&1; then
         log "Rollback OVH OK"
     else
@@ -258,8 +257,7 @@ fi
 # PHASE 3 — DEPLOY LOCAL
 # ============================================================
 log "--- Phase 3a: Deploy local (restart services) ---"
-sudo systemctl restart "$SERVICE_MCP" "$SERVICE_API" 2>/dev/null || \
-    sudo systemctl restart "$SERVICE_MCP" 2>/dev/null || \
+{ sudo -n /usr/local/sbin/arkforge-run relance "$SERVICE_MCP" && sudo -n /usr/local/sbin/arkforge-run relance "$SERVICE_API"; } 2>/dev/null || \
     fail "Could not restart local services"
 sleep 3
 
@@ -286,8 +284,7 @@ done
 if [ "$LOCAL_HEALTHY" = false ]; then
     log "Phase 3b FAILED — local not healthy after restart"
     git reset --hard "$PREV_COMMIT" >> "$LOG_FILE" 2>&1
-    sudo systemctl restart "$SERVICE_MCP" "$SERVICE_API" 2>/dev/null || \
-        sudo systemctl restart "$SERVICE_MCP" 2>/dev/null || true
+    { sudo -n /usr/local/sbin/arkforge-run relance "$SERVICE_MCP" && sudo -n /usr/local/sbin/arkforge-run relance "$SERVICE_API"; } 2>/dev/null || true
     fail "Phase 3b FAILED — rolled back local to $PREV_COMMIT (OVH untouched)"
 fi
 log "Phase 3b OK — local healthy"
@@ -322,8 +319,7 @@ fi
 if [ "$CANARY_OK" = false ]; then
     log "Phase 3c FAILED — v2 canary check failed — rolling back local (OVH untouched)"
     git reset --hard "$PREV_COMMIT" >> "$LOG_FILE" 2>&1
-    sudo systemctl restart "$SERVICE_MCP" "$SERVICE_API" 2>/dev/null || \
-        sudo systemctl restart "$SERVICE_MCP" 2>/dev/null || true
+    { sudo -n /usr/local/sbin/arkforge-run relance "$SERVICE_MCP" && sudo -n /usr/local/sbin/arkforge-run relance "$SERVICE_API"; } 2>/dev/null || true
     fail "Phase 3c canary FAILED — rolled back local to $PREV_COMMIT"
 fi
 
@@ -336,7 +332,7 @@ if [ "$OVH_ENABLED" = false ]; then
     log "Phase 4: SKIPPED — MCP EU AI Act runs on local server only (OVH_ENABLED=false)"
 elif ssh -o ConnectTimeout=10 "$OVH_HOST" \
     "cd ${OVH_REPO} && git pull origin main && \
-     sudo systemctl restart mcp-eu-ai-act arkforge-euaiact-api" \
+     sudo -n /usr/local/sbin/arkforge-run relance mcp-eu-ai-act && sudo -n /usr/local/sbin/arkforge-run relance arkforge-euaiact-api" \
     >> "$LOG_FILE" 2>&1; then
     log "Phase 4: OVH deploy OK"
 else
