@@ -1,0 +1,21 @@
+name: Release SBOM
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - name: CycloneDX SBOM
+        run: |
+          pip install cyclonedx-bom
+          cyclonedx-py requirements requirements.lock --of JSON -o sbom.cdx.json
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: sbom.cdx.json
+          generate_release_notes: true

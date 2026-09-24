@@ -1,0 +1,3 @@
+# Reviewed 2026-09-24: a curl example in the docs and a fake key in a test.
+49aa2d3102fc73fd0c8ecb3a3339523e37cb6938:MCP_INTEGRATION.md:curl-auth-header:73
+49aa2d3102fc73fd0c8ecb3a3339523e37cb6938:tests/test_certify_report.py:generic-api-key:93
