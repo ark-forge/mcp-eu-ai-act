@@ -1,0 +1,7 @@
+# Reviewed 2026-09-24: a curl example in the docs and a fake key in a test.
+# Also: paywall_api.py (deleted) held a default for the Trust Layer internal secret on 2026-02-25/26; that value
+# is not the secret in service (sha256 compared on 2026-09-24, the secret was rotated since), and a curl example.
+5dc7b99a876fb052f9c13d69a60ea27ed1541e6f:paywall_api.py:generic-api-key:284
+9b0cd94b3230a5d95a29d4b65c0aac0bf2da3df9:tests/test_certify_report.py:generic-api-key:81
+c69884bde6b612442de8e9318d4ed9c0cbe4a7c9:MCP_INTEGRATION.md:curl-auth-header:69
+f4dabbfd6e850fb434e594f005113c8f28c82eec:paywall_api.py:curl-auth-header:728
