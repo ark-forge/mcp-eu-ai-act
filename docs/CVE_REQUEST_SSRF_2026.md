@@ -114,9 +114,9 @@ curl -X POST http://victim-server:8100/api/v1/scan-repo \
 
 ## Credits
 
-**Discovered and Reported by**: Syed Anas Mohiuddin  
+**Discovered and Reported by**: Syed Anas Mohiuddin (syed.anas.mohiuddin@gmail.com)  
 **Maintainer**: mcp-safeguard (open-source MCP security scanner)  
-**Affiliation**: Independent Security Researcher
+**Affiliation**: Independent Security Researcher & Maintainer of mcp-safeguard
 
 ---
 

@@ -5,17 +5,20 @@ straight into `git clone` behind a single startswith("https://") check, and git'
 stderr came back to the caller as a service-fingerprinting oracle.
 """
 
+import os
 import socket
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import server
-from server import _is_public_address, _validate_repo_url, _scan_repo_url
+from server import _is_public_address, _validate_repo_url, _scan_repo_url, _dir_size, _MAX_CLONE_BYTES
 
 
 def _fake_resolver(addr: str):
@@ -34,6 +37,7 @@ class TestIsPublicAddress:
         "::1", "fe80::1", "fc00::1",
         "::ffff:127.0.0.1",          # IPv4-mapped loopback
         "2002:7f00:1::",             # 6to4 wrapping 127.0.0.1
+        "2001:0000:4136:e378:8000:63bf:3f57:fefe",  # Teredo with private client 192.168.1.1
         "224.0.0.1", "240.0.0.1",
     ])
     def test_non_public_rejected(self, addr):
@@ -167,3 +171,24 @@ class TestScanRepoUrlGate:
         monkeypatch.setattr(subprocess, "run", slow)
         status, _ = _scan_repo_url("https://github.com/x/y.git")
         assert status == 408
+
+    def test_oversized_clone_rejected(self, monkeypatch):
+        """A repo that exceeds _MAX_CLONE_BYTES after clone is rejected with 413."""
+        monkeypatch.setattr(socket, "getaddrinfo", _fake_resolver("140.82.121.4"))
+        monkeypatch.setattr(subprocess, "run", lambda *a, **k: None)
+        monkeypatch.setattr(server, "_dir_size", lambda _: _MAX_CLONE_BYTES + 1)
+        status, body = _scan_repo_url("https://github.com/x/y.git")
+        assert status == 413
+        assert "too large" in body["error"].lower()
+
+    def test_clone_uses_single_branch(self, monkeypatch):
+        """--single-branch limits fetched refs to reduce clone size."""
+        monkeypatch.setattr(socket, "getaddrinfo", _fake_resolver("140.82.121.4"))
+        seen = {}
+
+        def capture(cmd, **kwargs):
+            seen["cmd"] = cmd
+            raise subprocess.CalledProcessError(128, "git", stderr="stop")
+        monkeypatch.setattr(subprocess, "run", capture)
+        _scan_repo_url("https://github.com/x/y.git")
+        assert "--single-branch" in seen["cmd"]
