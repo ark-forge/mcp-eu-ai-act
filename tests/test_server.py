@@ -1419,6 +1419,75 @@ class TestRateLimitMiddleware:
             srv._api_key_manager = original_mgr
             srv._rate_limiter = original_rl
 
+    @staticmethod
+    def _exhausted_limiter(tmp_path, monkeypatch, ip):
+        """A limiter persisted under tmp_path whose daily quota for ip is already spent
+        (the first request of the day always passes, whatever max_requests is)."""
+        monkeypatch.setattr(RateLimiter, "_PERSIST_PATH", tmp_path / "rate_limits.json")
+        rl = RateLimiter(max_requests=1)
+        rl._clients.clear()
+        rl.check(ip)
+        return rl
+
+    @pytest.mark.asyncio
+    async def test_scan_repo_pro_key_bypasses_rate_limit(self, tmp_path, captured_responses, monkeypatch):
+        """A valid API key on /api/v1/scan-repo skips the free tier limit and counts the scan."""
+        responses, send = captured_responses
+        keys_file = tmp_path / "keys.json"
+        keys_file.write_text(json.dumps({
+            "keys": [{"key": "pro_key_repo", "email": "pro@x.com", "active": True, "plan": "pro"}]
+        }))
+
+        import server as srv
+        monkeypatch.setattr(srv, "_api_key_manager", ApiKeyManager(path=keys_file, data_path=tmp_path / "no.json"))
+        monkeypatch.setattr(srv, "_rate_limiter", self._exhausted_limiter(tmp_path, monkeypatch, "127.0.0.1"))
+        scanned = []
+        monkeypatch.setattr(srv, "_scan_repo_url", lambda url: scanned.append(url) or (200, {"ok": True}))
+
+        middleware = RateLimitMiddleware(None)
+        scope = self._make_scope(path="/api/v1/scan-repo", headers=[(b"x-api-key", b"pro_key_repo")])
+        body = json.dumps({"repo_url": "https://github.com/x/y"}).encode()
+        await middleware(scope, self._make_receive(body), send)
+
+        assert responses[0]["status"] == 200
+        assert scanned == ["https://github.com/x/y"]
+        assert srv._api_key_manager.get_entry("pro_key_repo")["scans_total"] == 1
+
+    @pytest.mark.asyncio
+    async def test_scan_repo_invalid_key_rejected(self, captured_responses, monkeypatch):
+        """An unknown API key on /api/v1/scan-repo gets 401, not a free tier scan."""
+        responses, send = captured_responses
+
+        import server as srv
+        scanned = []
+        monkeypatch.setattr(srv, "_scan_repo_url", lambda url: scanned.append(url) or (200, {"ok": True}))
+
+        middleware = RateLimitMiddleware(None)
+        scope = self._make_scope(path="/api/v1/scan-repo", headers=[(b"x-api-key", b"no_such_key")])
+        body = json.dumps({"repo_url": "https://github.com/x/y"}).encode()
+        await middleware(scope, self._make_receive(body), send)
+
+        assert responses[0]["status"] == 401
+        assert scanned == []
+
+    @pytest.mark.asyncio
+    async def test_scan_repo_without_key_still_rate_limited(self, tmp_path, captured_responses, monkeypatch):
+        """Without a key, /api/v1/scan-repo keeps the free tier limit."""
+        responses, send = captured_responses
+
+        import server as srv
+        monkeypatch.setattr(srv, "_rate_limiter", self._exhausted_limiter(tmp_path, monkeypatch, "127.0.0.1"))
+        scanned = []
+        monkeypatch.setattr(srv, "_scan_repo_url", lambda url: scanned.append(url) or (200, {"ok": True}))
+
+        middleware = RateLimitMiddleware(None)
+        scope = self._make_scope(path="/api/v1/scan-repo")
+        body = json.dumps({"repo_url": "https://github.com/x/y"}).encode()
+        await middleware(scope, self._make_receive(body), send)
+
+        assert responses[0]["status"] == 429
+        assert scanned == []
+
     @pytest.mark.asyncio
     async def test_ip_from_x_forwarded_for_uses_last(self):
         """IP is extracted from last entry in X-Forwarded-For (closest proxy)."""

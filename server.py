@@ -932,8 +932,16 @@ def _is_public_address(raw_addr: str) -> bool:
     for wrapped in ("ipv4_mapped", "sixtofour", "teredo"):
         inner = getattr(addr, wrapped, None)
         if inner:
-            addr = inner[0] if isinstance(inner, tuple) else inner
-            break
+            # Teredo returns (server, client) — both must be public
+            addrs = inner if isinstance(inner, tuple) else (inner,)
+            for a in addrs:
+                if a.is_loopback or a.is_private or a.is_link_local:
+                    return False
+                if a.is_reserved or a.is_multicast or a.is_unspecified:
+                    return False
+                if not a.is_global:
+                    return False
+            return True
     if addr.is_loopback or addr.is_private or addr.is_link_local:
         return False
     if addr.is_reserved or addr.is_multicast or addr.is_unspecified:
@@ -981,6 +989,22 @@ def _validate_repo_url(repo_url: str) -> tuple:
     return True, ""
 
 
+_MAX_CLONE_BYTES = 512 * 1024 * 1024  # 512 MB — abort scan if clone exceeds this
+
+
+def _dir_size(path: str) -> int:
+    """Total bytes of all files under *path* (symlinks skipped)."""
+    total = 0
+    for dirpath, _dirnames, filenames in os.walk(path):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            try:
+                total += os.lstat(fp).st_size
+            except OSError:
+                pass
+    return total
+
+
 def _scan_repo_url(repo_url: str) -> tuple:
     """Shallow-clone a repo and run the EU AI Act scan on it.
     Blocking (DNS + git clone + filesystem scan) — call via asyncio.to_thread.
@@ -999,9 +1023,13 @@ def _scan_repo_url(repo_url: str) -> tuple:
     env = {**os.environ, "GIT_TERMINAL_PROMPT": "0", "GIT_ALLOW_PROTOCOL": "https"}
     try:
         subprocess.run(
-            ["git", "-c", "http.followRedirects=false", "clone", "--depth", "1", repo_url, clone_dir],
+            ["git", "-c", "http.followRedirects=false", "clone",
+             "--depth", "1", "--single-branch", repo_url, clone_dir],
             check=True, capture_output=True, text=True, timeout=60, env=env,
         )
+        clone_bytes = _dir_size(clone_dir)
+        if clone_bytes > _MAX_CLONE_BYTES:
+            return 413, {"error": f"Repository too large ({clone_bytes // (1024*1024)} MB, limit {_MAX_CLONE_BYTES // (1024*1024)} MB)"}
         checker = EUAIActChecker(clone_dir)
         scan_result = checker.scan_project()
         compliance = checker.check_compliance("limited")
@@ -1214,13 +1242,27 @@ class RateLimitMiddleware:
             if not ip:
                 client = scope.get("client")
                 ip = client[0] if client else "unknown"
-            allowed, remaining = _rate_limiter.check(ip)
-            if not allowed:
-                await self._json_response(send, 429, {
-                    "error": f"Free tier daily limit reached ({_rate_limiter.max_requests} scans/day)",
-                    "upgrade": FREE_TIER_BANNER,
-                }, self._rate_limit_headers(0))
-                return
+
+            # Extract API key (optional) — if provided and valid, bypass rate limiting
+            api_key = _extract_api_key(scope)
+            key_info = None
+            if api_key:
+                key_info = _api_key_manager.verify(api_key)
+                if not key_info:
+                    await self._json_response(send, 401, {"error": "Invalid or inactive API key"})
+                    return
+
+            # Rate limit only for unauthenticated requests (free tier)
+            allowed, remaining = True, _rate_limiter.max_requests - 1
+            if not key_info:
+                allowed, remaining = _rate_limiter.check(ip)
+                if not allowed:
+                    await self._json_response(send, 429, {
+                        "error": f"Free tier daily limit reached ({_rate_limiter.max_requests} scans/day)",
+                        "upgrade": FREE_TIER_BANNER,
+                    }, self._rate_limit_headers(0))
+                    return
+
             body_parts = []
             while True:
                 message = await receive()
@@ -1236,6 +1278,11 @@ class RateLimitMiddleware:
             if not repo_url:
                 await self._json_response(send, 400, {"error": "repo_url is required"})
                 return
+
+            # Track authenticated scans
+            if api_key:
+                _api_key_manager.increment_scans(api_key)
+
             # URL validation lives in _scan_repo_url: it needs DNS (blocking), and a
             # single gate on the function that clones cannot be walked around.
             status, payload = await asyncio.to_thread(_scan_repo_url, repo_url)
