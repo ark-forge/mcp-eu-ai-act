@@ -1242,13 +1242,27 @@ class RateLimitMiddleware:
             if not ip:
                 client = scope.get("client")
                 ip = client[0] if client else "unknown"
-            allowed, remaining = _rate_limiter.check(ip)
-            if not allowed:
-                await self._json_response(send, 429, {
-                    "error": f"Free tier daily limit reached ({_rate_limiter.max_requests} scans/day)",
-                    "upgrade": FREE_TIER_BANNER,
-                }, self._rate_limit_headers(0))
-                return
+
+            # Extract API key (optional) — if provided and valid, bypass rate limiting
+            api_key = _extract_api_key(scope)
+            key_info = None
+            if api_key:
+                key_info = _api_key_manager.verify(api_key)
+                if not key_info:
+                    await self._json_response(send, 401, {"error": "Invalid or inactive API key"})
+                    return
+
+            # Rate limit only for unauthenticated requests (free tier)
+            allowed, remaining = True, _rate_limiter.max_requests - 1
+            if not key_info:
+                allowed, remaining = _rate_limiter.check(ip)
+                if not allowed:
+                    await self._json_response(send, 429, {
+                        "error": f"Free tier daily limit reached ({_rate_limiter.max_requests} scans/day)",
+                        "upgrade": FREE_TIER_BANNER,
+                    }, self._rate_limit_headers(0))
+                    return
+
             body_parts = []
             while True:
                 message = await receive()
@@ -1264,6 +1278,11 @@ class RateLimitMiddleware:
             if not repo_url:
                 await self._json_response(send, 400, {"error": "repo_url is required"})
                 return
+
+            # Track authenticated scans
+            if api_key:
+                _api_key_manager.increment_scans(api_key)
+
             # URL validation lives in _scan_repo_url: it needs DNS (blocking), and a
             # single gate on the function that clones cannot be walked around.
             status, payload = await asyncio.to_thread(_scan_repo_url, repo_url)
