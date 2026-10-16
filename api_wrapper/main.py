@@ -30,11 +30,24 @@ from typing import Optional
 def _load_stripe_config() -> dict:
     """Load Stripe config from vault, falling back to environment variables."""
     try:
-        _vault_parent = str(Path(__file__).resolve().parent.parent.parent.parent.parent)
+        _vault_parent = os.environ.get("VAULT_PATH") or str(
+            Path(__file__).resolve().parent.parent.parent.parent.parent)
         if _vault_parent not in sys.path:
             sys.path.insert(0, _vault_parent)
-        from automation.vault import vault
-        s = vault.get_section('stripe') or {}
+        from automation import vault as _vault_mod
+        # Under a dedicated system user the vault files are not readable: systemd
+        # hands them over as credentials (LoadCredential=vault.json.enc, vault_key).
+        # The master key is only in the environment while the section loads.
+        creds = Path(os.environ.get("CREDENTIALS_DIRECTORY", "/nonexistent"))
+        from_creds = (creds / "vault.json.enc").exists() and (creds / "vault_key").exists()
+        if from_creds:
+            _vault_mod.VAULT_FILE = creds / "vault.json.enc"
+            os.environ["VAULT_MASTER_KEY"] = (creds / "vault_key").read_text().strip()
+        try:
+            s = _vault_mod.vault.get_section('stripe') or {}
+        finally:
+            if from_creds:
+                os.environ.pop("VAULT_MASTER_KEY", None)
         mode = s.get('mode', 'live')
         return {
             'secret_key': s.get('live_secret_key') if mode == 'live' else s.get('test_secret_key'),
