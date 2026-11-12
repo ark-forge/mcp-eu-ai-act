@@ -26,7 +26,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Optional
 
-# --- Vault loader (graceful fallback to env vars) ---
+# --- Vault loader (graceful fallback to env vars, only without systemd credentials) ---
 def _stripe_from_section(s: dict) -> dict:
     mode = s.get('mode', 'live')
     return {
@@ -46,7 +46,14 @@ def _load_stripe_config(vault_parent: Optional[str] = None) -> dict:
     historical location relative to this file).
     """
     creds = Path(os.environ.get('CREDENTIALS_DIRECTORY', '/nonexistent'))
-    from_creds = (creds / 'vault.json.enc').exists() and (creds / 'vault_key').exists()
+    has_vault = (creds / 'vault.json.enc').exists()
+    has_key = (creds / 'vault_key').exists()
+    if has_vault != has_key:
+        # Half-configured credentials: never fall back silently to the environment.
+        raise RuntimeError(
+            'Stripe config: credentials directory has only one of vault.json.enc / vault_key; refusing to start'
+        )
+    from_creds = has_vault and has_key
     try:
         if vault_parent is None:
             vault_parent = str(Path(__file__).resolve().parent.parent.parent.parent.parent)
@@ -60,10 +67,11 @@ def _load_stripe_config(vault_parent: Optional[str] = None) -> dict:
             s = dict(_vault_mod.vault.get_section('stripe') or {})
         finally:
             if from_creds:
+                # Keep nothing of the decrypted vault or the master key.
                 os.environ.pop('VAULT_MASTER_KEY', None)
-        if from_creds and not s.get('live_secret_key' if s.get('mode', 'live') == 'live' else 'test_secret_key'):
-            raise RuntimeError('stripe section empty or without secret key')
-        return _stripe_from_section(s)
+                _vault_mod.vault._data = None
+                _vault_mod.vault._fernet = None
+        cfg = _stripe_from_section(s)
     except Exception as e:
         if from_creds:
             raise RuntimeError(
@@ -76,6 +84,11 @@ def _load_stripe_config(vault_parent: Optional[str] = None) -> dict:
             'price_pro': os.environ.get('STRIPE_PRICE_PRO'),
             'price_certified': os.environ.get('STRIPE_PRICE_CERTIFIED'),
         }
+    if from_creds:
+        for field in ('secret_key', 'webhook_secret'):
+            if not cfg.get(field):
+                raise RuntimeError(f'Stripe config from credentials: missing {field}; refusing to start')
+    return cfg
 
 _STRIPE = _load_stripe_config()
 

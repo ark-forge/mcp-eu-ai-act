@@ -11,7 +11,6 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import server as server_module
 from server import ApiKeyManager
 
 STUB_VAULT = '''
@@ -23,11 +22,25 @@ seen = []
 
 
 class _Vault:
+    # Mirrors automation/vault.py: lazy singleton caching _fernet then _data.
+    def __init__(self):
+        self._fernet = None
+        self._data = None
+
+    def _ensure_loaded(self):
+        if self._data is not None:
+            return
+        key = os.environ.get("VAULT_MASTER_KEY")
+        self._fernet = ("fernet", key)
+        if key != "stub-master-key":
+            raise RuntimeError("bad master key")
+        self._data = json.loads(Path(VAULT_FILE).read_text())
+
     def get_section(self, name):
         seen.append((str(VAULT_FILE), os.environ.get("VAULT_MASTER_KEY")))
-        if os.environ.get("VAULT_MASTER_KEY") != "stub-master-key":
-            raise RuntimeError("bad master key")
-        return json.loads(Path(VAULT_FILE).read_text()).get(name)
+        self._ensure_loaded()
+        sec = self._data.get(name)
+        return dict(sec) if sec else {}
 
 
 vault = _Vault()
@@ -96,10 +109,10 @@ def wrapper(monkeypatch):
     monkeypatch.delenv("CREDENTIALS_DIRECTORY", raising=False)
     for m in [m for m in sys.modules if m == "automation" or m.startswith("automation.")]:
         monkeypatch.delitem(sys.modules, m)
+    monkeypatch.setattr(sys, "path", list(sys.path))
     yield main_mod
     for m in [m for m in sys.modules if m == "automation" or m.startswith("automation.")]:
         sys.modules.pop(m, None)
-    sys.path[:] = [p for p in sys.path if "vault_parent" not in p]
 
 
 def _vault_parent(tmp_path):
@@ -113,7 +126,7 @@ def _vault_parent(tmp_path):
 def _creds(tmp_path, stripe_section):
     creds = tmp_path / "creds"
     creds.mkdir()
-    (creds / "vault.json.enc").write_text(json.dumps({"stripe": stripe_section}))
+    (creds / "vault.json.enc").write_text(json.dumps({"stripe": stripe_section, "other": {"pw": "other_stub"}}))
     (creds / "vault_key").write_text("stub-master-key\n")
     return creds
 
@@ -144,16 +157,76 @@ def test_stripe_loaded_from_credentials_directory(tmp_path, wrapper, monkeypatch
     assert vault_mod.seen == [(str(creds / "vault.json.enc"), "stub-master-key")]
 
 
-@pytest.mark.parametrize("section", [{}, None, {"mode": "live"}], ids=["empty", "null", "no-secret-key"])
-def test_empty_stripe_section_under_credentials_fails_closed(tmp_path, wrapper, monkeypatch, section):
+@pytest.mark.parametrize(
+    "section, field",
+    [
+        ({}, "secret_key"),
+        (None, "secret_key"),
+        ({"mode": "live"}, "secret_key"),
+        ({"live_secret_key": "sk_live_stub"}, "webhook_secret"),
+        ({"mode": "test", "live_secret_key": "sk_live_stub"}, "secret_key"),
+        ({"mode": "test", "test_secret_key": "sk_test_stub"}, "webhook_secret"),
+    ],
+    ids=["empty", "null", "no-secret-key", "no-webhook-secret", "test-mode-live-key-only", "test-mode-no-webhook"],
+)
+def test_empty_stripe_section_under_credentials_fails_closed(tmp_path, wrapper, monkeypatch, section, field):
     parent = _vault_parent(tmp_path)
     creds = _creds(tmp_path, section)
     monkeypatch.setenv("CREDENTIALS_DIRECTORY", str(creds))
     monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_from_env_must_not_win")
     with pytest.raises(RuntimeError) as exc:
         wrapper._load_stripe_config(vault_parent=str(parent))
-    assert "sk_from_env_must_not_win" not in str(exc.value)
+    msg = str(exc.value)
+    assert "missing" in msg and field in msg
+    assert "sk_from_env_must_not_win" not in msg and "sk_live_stub" not in msg and "sk_test_stub" not in msg
     assert "VAULT_MASTER_KEY" not in os.environ
+
+
+def test_test_mode_under_credentials_uses_test_keys(tmp_path, wrapper, monkeypatch):
+    parent = _vault_parent(tmp_path)
+    creds = _creds(tmp_path, {
+        "mode": "test",
+        "live_secret_key": "sk_live_stub",
+        "test_secret_key": "sk_test_stub",
+        "webhook_secret_test": "whsec_test_stub",
+    })
+    monkeypatch.setenv("CREDENTIALS_DIRECTORY", str(creds))
+    cfg = wrapper._load_stripe_config(vault_parent=str(parent))
+    assert cfg["secret_key"] == "sk_test_stub"
+    assert cfg["webhook_secret"] == "whsec_test_stub"
+
+
+def test_decrypted_vault_not_retained_after_credentials_load(tmp_path, wrapper, monkeypatch):
+    parent = _vault_parent(tmp_path)
+    creds = _creds(tmp_path, FULL_SECTION)
+    monkeypatch.setenv("CREDENTIALS_DIRECTORY", str(creds))
+    wrapper._load_stripe_config(vault_parent=str(parent))
+    vault = sys.modules["automation.vault"].vault
+    assert vault._data is None
+    assert vault._fernet is None
+
+
+@pytest.mark.parametrize("present", ["vault.json.enc", "vault_key"])
+def test_half_configured_credentials_fail_closed(tmp_path, wrapper, monkeypatch, present):
+    creds = tmp_path / "creds"
+    creds.mkdir()
+    (creds / present).write_text("x")
+    monkeypatch.setenv("CREDENTIALS_DIRECTORY", str(creds))
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_from_env_must_not_win")
+    with pytest.raises(RuntimeError) as exc:
+        wrapper._load_stripe_config(vault_parent=str(_vault_parent(tmp_path)))
+    assert "sk_from_env_must_not_win" not in str(exc.value)
+    assert "automation.vault" not in sys.modules  # vault never imported or read
+
+
+def test_credentials_directory_without_either_file_falls_back_to_env(tmp_path, wrapper, monkeypatch):
+    creds = tmp_path / "creds"
+    creds.mkdir()
+    monkeypatch.setenv("CREDENTIALS_DIRECTORY", str(creds))
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_env")
+    empty = tmp_path / "empty_parent"
+    empty.mkdir()
+    assert wrapper._load_stripe_config(vault_parent=str(empty))["secret_key"] == "sk_env"
 
 
 def test_unreadable_vault_under_credentials_fails_closed(tmp_path, wrapper, monkeypatch):
@@ -165,6 +238,8 @@ def test_unreadable_vault_under_credentials_fails_closed(tmp_path, wrapper, monk
         wrapper._load_stripe_config(vault_parent=str(parent))
     assert "wrong-key-value" not in str(exc.value)
     assert "VAULT_MASTER_KEY" not in os.environ
+    vault = sys.modules["automation.vault"].vault
+    assert vault._data is None and vault._fernet is None
 
 
 def test_without_credentials_behaviour_unchanged(tmp_path, wrapper, monkeypatch):
