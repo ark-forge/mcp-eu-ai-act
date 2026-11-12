@@ -66,7 +66,7 @@ class ApiKeyManager:
     def _reload(self):
         """Reload keys from both files (cached for 60s)."""
         merged: Dict[str, Dict] = {}
-        for path in [self._path, self._data_path]:
+        for path, level in [(self._path, logging.WARNING), (self._data_path, logging.ERROR)]:
             try:
                 data = json.loads(path.read_text())
                 # List format: {"keys": [{"key": "...", ...}]}
@@ -81,6 +81,9 @@ class ApiKeyManager:
                         merged[api_key] = info
             except (FileNotFoundError, json.JSONDecodeError, KeyError):
                 pass
+            except OSError as e:
+                # Unreadable (not merely absent): never crash the import, never log content.
+                logger.log(level, "Cannot read API keys file %s (errno=%s); ignoring it", path, e.errno)
         self._keys = merged
         self._loaded_at = time.time()
 
@@ -107,6 +110,8 @@ class ApiKeyManager:
         fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
         try:
             with os.fdopen(fd, "w") as f:
+                # mkstemp creates 0600; the sibling service user shares data/ via the group.
+                os.fchmod(f.fileno(), 0o660)
                 json.dump(data, f, indent=2)
             os.replace(tmp, path)
         except BaseException:

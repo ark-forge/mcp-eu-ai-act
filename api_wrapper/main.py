@@ -26,23 +26,57 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Optional
 
-# --- Vault loader (graceful fallback to env vars) ---
-def _load_stripe_config() -> dict:
-    """Load Stripe config from vault, falling back to environment variables."""
+# --- Vault loader (graceful fallback to env vars, only without systemd credentials) ---
+def _stripe_from_section(s: dict) -> dict:
+    mode = s.get('mode', 'live')
+    return {
+        'secret_key': s.get('live_secret_key') if mode == 'live' else s.get('test_secret_key'),
+        'webhook_secret': s.get('mcp_webhook_secret') if mode == 'live' else s.get('webhook_secret_test'),
+        'price_pro': s.get('mcp_pro_price_id'),
+        'price_certified': s.get('mcp_certified_price_id'),
+    }
+
+
+def _load_stripe_config(vault_parent: Optional[str] = None) -> dict:
+    """Load Stripe config from the vault, falling back to environment variables.
+
+    Under systemd credentials ($CREDENTIALS_DIRECTORY holds vault.json.enc and
+    vault_key) the vault is mandatory: any failure raises instead of falling back.
+    `vault_parent` is the directory holding the `automation` package (default: the
+    historical location relative to this file).
+    """
+    creds = Path(os.environ.get('CREDENTIALS_DIRECTORY', '/nonexistent'))
+    has_vault = (creds / 'vault.json.enc').exists()
+    has_key = (creds / 'vault_key').exists()
+    if has_vault != has_key:
+        # Half-configured credentials: never fall back silently to the environment.
+        raise RuntimeError(
+            'Stripe config: credentials directory has only one of vault.json.enc / vault_key; refusing to start'
+        )
+    from_creds = has_vault and has_key
     try:
-        _vault_parent = str(Path(__file__).resolve().parent.parent.parent.parent.parent)
-        if _vault_parent not in sys.path:
-            sys.path.insert(0, _vault_parent)
-        from automation.vault import vault
-        s = vault.get_section('stripe') or {}
-        mode = s.get('mode', 'live')
-        return {
-            'secret_key': s.get('live_secret_key') if mode == 'live' else s.get('test_secret_key'),
-            'webhook_secret': s.get('mcp_webhook_secret') if mode == 'live' else s.get('webhook_secret_test'),
-            'price_pro': s.get('mcp_pro_price_id'),
-            'price_certified': s.get('mcp_certified_price_id'),
-        }
-    except Exception:
+        if vault_parent is None:
+            vault_parent = str(Path(__file__).resolve().parent.parent.parent.parent.parent)
+        if vault_parent not in sys.path:
+            sys.path.insert(0, vault_parent)
+        from automation import vault as _vault_mod
+        if from_creds:
+            _vault_mod.VAULT_FILE = creds / 'vault.json.enc'
+            os.environ['VAULT_MASTER_KEY'] = (creds / 'vault_key').read_text().strip()
+        try:
+            s = dict(_vault_mod.vault.get_section('stripe') or {})
+        finally:
+            if from_creds:
+                # Keep nothing of the decrypted vault or the master key.
+                os.environ.pop('VAULT_MASTER_KEY', None)
+                _vault_mod.vault._data = None
+                _vault_mod.vault._fernet = None
+        cfg = _stripe_from_section(s)
+    except Exception as e:
+        if from_creds:
+            raise RuntimeError(
+                f'Stripe config unreadable from credentials directory ({type(e).__name__}); refusing to start'
+            ) from None
         # Fallback to environment variables
         return {
             'secret_key': os.environ.get('STRIPE_SECRET_KEY'),
@@ -50,6 +84,11 @@ def _load_stripe_config() -> dict:
             'price_pro': os.environ.get('STRIPE_PRICE_PRO'),
             'price_certified': os.environ.get('STRIPE_PRICE_CERTIFIED'),
         }
+    if from_creds:
+        for field in ('secret_key', 'webhook_secret'):
+            if not cfg.get(field):
+                raise RuntimeError(f'Stripe config from credentials: missing {field}; refusing to start')
+    return cfg
 
 _STRIPE = _load_stripe_config()
 
@@ -80,8 +119,10 @@ def _load_json(path: Path, default=None):
     if path.exists():
         try:
             return json.loads(path.read_text())
-        except (json.JSONDecodeError, OSError):
+        except json.JSONDecodeError:
             pass
+        except OSError as e:
+            logger.error("Cannot read %s (errno=%s); using default", path, e.errno)
     return default
 
 
