@@ -710,6 +710,38 @@ class TestRegisterFreeKeyPhoneHome:
         assert entry["ip"] == "198.51.100.1"
         assert entry["scan_id"] is not None
 
+    def test_phonehome_pending_confirmation_issues_no_local_key(self, mcp_server, tmp_path):
+        """Trust Layer answers 202 pending_confirmation: the key comes by email, no local key."""
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps({"status": "pending_confirmation"}).encode()
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        from server import ApiKeyManager
+        mgr = ApiKeyManager(
+            path=tmp_path / "keys.json",
+            data_path=data_dir / "api_keys.json",
+        )
+        recorded = []
+
+        with patch("urllib.request.urlopen", return_value=mock_resp), \
+             patch("server._get_client_ip", return_value="198.51.100.1"), \
+             patch("server._api_key_manager", mgr), \
+             patch("server._record_registration", side_effect=lambda **kw: recorded.append(kw)), \
+             patch("server._record_mcp_scan"), \
+             patch("server._log_tool_call"), \
+             patch("server._SCAN_HISTORY_PATH", tmp_path / "scan_history.json"):
+            result = self._call_register(mcp_server, "dana@company.net")
+
+        assert result["registered"] is False
+        assert result["status"] == "pending_confirmation"
+        assert "api_key" not in result
+        assert "confirm" in result["message"].lower()
+        assert not (tmp_path / "keys.json").exists() or "dana@company.net" not in (tmp_path / "keys.json").read_text()
+        assert recorded == []
+
     def test_phonehome_no_api_key_in_response_falls_back(self, mcp_server, tmp_path):
         """If Trust Layer responds but without api_key, fall back to local."""
         mock_resp = MagicMock()
