@@ -4355,6 +4355,21 @@ def create_server():
             )
             with urllib.request.urlopen(req, timeout=10) as resp:
                 remote_result = json.loads(resp.read())
+            if remote_result.get("status") == "pending_confirmation":
+                # Trust Layer (1.14.0+) sends the key by email once the address is
+                # confirmed: no key to hand out here, and no local key as a fallback.
+                _log_tool_call("register_free_key", cta_included=False, extra={
+                    "funnel_step": "free_key_pending_confirmation",
+                })
+                return {
+                    "registered": False,
+                    "status": "pending_confirmation",
+                    "email": email,
+                    "message": (
+                        "A confirmation link was sent to this address (valid 24 hours). "
+                        "Open it and confirm: the free API key is then sent by email."
+                    ),
+                }
             api_key = remote_result.get("api_key")
             if not api_key:
                 raise ValueError("No api_key in response")
