@@ -8,7 +8,7 @@
 #   --skip-smoke   Skip post-deploy smoke test (use for emergency hotfixes)
 #
 # Staged rollout:
-#   Phase 1  — Gates (CI, pytest + coverage, backward-compat, smoke pre-deploy)
+#   Phase 1  — Gates (CI incl. tests and coverage, smoke pre-deploy)
 #   Phase 2  — Version bump (pyproject.toml + server.py if __version__ present)
 #   Phase 3  — Deploy local (systemctl restart + health check × 3 + canary v2 check)
 #   Phase 4  — Deploy OVH (git pull + systemctl restart + health check × 6)
@@ -124,24 +124,10 @@ else
     log "Gate 1/4: CI bypassed (--force)"
 fi
 
-# Gate 2 — pytest + coverage 80%
-log "Gate 2/4: pytest + coverage 80%..."
-if ! python3 -m pytest tests/ -q --cov=. --cov-fail-under=80 \
-        --ignore=tests/test_integration.py --tb=short >> "$LOG_FILE" 2>&1; then
-    fail "pytest gate FAILED (coverage < 80% or tests failing)"
-fi
-log "Gate 2/4: pytest OK (coverage >= 80%)"
-
-# Gate 3 — backward-compat
-log "Gate 3/4: backward-compat tests..."
-if [ -f "tests/test_backward_compat.py" ]; then
-    if ! python3 -m pytest tests/test_backward_compat.py -q --tb=short >> "$LOG_FILE" 2>&1; then
-        fail "Backward-compat gate FAILED"
-    fi
-    log "Gate 3/4: backward-compat OK"
-else
-    log "Gate 3/4: tests/test_backward_compat.py not found — skipping (WARNING)"
-fi
+# Gates 2-3 (pytest + coverage 80%, backward-compat) are enforced by the CI run checked in
+# gate 1 (Tests & Coverage on 3.10-3.12). They are not rerun on the host: the host python has
+# no pytest-cov, and this script runs them before the pull, i.e. against the code being replaced.
+log "Gates 2-3: tests and coverage are covered by the CI gate"
 
 # Gate 4 — smoke pre-deploy (only if service is running)
 log "Gate 4/4: smoke pre-deploy health check..."
