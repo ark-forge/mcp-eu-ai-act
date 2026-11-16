@@ -5,6 +5,17 @@ All notable changes to the EU AI Act Compliance Scanner MCP Server will be docum
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.40] - 2026-11-16
+
+### Security
+- Patched dependencies (mcp, PyJWT, urllib3, certifi) from the hash lock; the production venv is rebuilt from `requirements.lock`.
+- SSRF hardening: both Teredo endpoints checked, clone size capped, Apify actor hardened.
+
+### Changed
+- `register_free_key` handles the Trust Layer 202 `pending_confirmation` answer (the key is mailed after address confirmation; no local fallback key).
+- A valid API key skips the free tier limit on `/api/v1/scan-repo`.
+- `deploy_mcp_eu_ai_act.sh` no longer pushes to main: version and changelog come from the reviewed PR.
+
 ## [2.0.39] - 2026-09-01
 
 ### Security
