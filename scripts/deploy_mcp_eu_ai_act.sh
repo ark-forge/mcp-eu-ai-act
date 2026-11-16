@@ -1,14 +1,11 @@
 #!/usr/bin/env bash
 # deploy_mcp_eu_ai_act.sh — Deploy MCP EU AI Act to production with gates + staged rollout + rollback
 #
-# Usage: ./scripts/deploy_mcp_eu_ai_act.sh [--minor|--major] [--force] [--skip-smoke]
+# Usage: ./scripts/deploy_mcp_eu_ai_act.sh [--force] [--skip-smoke]
 #
 # Flags:
 #   --force        Bypass CI GitHub check
 #   --skip-smoke   Skip post-deploy smoke test (use for emergency hotfixes)
-#   --minor        Bump minor version (1.0.x → 1.1.0)
-#   --major        Bump major version (1.x.x → 2.0.0)
-#   (default)      Bump patch (1.0.2 → 1.0.3)
 #
 # Staged rollout:
 #   Phase 1  — Gates (CI, pytest + coverage, backward-compat, smoke pre-deploy)
@@ -34,13 +31,10 @@ LOG_FILE="/opt/claude-ceo/logs/deploy_mcp_eu_ai_act.log"
 SMOKE_TEST_SCRIPT="$REPO_DIR/scripts/smoke_test_mcp_prod.py"
 
 # --- Args ---
-VERSION_BUMP="patch"
 FORCE_CI=false
 SKIP_SMOKE=false
 for arg in "$@"; do
     case "$arg" in
-        --minor)      VERSION_BUMP="minor" ;;
-        --major)      VERSION_BUMP="major" ;;
         --force)      FORCE_CI=true ;;
         --skip-smoke) SKIP_SMOKE=true ;;
     esac
@@ -78,19 +72,6 @@ print(t.get('chat_ids', ''))
     done
 }
 
-# --- Version bump helper ---
-bump_version() {
-    local current="$1" bump="$2"
-    local major minor patch
-    major=$(echo "$current" | cut -d. -f1 | tr -d 'v')
-    minor=$(echo "$current" | cut -d. -f2)
-    patch=$(echo "$current" | cut -d. -f3)
-    case "$bump" in
-        major) echo "$((major + 1)).0.0" ;;
-        minor) echo "${major}.$((minor + 1)).0" ;;
-        patch) echo "${major}.${minor}.$((patch + 1))" ;;
-    esac
-}
 
 # --- Rollback helper ---
 rollback_both() {
@@ -118,7 +99,7 @@ if [ "$CURRENT_BRANCH" != "main" ]; then
 fi
 
 log "=== MCP EU AI Act Deploy — $(date -u) ==="
-log "Branch: main | Version bump: $VERSION_BUMP | Force CI: $FORCE_CI | Skip smoke: $SKIP_SMOKE"
+log "Branch: main | Force CI: $FORCE_CI | Skip smoke: $SKIP_SMOKE"
 
 # ============================================================
 # PHASE 1 — GATES
@@ -195,42 +176,28 @@ CURRENT_VERSION=$(grep -oP '(?<=^version = ")[^"]+' pyproject.toml 2>/dev/null |
 if [ -z "$CURRENT_VERSION" ]; then
     fail "Could not read version from pyproject.toml"
 fi
-NEW_VERSION=$(bump_version "$CURRENT_VERSION" "$VERSION_BUMP")
-log "Version: $CURRENT_VERSION → $NEW_VERSION"
-
-# Build changelog and save rollback point BEFORE any changes
+# The release version is bumped and the CHANGELOG entry written in a reviewed PR
+# (main is protected: this script never pushes to it). We deploy what main carries.
 LAST_TAG=$(git tag --sort=-v:refname | head -1)
 if [ -z "$LAST_TAG" ]; then LAST_TAG="v0.0.0"; fi
-NEW_TAG="v${NEW_VERSION}"
-CHANGELOG=$(git log "${LAST_TAG}..HEAD" --oneline --no-merges 2>/dev/null | head -20 | sed 's/^/• /' || echo "• No changelog available")
 
 PREV_COMMIT=$(git rev-parse HEAD)
 log "Previous commit (rollback point): $PREV_COMMIT"
 
-# Pull to avoid redundant bumps
-git pull origin main >> "$LOG_FILE" 2>&1
+git pull --ff-only origin main >> "$LOG_FILE" 2>&1
+git fetch --tags -q origin >> "$LOG_FILE" 2>&1
+LAST_TAG=$(git tag --sort=-v:refname | head -1)
 
-# Re-read in case origin already had a bump
-CURRENT_VERSION=$(grep -oP '(?<=^version = ")[^"]+' pyproject.toml 2>/dev/null || echo "$CURRENT_VERSION")
-if [ "$CURRENT_VERSION" != "$NEW_VERSION" ]; then
-    sed -i "s/^version = .*/version = \"$NEW_VERSION\"/" pyproject.toml
-
-    # Update __version__ in server.py if it exists
-    if grep -q '__version__' server.py 2>/dev/null; then
-        sed -i "s/^__version__ = .*/__version__ = \"$NEW_VERSION\"/" server.py
-        git add pyproject.toml server.py
-        log "Version bumped in pyproject.toml + server.py"
-    else
-        git add pyproject.toml
-        log "Version bumped in pyproject.toml (no __version__ in server.py)"
-    fi
-
-    git commit -m "chore: bump version to $NEW_VERSION" >> "$LOG_FILE" 2>&1
-    git push origin main >> "$LOG_FILE" 2>&1
-    log "Version commit pushed"
-else
-    log "Version already at $NEW_VERSION — no bump needed"
-fi
+NEW_VERSION=$(grep -oP '(?<=^version = ")[^"]+' pyproject.toml 2>/dev/null || echo "")
+[ -n "$NEW_VERSION" ] || fail "Could not read version from pyproject.toml"
+CURRENT_VERSION="${LAST_TAG#v}"
+NEW_TAG="v${NEW_VERSION}"
+[ "$(printf '%s\n%s\n' "$CURRENT_VERSION" "$NEW_VERSION" | sort -V | tail -1)" = "$NEW_VERSION" ] \
+    && [ "$NEW_VERSION" != "$CURRENT_VERSION" ] \
+    || fail "pyproject version $NEW_VERSION is not above last tag $LAST_TAG: bump it in a PR first"
+grep -q "^## \[$NEW_VERSION\]" CHANGELOG.md || fail "CHANGELOG.md has no entry for $NEW_VERSION"
+log "Version: $CURRENT_VERSION → $NEW_VERSION"
+CHANGELOG=$(git log "${LAST_TAG}..HEAD" --oneline --no-merges 2>/dev/null | head -20 | sed 's/^/• /' || echo "• No changelog available")
 
 NEW_COMMIT=$(git rev-parse HEAD)
 log "Local commit: $NEW_COMMIT"
@@ -437,23 +404,6 @@ fi
 # PHASE 6 — RELEASE
 # ============================================================
 log "--- Phase 6: Release ---"
-
-# Update CHANGELOG.md before tagging
-CHANGELOG_SCRIPT="$REPO_DIR/scripts/update_changelog.py"
-if [ -f "$CHANGELOG_SCRIPT" ]; then
-    if python3 "$CHANGELOG_SCRIPT" HEAD "$LAST_TAG" "$NEW_TAG" >> "$LOG_FILE" 2>&1; then
-        git add CHANGELOG.md
-        git diff --cached --quiet || {
-            git commit -m "docs(changelog): $NEW_TAG [skip ci]" >> "$LOG_FILE" 2>&1
-            git push origin main >> "$LOG_FILE" 2>&1
-            log "CHANGELOG.md committed to main"
-        }
-    else
-        log "WARN: update_changelog.py failed — skipping CHANGELOG commit"
-    fi
-else
-    log "WARN: update_changelog.py not found at $CHANGELOG_SCRIPT — skipping"
-fi
 
 git tag "$NEW_TAG"
 git push origin "$NEW_TAG" >> "$LOG_FILE" 2>&1
